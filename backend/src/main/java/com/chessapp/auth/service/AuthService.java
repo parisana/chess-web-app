@@ -1,8 +1,10 @@
 package com.chessapp.auth.service;
 
+import com.chessapp.auth.dto.LoginRequest;
 import com.chessapp.auth.dto.RegisterRequest;
 import com.chessapp.auth.dto.RegisterResponse;
 import com.chessapp.auth.entity.AuthCredential;
+import com.chessapp.auth.exception.InvalidCredentialsException;
 import com.chessapp.auth.repository.AuthCredentialRepository;
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.service.PlayerService;
@@ -45,5 +47,26 @@ public class AuthService {
                 player.username(),
                 player.email()
         );
+    }
+    @Transactional(readOnly = true)
+    public PlayerResponse authenticate(LoginRequest request) {
+        PlayerResponse player = playerService
+                .findByEmail(request.email())
+                .orElseThrow(InvalidCredentialsException::new);
+
+        AuthCredential credential = credentialRepository
+                .findByPlayerId(player.id())
+                .orElseThrow(InvalidCredentialsException::new);
+
+        boolean passwordMatches = passwordEncoder.matches(
+                request.password(),
+                credential.getPasswordHash()
+        );
+
+        if (!passwordMatches) {
+            throw new InvalidCredentialsException();
+        }
+
+        return player;
     }
 }

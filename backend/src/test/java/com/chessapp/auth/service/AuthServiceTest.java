@@ -1,8 +1,10 @@
 package com.chessapp.auth.service;
 
+import com.chessapp.auth.dto.LoginRequest;
 import com.chessapp.auth.dto.RegisterRequest;
 import com.chessapp.auth.dto.RegisterResponse;
 import com.chessapp.auth.entity.AuthCredential;
+import com.chessapp.auth.exception.InvalidCredentialsException;
 import com.chessapp.auth.repository.AuthCredentialRepository;
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.service.PlayerService;
@@ -14,6 +16,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -89,11 +93,7 @@ class AuthServiceTest {
 //    verifies exception propagation, not transaction rollback. Rollback requires a Spring-managed transaction and an actual database integration test.
     @Test
     void register_propagatesCredentialPersistenceFailure() {
-        PlayerResponse player = new PlayerResponse(
-                1L,
-                request.username(),
-                request.email()
-        );
+        PlayerResponse player = stubPlayerResponse(1L);
 
         when(playerService.createPlayer(
                 request.username(),
@@ -109,6 +109,97 @@ class AuthServiceTest {
         assertThrows(
                 IllegalStateException.class,
                 () -> authService.register(request)
+        );
+    }
+
+    private PlayerResponse stubPlayerResponse(long id) {
+        return new PlayerResponse(
+                id,
+                request.username(),
+                request.email()
+        );
+    }
+
+    @Test
+    void authenticate_returnsPlayerForValidCredentials() {
+        PlayerResponse player = stubPlayerResponse(1L);
+
+        when(playerService.findByEmail(request.email()))
+                .thenReturn(Optional.of(player));
+
+        when(credentialRepository.findByPlayerId(1L))
+                .thenReturn(Optional.of(
+                        new AuthCredential(1L, "stored-hash")
+                ));
+
+        when(passwordEncoder.matches(request.password(), "stored-hash"))
+                .thenReturn(true);
+
+        PlayerResponse result = authService.authenticate(
+                new LoginRequest(request.email(), request.password())
+        );
+
+        assertEquals(player, result);
+        // verifies the encoder.matches() was called exactly once
+        verify(passwordEncoder).matches(
+                request.password(),
+                "stored-hash"
+        );
+    }
+
+    @Test
+    void authenticate_rejectsUnknownEmail() {
+        when(playerService.findByEmail(request.email()))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                InvalidCredentialsException.class,
+                () -> authService.authenticate(
+                        new LoginRequest(request.email(), request.password())
+                )
+        );
+
+        verifyNoInteractions(credentialRepository);
+    }
+
+    @Test
+    void authenticate_rejectsMissingLocalCredentials() {
+        PlayerResponse player = stubPlayerResponse(1L);
+
+        when(playerService.findByEmail(request.email()))
+                .thenReturn(Optional.of(player));
+
+        when(credentialRepository.findByPlayerId(1L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                InvalidCredentialsException.class,
+                () -> authService.authenticate(
+                        new LoginRequest(request.email(), request.password())
+                )
+        );
+    }
+
+    @Test
+    void authenticate_rejectsIncorrectPassword() {
+        PlayerResponse player = stubPlayerResponse(1L);
+
+        when(playerService.findByEmail(request.email()))
+                .thenReturn(Optional.of(player));
+
+        when(credentialRepository.findByPlayerId(1L))
+                .thenReturn(Optional.of(
+                        new AuthCredential(1L, "stored-hash")
+                ));
+
+        when(passwordEncoder.matches("wrong-password", "stored-hash"))
+                .thenReturn(false);
+
+        assertThrows(
+                InvalidCredentialsException.class,
+                () -> authService.authenticate(
+                        new LoginRequest(request.email(), "wrong-password")
+                )
         );
     }
 }

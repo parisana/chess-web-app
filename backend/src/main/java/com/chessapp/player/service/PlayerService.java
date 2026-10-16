@@ -7,6 +7,9 @@ import com.chessapp.player.exception.PlayerErrorCodes;
 import com.chessapp.player.repository.PlayerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
 
 /**
  * @author pari on 10/16/26
@@ -36,6 +39,12 @@ public class PlayerService {
         );
 
         return toPlayerResponse(player);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<PlayerResponse> findByEmail(String email) {
+        return playerRepository.findByEmail(email)
+                .map(PlayerService::toPlayerResponse);
     }
 
     private static PlayerResponse toPlayerResponse(Player player) {
