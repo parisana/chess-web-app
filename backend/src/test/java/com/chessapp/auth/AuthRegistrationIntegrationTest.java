@@ -20,7 +20,9 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @SpringBootTest
 @ActiveProfiles("test")
-@Transactional // to roll back changes to the test database
+// @Transactional on a test normally rolls back work participating in its transaction.
+// however, with a real HTTP server using RANDOM_PORT or DEFINED_PORT, server writes run in a separate transaction and won’t roll back with the test
+@Transactional
 public class AuthRegistrationIntegrationTest {
 
     @Autowired
@@ -69,3 +71,4 @@ public class AuthRegistrationIntegrationTest {
     }
 
 }
+
