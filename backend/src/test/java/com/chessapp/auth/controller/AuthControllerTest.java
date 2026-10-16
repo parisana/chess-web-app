@@ -2,7 +2,8 @@ package com.chessapp.auth.controller;
 
 import com.chessapp.auth.dto.RegisterResponse;
 import com.chessapp.auth.service.AuthService;
-import com.chessapp.common.exception.PlayerExceptionHandler;
+import com.chessapp.common.exception.ApiExceptionHandler;
+import com.chessapp.player.exception.PlayerExceptionHandler;
 import com.chessapp.player.exception.DuplicatePlayerException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,11 +11,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
  * @author pari on 10/16/26
@@ -31,7 +32,7 @@ class AuthControllerTest {
 //      Note that standalone MockMvc does not execute the application's Spring Security filter chain. We'll test endpoint security separately.
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new AuthController(authService))
-                .setControllerAdvice(new PlayerExceptionHandler())
+                .setControllerAdvice(new PlayerExceptionHandler(), new ApiExceptionHandler())
                 .build();
     }
 
@@ -77,7 +78,13 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(request))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(
+                        MediaType.APPLICATION_PROBLEM_JSON
+                ))
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors[*].field")
+                        .value(hasItem("email")));
 
         verifyNoInteractions(authService);
     }
@@ -95,7 +102,13 @@ class AuthControllerTest {
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(request))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(
+                        MediaType.APPLICATION_PROBLEM_JSON
+                ))
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors[*].field")
+                        .value(hasItem("password")));
 
         verifyNoInteractions(authService);
     }
@@ -124,5 +137,34 @@ class AuthControllerTest {
                         .value("USERNAME_ALREADY_EXISTS"))
                 .andExpect(jsonPath("$.detail")
                         .value("Username is already taken"));
+    }
+
+    @Test
+    void register_returnsFieldErrorsWithoutExposingPassword()
+            throws Exception {
+
+        String request = """
+            {
+              "username": "ab",
+              "email": "invalid-email",
+              "password": "short"
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code")
+                        .value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors[*].field")
+                        .value(hasItems("username", "email", "password")))
+                .andExpect(jsonPath("$.errors[*].rejectedValue")
+                        .doesNotExist())
+                .andExpect(content().string(
+                        not(containsString("short"))
+                ));
+
+        verifyNoInteractions(authService);
     }
 }
