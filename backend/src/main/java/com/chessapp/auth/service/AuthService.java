@@ -4,7 +4,7 @@ import com.chessapp.auth.dto.RegisterRequest;
 import com.chessapp.auth.dto.RegisterResponse;
 import com.chessapp.auth.entity.AuthCredential;
 import com.chessapp.auth.repository.AuthCredentialRepository;
-import com.chessapp.player.entity.Player;
+import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.service.PlayerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,8 +24,7 @@ public class AuthService {
 
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
-
-        Player player = playerService.createPlayer(
+        PlayerResponse player = playerService.createPlayer(
                 request.username(),
                 request.email()
         );
@@ -35,16 +34,16 @@ public class AuthService {
         );
 
         AuthCredential credential = new AuthCredential(
-                player.getId(),
+                player.id(),
                 passwordHash
         );
 
         credentialRepository.save(credential);
 
         return new RegisterResponse(
-                player.getId(),
-                player.getUsername(),
-                player.getEmail()
+                player.id(),
+                player.username(),
+                player.email()
         );
     }
 }

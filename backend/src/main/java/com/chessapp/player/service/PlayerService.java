@@ -1,6 +1,8 @@
 package com.chessapp.player.service;
 
+import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.entity.Player;
+import com.chessapp.player.exception.DuplicatePlayerException;
 import com.chessapp.player.repository.PlayerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,8 +16,32 @@ public class PlayerService {
 
     private final PlayerRepository playerRepository;
 
-    public Player createPlayer(String username, String email) {
-        Player player = new Player(username, email);
-        return playerRepository.save(player);
+    public PlayerResponse createPlayer(String username, String email) {
+        if (playerRepository.existsByUsername(username)) {
+            throw new DuplicatePlayerException(
+                    "USERNAME_ALREADY_EXISTS",
+                    "Username is already taken"
+            );
+        }
+
+        if (playerRepository.existsByEmail(email)) {
+            throw new DuplicatePlayerException(
+                    "EMAIL_ALREADY_EXISTS",
+                    "Email is already registered"
+            );
+        }
+        Player player = playerRepository.save(
+                new Player(username, email)
+        );
+
+        return toPlayerResponse(player);
+    }
+
+    private static PlayerResponse toPlayerResponse(Player player) {
+        return new PlayerResponse(
+                player.getId(),
+                player.getUsername(),
+                player.getEmail()
+        );
     }
 }

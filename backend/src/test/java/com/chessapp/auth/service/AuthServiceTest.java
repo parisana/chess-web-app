@@ -4,7 +4,7 @@ import com.chessapp.auth.dto.RegisterRequest;
 import com.chessapp.auth.dto.RegisterResponse;
 import com.chessapp.auth.entity.AuthCredential;
 import com.chessapp.auth.repository.AuthCredentialRepository;
-import com.chessapp.player.entity.Player;
+import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.service.PlayerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,7 +15,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -50,10 +51,10 @@ class AuthServiceTest {
 
     @Test
     void register_createsPlayerAndEncodedCredentials() {
-        Player player = mock(Player.class);
-        when(player.getId()).thenReturn(1L);
-        when(player.getUsername()).thenReturn(request.username());
-        when(player.getEmail()).thenReturn(request.email());
+        PlayerResponse player = mock(PlayerResponse.class);
+        when(player.id()).thenReturn(1L);
+        when(player.username()).thenReturn(request.username());
+        when(player.email()).thenReturn(request.email());
 
         when(playerService.createPlayer(
                 request.username(),
@@ -67,6 +68,7 @@ class AuthServiceTest {
 
         assertEquals(request.username(), response.username());
         assertEquals(request.email(), response.email());
+        assertEquals(1L, response.playerId());
 
         ArgumentCaptor<AuthCredential> captor =
                 ArgumentCaptor.forClass(AuthCredential.class);
@@ -87,7 +89,8 @@ class AuthServiceTest {
 //    verifies exception propagation, not transaction rollback. Rollback requires a Spring-managed transaction and an actual database integration test.
     @Test
     void register_propagatesCredentialPersistenceFailure() {
-        Player player = new Player(
+        PlayerResponse player = new PlayerResponse(
+                1L,
                 request.username(),
                 request.email()
         );

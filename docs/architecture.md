@@ -1,228 +1,111 @@
-# Chess Web App — Architecture
-
-## 1. Architectural Style
-
-The backend follows a **modular monolith architecture**, organized using package-by-feature with layers inside each feature.
-
-The application runs as a single Spring Boot deployment. Each feature groups related functionality together, with clear responsibilities and controlled dependencies between features.
-
-The project does not adopt Domain-Driven Design as an architectural methodology. We will use straightforward services, repositories, controllers, DTOs, and domain models where appropriate.
-
-## 2. Technology Stack
-
-### Backend
-- Java 21
-- Spring Boot
-- Spring Web
-- Spring Security
-- Spring Data JPA
-- Spring WebSocket with STOMP
-- Spring application events
-- Gradle
-
-### Database and Migrations
-- PostgreSQL
-- Flyway
-
-### Frontend
-- Angular
-- TypeScript
-
-### Testing
-- JUnit 5
-- Mockito
-- Spring Boot integration testing
-- Angular testing tools
+# Architecture
 
-## 3. Module Structure
+## Purpose and style
 
-The base package is `com.chessapp`.
+Build a portfolio-quality multiplayer chess application over approximately 30 working days at eight hours per day. The emphasis is on backend engineering and a complete, maintainable implementation.
 
-The backend is organized into the following feature and supporting modules:
+The backend is a single Spring Boot deployment: a modular monolith, packaged by feature with conventional layers. This is not DDD. A feature is currently a Java package, not a separate Gradle project or deployable service.
 
-- **auth** — player registration, login, and authentication-related use cases.
-- **player** — player profiles and profile management.
-- **matchmaking** — queue management, player pairing, and match initiation.
-- **game** — chess moves, game state, game lifecycle, and results.
-- **notification** — outbound notifications and notification delivery.
-- **security** — HTTP and WebSocket authentication and authorization configuration.
-- **common** — genuinely shared utilities and infrastructure components.
+## Feature ownership
 
-Features own their related functionality. Supporting modules such as `security` and `common` provide cross-cutting capabilities without taking ownership of feature-specific business logic.
+| Package | Responsibility | Current state |
+| --- | --- | --- |
+| `auth` | Registration, credentials, login use cases | Registration and local credential persistence implemented |
+| `player` | Player identity and profile data | Player entity, repository, creation service implemented |
+| `matchmaking` | Queue membership and pairing | Planned |
+| `game` | Authoritative board, rules, moves, lifecycle, history | Planned |
+| `notification` | Deliver authorized outbound updates | Planned |
+| `security` | HTTP/WebSocket authentication and authorization | HTTP access rules and password encoder implemented |
+| `common` | Small, genuinely shared components | Timestamp base entity implemented |
 
-## 4. Package Organization
+Keep the name `Player`. Add packages and classes when behavior requires them; do not create empty layers or generic abstractions in advance.
 
-Business features use layers within their feature packages. Packages are introduced as needed rather than required uniformly across all features.
+## Conventional layers
 
-Example:
+Feature packages may contain `controller`, `service`, `dto`, `entity`, and `repository`, plus focused packages such as `exception` or `config` when needed.
 
-    com.chessapp
-    ├── auth
-    │   ├── controller
-    │   ├── service
-    │   ├── dto
-    │   └── repository
-    ├── player
-    │   ├── controller
-    │   ├── service
-    │   ├── dto
-    │   └── repository
-    ├── matchmaking
-    │   ├── controller
-    │   ├── service
-    │   ├── dto
-    │   └── repository
-    ├── game
-    │   ├── controller
-    │   ├── service
-    │   ├── dto
-    │   └── repository
-    ├── notification
-    ├── security
-    └── common
+- Controllers handle transport, request validation, status codes, and delegation.
+- Services implement use cases, business checks, and transaction boundaries.
+- Repositories encapsulate database access within their owning feature.
+- DTOs define external API responses and selected cross-feature service contracts.
+- Entities describe persistence state and appropriate local behavior.
 
-The packages above illustrate the intended organization. Additional packages, such as `config`, `mapper`, `websocket`, or `exception`, may be introduced inside the relevant feature when justified.
+Features call another feature's selected service operations. They do not access its repositories or controllers. Service interfaces are optional; a clear concrete service is sufficient at this scale. Avoid circular feature dependencies.
 
-Not every feature needs a controller, repository, or every other layer.
+## Implemented registration flow
 
-## 5. Layer Responsibilities
+1. `AuthController` accepts `POST /api/v1/auth/register` and validates `RegisterRequest`.
+2. `AuthService.register()` starts a transaction.
+3. `PlayerService.createPlayer()` persists a player through `PlayerRepository`.
+4. The configured `PasswordEncoder` encodes the password.
+5. `AuthCredentialRepository` persists the player ID and password hash.
+6. The service returns `RegisterResponse`; successful transaction completion precedes the HTTP success response.
 
-### Controller Layer
-- Handles incoming HTTP requests and WebSocket messages where applicable.
-- Validates request structure and delegates to services.
-- Converts application results into API responses.
-- Avoids containing substantial business logic.
+Player and credential creation must succeed or fail together. The transaction currently belongs to the public registration service method. The player save joins that transaction under normal Spring transaction propagation.
 
-### Service Layer
-- Implements application use cases and coordinates business operations.
-- Applies business rules and validation that go beyond request-shape validation.
-- Defines transaction boundaries where multiple operations must succeed or fail together.
-- Coordinates interactions with repositories and other features.
+The current implementation returns a `Player` entity across the player/auth boundary. This is a documented temporary compromise. Day 2 will introduce a small player service result DTO so auth no longer imports player persistence entities. This does not require a DDD model or an interface for every service.
 
-### Repository Layer
-- Encapsulates database access through Spring Data JPA or custom queries.
-- Provides persistence operations to the relevant feature.
-- Avoids exposing persistence implementation details unnecessarily across feature boundaries.
+## Persistence decisions
 
-### DTOs
-- Define request and response contracts.
-- Separate external API representations from persistence entities.
-- Prevent internal database models from becoming public API contracts.
+PostgreSQL is the durable data store. Spring Data JPA handles persistence, and Flyway owns schema evolution. Hibernate uses `ddl-auto: validate`; Open EntityManager in View is disabled.
 
-### Models and Entities
-- Represent application concepts and persisted data as appropriate.
-- Use JPA entities for persistence where needed.
-- Keep business rules close to the relevant models when that improves clarity, without requiring a DDD-style domain model.
+| Migration | Schema |
+| --- | --- |
+| V1 | `players`: identity ID, unique username, unique email, creation/update timestamps |
+| V2 | `auth_credentials`: identity ID, unique player ID, password hash, timestamps, foreign key to players |
 
-## 6. Module Boundaries and Dependencies
+`AuthCredential.playerId` is a scalar ID rather than a JPA association. The database still enforces referential integrity. Its uniqueness currently permits one local password credential per player. Future external login methods require an explicit schema design.
 
-- Each feature owns its implementation and related business logic.
-- Features should avoid depending directly on another feature's internal controllers, repositories, or persistence entities.
-- Cross-feature interactions should use clear service-level interfaces or selected Spring application events when appropriate.
-- Circular dependencies between features should be avoided.
-- The `common` package must not become a general dumping ground for unrelated classes.
-- Shared functionality should be extracted only when there is a genuine need.
+The foreign key currently has no delete cascade. Deleting a player with credentials is rejected; a future deletion use case must define dependent-data handling explicitly.
 
-For example, matchmaking coordinates player pairing and game initiation. The game feature remains responsible for managing the resulting game's state and lifecycle.
+`BaseEntity` contains `Instant` creation/update timestamps maintained by JPA callbacks. Database defaults support inserts outside JPA, but there is no database trigger maintaining `updated_at` for direct SQL updates. IDs remain in concrete entities.
 
-## 7. Database and Persistence
+Applied migrations should remain unchanged; introduce new versioned migrations for schema evolution. Database unique constraints are authoritative. A pre-insert existence check can improve feedback but cannot eliminate concurrent duplicate attempts.
 
-PostgreSQL is the primary persistent data store.
+Current username/email uniqueness follows the stored values and database comparison behavior. Normalization and case-insensitive identity rules have not yet been implemented and must be defined before login lookup semantics are finalized.
 
-Spring Data JPA handles relational persistence, while Flyway manages schema creation and evolution through versioned database migrations.
+## Security
 
-Database schema changes should be introduced through Flyway migrations rather than relying on Hibernate to create or update production schemas.
+Currently, only `POST /api/v1/auth/register` is explicitly public; other requests require authentication. Sessions are stateless and CSRF is disabled in preparation for bearer-token APIs. Login and JWT authentication are not implemented, and protected-endpoint response behavior still needs tests.
 
-Hibernate schema validation is used during application startup to detect mismatches between mapped entities and the database schema.
+The password encoder is `DelegatingPasswordEncoder`, using bcrypt by default and storing its algorithm identifier with the hash. API responses expose neither plaintext passwords nor hashes. Avoid Lombok-generated entity `toString()` methods that could expose credential fields.
 
-Transactions should be defined around application operations that require atomic changes.
+Day 2 must align password validation with bcrypt's 72-byte UTF-8 limit; the existing `@Size(max = 72)` counts Java string length. Passwords must not be silently truncated or normalized.
 
-Concurrency-sensitive operations, especially matchmaking and move submission, must be designed to handle competing requests safely.
+Future JWT handling must verify signatures and claims, reject invalid/expired tokens, and establish the authenticated player identity. Authorization must verify resource ownership and game participation on the server. Token storage and logout behavior will be decided when Angular integration begins.
 
-## 8. Authentication and Authorization
+## Error handling
 
-Spring Security handles HTTP authentication and authorization.
+Request Bean Validation currently handles malformed registration fields. A consistent error representation and duplicate-identity `409 Conflict` handling are pending. Add email length validation matching the schema, and define username/email normalization deliberately.
 
-JWT-based authentication is used for authenticated API requests. WebSocket connections and subscriptions must also enforce appropriate authentication and authorization.
+Map known uniqueness conflicts to specific API errors; do not classify every database integrity failure as a duplicate. Unexpected failures must not leak SQL, passwords, or internal exception details.
 
-The backend must verify that players can access only their own protected resources and participate only in games for which they are authorized.
+## Planned game and matchmaking behavior
 
-Passwords must be stored using a suitable password-hashing algorithm rather than plaintext.
+Matchmaking owns eligibility, queue membership, pairing, and coordination of game creation. The game feature owns the resulting game state and lifecycle. Concurrency controls must prevent duplicate active assignments and stale or competing move submissions.
 
-Local credentials must not be committed to version control.
+The backend is authoritative for legal moves, turn order, game results, and persisted move history. Completed games must be durable; reconnection should recover authorized current state.
 
-## 9. Matchmaking
+Use direct service calls where the caller needs a result. Spring application events may decouple appropriate internal reactions, but are not durable messaging. Choose transaction/event timing according to whether listeners may observe committed state.
 
-The matchmaking feature manages the queue and pairs eligible players.
+WebSocket with STOMP is planned for real-time updates. Authenticate connections and authorize commands, subscriptions, and destinations. Clients submit requests; the server validates them and sends authorized results. Redis and Kafka are outside the initial infrastructure.
 
-It must prevent a player from being assigned to multiple active matches and handle concurrent join, leave, and pairing requests safely.
+## Testing
 
-Match creation and matchmaking state changes should maintain consistency, using appropriate transaction boundaries and concurrency controls.
+- Mockito unit tests verify registration orchestration and exception propagation.
+- Standalone MockMvc tests verify request mapping, validation, and controller responses; they do not execute the application security filter chain.
+- PostgreSQL integration tests verify persistence and Spring configuration.
+- A separate integration test without a test-managed transaction must prove the service transaction rolls back player creation after a later registration failure.
+- Security-chain, login, JWT, concurrency, WebSocket, and Angular tests will follow their implementations.
 
-Redis and message brokers are not part of the initial architecture. They may be evaluated later if actual requirements justify them.
+The current registration integration test is transactional and activates `test`. Flush and clear before persistence reads to avoid relying on managed objects. Real HTTP server work runs outside the test thread's transaction, so test rollback alone does not clean up those writes. Test rollback does not remove rows left by earlier runs, and generated identity values need not be consecutive.
 
-## 10. Game Management
+## Configuration
 
-The game feature is authoritative for chess game state and lifecycle.
+Use YAML. The current shared file is `application.yaml`; test overrides are in `application-test.yml`. Both extensions are valid. Ignored `application-local.yml` files may hold local overrides and require the `local` profile.
 
-The backend validates moves, enforces turn order, rejects illegal or stale requests, and determines game outcomes.
+The shared datasource currently provides local defaults and optional environment-variable overrides. The test datasource explicitly selects `chess_test_db`. Enable Flyway migration-name validation in shared configuration as a follow-up; it currently appears only in the test profile.
 
-It manages move history and game states such as active, completed, checkmate, stalemate, resignation, and supported draw conditions.
+## Scope
 
-Completed games and their results must be persisted. Reconnection should allow authorized players to recover the current game state.
-
-## 11. Real-Time Communication
-
-Spring WebSocket with STOMP supports real-time matchmaking and game updates.
-
-Client messages represent requests or commands. The server validates each command, updates authoritative state, and publishes the resulting events or state updates to authorized recipients.
-
-Spring application events may be used for decoupling operations within the same application process. They are not a durable message broker and should not be relied upon for guaranteed delivery across process restarts.
-
-## 12. Error Handling and Validation
-
-The API should use consistent error responses and appropriate HTTP status codes.
-
-Request validation should reject malformed input early. Business validation should reject operations that violate application rules, including unauthorized actions, invalid moves, and conflicting state changes.
-
-Exceptions should be handled centrally where practical, without leaking sensitive implementation details to clients.
-
-## 13. Testing Strategy
-
-The project will use multiple levels of automated testing:
-
-- **Unit tests** for service logic, validation, and chess rules.
-- **Repository tests** for persistence queries and mappings.
-- **Integration tests** for Spring configuration, database behavior, transactions, and security.
-- **WebSocket tests** for message handling and authorization.
-- **Angular tests** for frontend components and services.
-- **End-to-end tests** for critical user journeys where practical.
-
-Priority should be given to authentication, authorization, matchmaking concurrency, legal move validation, game completion, and persistence.
-
-## 14. Configuration and Environments
-
-Spring configuration uses YAML files.
-
-- `application.yml` contains shared configuration and non-sensitive defaults.
-- `application-local.yml` contains local-only overrides and credentials and must not be committed.
-- Environment-specific configuration should be introduced as deployment requirements evolve.
-
-The project should provide reproducible local setup instructions and document the required Java, Node.js, Angular, and PostgreSQL versions.
-
-## 15. Initial Scope and Future Considerations
-
-The initial project includes:
-
-- Registration, login, and player profiles.
-- Matchmaking and player pairing.
-- Real-time multiplayer chess.
-- Server-side move validation.
-- Game persistence and history.
-- Game completion and results.
-- Reconnection and recovery.
-- Automated testing and deployment documentation.
-
-Spectators, tournaments, rankings, chat, engine analysis, and distributed scaling are outside the initial scope.
-
-The architecture should remain simple enough to develop and maintain as a single application while keeping responsibilities sufficiently separated to support future evolution.
+Initial target: registration/login, player profiles, matchmaking, multiplayer games, server rules, history, results, reconnection, automated tests, and deployment documentation. Spectators, tournaments, chat, engine analysis, and distributed scaling remain outside the initial scope.
