@@ -6,6 +6,7 @@ import com.chessapp.auth.entity.AuthCredential;
 import com.chessapp.auth.repository.AuthCredentialRepository;
 import com.chessapp.auth.service.AuthService;
 import com.chessapp.player.repository.PlayerRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -29,6 +30,9 @@ public class AuthRegistrationIntegrationTest {
     private AuthService authService;
 
     @Autowired
+    private EntityManager entityManager;
+
+    @Autowired
     private PlayerRepository playerRepository;
 
     @Autowired
@@ -47,6 +51,10 @@ public class AuthRegistrationIntegrationTest {
         );
 
         RegisterResponse response = authService.register(request);
+        /*Flushing makes pending persistence failures visible; clearing ensures subsequent queries load database state.
+        Spring recommends flushing ORM work to avoid false-positive tests.*/
+        entityManager.flush();
+        entityManager.clear();
 
         assertNotNull(response.playerId());
 
@@ -58,6 +66,12 @@ public class AuthRegistrationIntegrationTest {
                 .orElseThrow();
 
         assertEquals(request.username(), player.getUsername());
+        assertEquals(request.email(), player.getEmail());
+        assertEquals(response.playerId(), credential.getPlayerId());
+        assertNotNull(player.getCreatedAt());
+        assertNotNull(player.getUpdatedAt());
+        assertNotNull(credential.getCreatedAt());
+        assertNotNull(credential.getUpdatedAt());
 
         assertNotEquals(
                 request.password(),
