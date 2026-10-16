@@ -3,6 +3,8 @@ package com.chessapp.auth.controller;
 import com.chessapp.auth.dto.RegisterResponse;
 import com.chessapp.auth.service.AuthService;
 import com.chessapp.common.exception.ApiExceptionHandler;
+import com.chessapp.common.exception.CommonErrorCodes;
+import com.chessapp.player.exception.PlayerErrorCodes;
 import com.chessapp.player.exception.PlayerExceptionHandler;
 import com.chessapp.player.exception.DuplicatePlayerException;
 import org.junit.jupiter.api.BeforeEach;
@@ -117,7 +119,7 @@ class AuthControllerTest {
     void register_returnsConflictForDuplicateUsername() throws Exception {
         when(authService.register(any()))
                 .thenThrow(new DuplicatePlayerException(
-                        "USERNAME_ALREADY_EXISTS",
+                        PlayerErrorCodes.USERNAME_ALREADY_EXISTS,
                         "Username is already taken"
                 ));
 
@@ -164,6 +166,33 @@ class AuthControllerTest {
                 .andExpect(content().string(
                         not(containsString("short"))
                 ));
+
+        verifyNoInteractions(authService);
+    }
+
+    @Test
+    void register_rejectsPasswordExceedingUtf8ByteLimit()
+            throws Exception {
+
+        String request = """
+            {
+              "username": "chessplayer1",
+              "email": "player1@example.com",
+              "password": "%s"
+            }
+            """.formatted("€".repeat(25));
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .characterEncoding("UTF-8")
+                        .content(request))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code")
+                        .value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors[*].field")
+                        .value(hasItem("password")))
+                .andExpect(jsonPath("$.errors[*].message")
+                        .value(hasItem("must not exceed 72 UTF-8 bytes")));
 
         verifyNoInteractions(authService);
     }

@@ -1,5 +1,6 @@
 package com.chessapp.auth.dto;
 
+import com.chessapp.auth.validation.BCryptPasswordLength;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -19,7 +20,8 @@ public record RegisterRequest(
         String email,
 
         @NotBlank
-        @Size(min = 8, max = 72)
+        @Size(min = 8)
+        @BCryptPasswordLength
         String password
 ) {
 }

@@ -30,14 +30,14 @@ public class PlayerExceptionHandler {
 
         if ("uk_players_username".equals(constraint)) {
             return conflict(
-                    "USERNAME_ALREADY_EXISTS",
+                    PlayerErrorCodes.USERNAME_ALREADY_EXISTS,
                     "Username is already taken"
             );
         }
 
         if ("uk_players_email".equals(constraint)) {
             return conflict(
-                    "EMAIL_ALREADY_EXISTS",
+                    PlayerErrorCodes.EMAIL_ALREADY_EXISTS,
                     "Email is already registered"
             );
         }

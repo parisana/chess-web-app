@@ -41,7 +41,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         );
 
         problem.setTitle("Request validation failed");
-        problem.setProperty("code", "VALIDATION_FAILED");
+        problem.setProperty("code", CommonErrorCodes.VALIDATION_FAILED);
         problem.setProperty("errors", errors);
 
         return handleExceptionInternal(
