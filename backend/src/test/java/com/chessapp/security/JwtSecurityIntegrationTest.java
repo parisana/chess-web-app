@@ -1,9 +1,12 @@
 package com.chessapp.security;
 
 import com.chessapp.player.dto.PlayerResponse;
+import com.chessapp.player.repository.PlayerRepository;
 import com.chessapp.player.service.PlayerService;
 import com.chessapp.security.service.JwtTokenService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -45,6 +48,9 @@ class JwtSecurityIntegrationTest {
     @Autowired
     private PlayerService playerService;
 
+    @Autowired
+    private PlayerRepository playerRepository;
+
     @Value("${app.jwt.issuer}")
     private String issuer;
 
@@ -79,6 +85,46 @@ class JwtSecurityIntegrationTest {
                 .andExpect(jsonPath("$.id").value(player.id().intValue()))
                 .andExpect(jsonPath("$.username").value(player.username()))
                 .andExpect(jsonPath("$.email").value(player.email()));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "",
+            "abc",
+            "0",
+            "-1",
+            "9223372036854775808"
+    })
+    void currentPlayer_rejectsInvalidSubject(String subject)
+            throws Exception {
+
+        Instant now = clock.instant();
+
+        String token = sign(
+                JwtClaimsSet.builder()
+                        .issuer(issuer)
+                        .subject(subject)
+                        .issuedAt(now)
+                        .expiresAt(now.plusSeconds(300))
+                        .build()
+        );
+
+        expectUnauthorized(token);
+    }
+
+    @Test
+    void currentPlayer_rejectsMissingSubject() throws Exception {
+        Instant now = clock.instant();
+
+        String token = sign(
+                JwtClaimsSet.builder()
+                        .issuer(issuer)
+                        .issuedAt(now)
+                        .expiresAt(now.plusSeconds(300))
+                        .build()
+        );
+
+        expectUnauthorized(token);
     }
 
     @Test
@@ -130,6 +176,19 @@ class JwtSecurityIntegrationTest {
         );
     }
 
+    @Test
+    void currentPlayer_rejectsMissingExpiration() throws Exception {
+        String token = sign(
+                JwtClaimsSet.builder()
+                        .issuer(issuer)
+                        .subject("42")
+                        .issuedAt(clock.instant())
+                        .build()
+        );
+
+        expectUnauthorized(token);
+    }
+
     private String sign(
             String tokenIssuer,
             Instant issuedAt,
@@ -142,6 +201,37 @@ class JwtSecurityIntegrationTest {
                 .expiresAt(expiresAt)
                 .build();
 
+        return jwtEncoder.encode(
+                JwtEncoderParameters.from(
+                        JwsHeader.with(MacAlgorithm.HS256).build(),
+                        claims
+                )
+        ).getTokenValue();
+    }
+
+    @Test
+    @Transactional
+    void currentPlayer_rejectsTokenForDeletedPlayer() throws Exception {
+        String suffix = UUID.randomUUID()
+                .toString()
+                .replace("-", "")
+                .substring(0, 16);
+
+        PlayerResponse player = playerService.createPlayer(
+                "deleted_" + suffix,
+                suffix + "@example.com"
+        );
+
+        String token = tokenService.issueAccessToken(player.id())
+                .getTokenValue();
+
+        playerRepository.deleteById(player.id());
+        playerRepository.flush();
+
+        expectUnauthorized(token);
+    }
+
+    private String sign(JwtClaimsSet claims) {
         return jwtEncoder.encode(
                 JwtEncoderParameters.from(
                         JwsHeader.with(MacAlgorithm.HS256).build(),
