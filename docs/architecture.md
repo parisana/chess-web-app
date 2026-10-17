@@ -1,111 +1,88 @@
 # Architecture
 
-## Purpose and style
+## Style and ownership
 
-Build a portfolio-quality multiplayer chess application over approximately 30 working days at eight hours per day. The emphasis is on backend engineering and a complete, maintainable implementation.
+A single Spring Boot application, organized as a modular monolith with feature packages and conventional controller/service/DTO/entity/repository layers. Not DDD; no microservices or multi-project Gradle modules are required. Keep the domain term `Player`.
 
-The backend is a single Spring Boot deployment: a modular monolith, packaged by feature with conventional layers. This is not DDD. A feature is currently a Java package, not a separate Gradle project or deployable service.
-
-## Feature ownership
-
-| Package | Responsibility | Current state |
+| Package | Ownership | State |
 | --- | --- | --- |
-| `auth` | Registration, credentials, login use cases | Registration and local credential persistence implemented |
-| `player` | Player identity and profile data | Player entity, repository, creation service implemented |
-| `matchmaking` | Queue membership and pairing | Planned |
-| `game` | Authoritative board, rules, moves, lifecycle, history | Planned |
-| `notification` | Deliver authorized outbound updates | Planned |
-| `security` | HTTP/WebSocket authentication and authorization | HTTP access rules and password encoder implemented |
-| `common` | Small, genuinely shared components | Timestamp base entity implemented |
+| `auth` | Registration, local credentials, login | Implemented |
+| `player` | Identity and profile data | Creation, lookup, current profile implemented |
+| `security` | HTTP authentication, password encoding, JWT machinery | Implemented |
+| `common` | Shared timestamps and request validation error handling | Implemented |
+| `matchmaking` | Queue, eligibility, pairing | Planned |
+| `game` | Authoritative rules, state, moves, results, history | Planned |
+| `notification` | Authorized outbound updates | Planned |
 
-Keep the name `Player`. Add packages and classes when behavior requires them; do not create empty layers or generic abstractions in advance.
+Controllers handle transport and delegate. Services coordinate use cases and transaction boundaries. Repositories remain within their owning feature. Cross-feature calls use service operations and DTOs. Concrete services are sufficient; interfaces and mapper frameworks are introduced only when needed.
 
-## Conventional layers
+Auth consumes `PlayerResponse` from `PlayerService`; it does not import player entities or repositories. `PlayerResponse` is also the `/players/me` HTTP contract. `RegisterResponse` deliberately retains the API field `playerId`, while `PlayerResponse` uses `id`.
 
-Feature packages may contain `controller`, `service`, `dto`, `entity`, and `repository`, plus focused packages such as `exception` or `config` when needed.
+## Registration and persistence
 
-- Controllers handle transport, request validation, status codes, and delegation.
-- Services implement use cases, business checks, and transaction boundaries.
-- Repositories encapsulate database access within their owning feature.
-- DTOs define external API responses and selected cross-feature service contracts.
-- Entities describe persistence state and appropriate local behavior.
+`AuthController` validates a registration request. Transactional `AuthService.register()` creates a player through `PlayerService`, encodes the password, saves credentials, and returns a registration DTO. All database writes must succeed or roll back together. The current order creates the player before encoding; rollback tests intentionally fail that later step.
 
-Features call another feature's selected service operations. They do not access its repositories or controllers. Service interfaces are optional; a clear concrete service is sufficient at this scale. Avoid circular feature dependencies.
+PostgreSQL is durable storage. Flyway V1 creates players; V2 creates local credentials. Hibernate uses `ddl-auto: validate`, and Open EntityManager in View is disabled. Applied migrations remain immutable; schema changes use new migrations.
 
-## Implemented registration flow
+`AuthCredential.playerId` is a scalar foreign key rather than a JPA relationship. Its uniqueness permits one local credential per player. The foreign key has no deletion cascade. Future account deletion and external login methods need explicit designs.
 
-1. `AuthController` accepts `POST /api/v1/auth/register` and validates `RegisterRequest`.
-2. `AuthService.register()` starts a transaction.
-3. `PlayerService.createPlayer()` persists a player through `PlayerRepository`.
-4. The configured `PasswordEncoder` encodes the password.
-5. `AuthCredentialRepository` persists the player ID and password hash.
-6. The service returns `RegisterResponse`; successful transaction completion precedes the HTTP success response.
+`BaseEntity` contains creation/update `Instant` timestamps managed by JPA callbacks. SQL defaults initialize timestamps for non-JPA inserts, but direct SQL updates do not automatically advance `updated_at`.
 
-Player and credential creation must succeed or fail together. The transaction currently belongs to the public registration service method. The player save joins that transaction under normal Spring transaction propagation.
+Username/email availability checks improve feedback. PostgreSQL constraints remain authoritative under concurrency. `PlayerExceptionHandler` translates the named username/email constraints to 409 and rethrows unknown integrity failures. It is global advice because player failures can originate from auth controllers; its schema knowledge remains owned by player.
 
-The current implementation returns a `Player` entity across the player/auth boundary. This is a documented temporary compromise. Day 2 will introduce a small player service result DTO so auth no longer imports player persistence entities. This does not require a DDD model or an interface for every service.
+Identity lookup currently compares exact stored values. No canonicalization or case-insensitive identity policy is implemented. Any future normalization change must coordinate registration, lookup, existing rows, and unique constraints.
 
-## Persistence decisions
+## Credential verification and login
 
-PostgreSQL is the durable data store. Spring Data JPA handles persistence, and Flyway owns schema evolution. Hibernate uses `ddl-auto: validate`; Open EntityManager in View is disabled.
+`LoginController` validates input and delegates to `LoginService`. That service calls read-only transactional `AuthService.authenticate()`, then signs an access token after credential verification returns.
 
-| Migration | Schema |
-| --- | --- |
-| V1 | `players`: identity ID, unique username, unique email, creation/update timestamps |
-| V2 | `auth_credentials`: identity ID, unique player ID, password hash, timestamps, foreign key to players |
+Authentication loads a player through the player service, retrieves local credentials, and calls `PasswordEncoder.matches`. Unknown accounts and missing local credentials use a dummy hash generated once at bean initialization. This reduces a timing difference but does not guarantee identical response timings.
 
-`AuthCredential.playerId` is a scalar ID rather than a JPA association. The database still enforces referential integrity. Its uniqueness currently permits one local password credential per player. Future external login methods require an explicit schema design.
+Invalid credentials share one message and auth-owned error code. Login returns `accessToken`, `tokenType`, and `expiresIn` in seconds, with `Cache-Control: no-store`. The implemented login response does not contain the player profile.
 
-The foreign key currently has no delete cascade. Deleting a player with credentials is rejected; a future deletion use case must define dependent-data handling explicitly.
+Password encoding uses `DelegatingPasswordEncoder`, bcrypt by default. Registration enforces minimum length; registration and login enforce BCrypt's 72-byte UTF-8 maximum. No password trimming or normalization is performed. DTO validation is triggered at the HTTP boundary; calling services directly does not automatically validate DTO annotations.
 
-`BaseEntity` contains `Instant` creation/update timestamps maintained by JPA callbacks. Database defaults support inserts outside JPA, but there is no database trigger maintaining `updated_at` for direct SQL updates. IDs remain in concrete entities.
+## JWT issuance and request authentication
 
-Applied migrations should remain unchanged; introduce new versioned migrations for schema evolution. Database unique constraints are authoritative. A pre-insert existence check can improve feedback but cannot eliminate concurrent duplicate attempts.
+`JwtTokenService` uses `JwtEncoder`, an injected clock, issuer, and TTL. JWTs use HS256 with at least 32 decoded key bytes. Claims are `sub` (player ID), `iss`, `iat`, and `exp`. Tokens carry no profile fields.
 
-Current username/email uniqueness follows the stored values and database comparison behavior. Normalization and case-insensitive identity rules have not yet been implemented and must be defined before login lookup semantics are finalized.
+`JwtConfig` provides encoder/decoder beans and requires a configured key. The decoder trusts HS256 and validates issuer, required expiration, timestamp validity with 60 seconds of skew, and a subject parseable as a positive Java Long. Timestamp validation and issuance use the injected clock.
 
-## Security
+`SecurityConfig` permits POST registration/login, protects other requests, uses stateless sessions, and delegates bearer processing to Spring Security's resource server support. No custom JWT filter is needed. CSRF is disabled for the current bearer-header API design; revisit this if cookie-based authentication is introduced.
 
-Currently, only `POST /api/v1/auth/register` is explicitly public; other requests require authentication. Sessions are stateless and CSRF is disabled in preparation for bearer-token APIs. Login and JWT authentication are not implemented, and protected-endpoint response behavior still needs tests.
+`GET /api/v1/players/me` belongs to `PlayerController` because it returns a current database-backed profile. It extracts the validated subject and returns `PlayerResponse`, or 401 if the player no longer exists. The controller currently uses `Objects.requireNonNull` as an assertion of decoder validation; controller-only tests must supply a valid principal.
 
-The password encoder is `DelegatingPasswordEncoder`, using bcrypt by default and storing its algorithm identifier with the hash. API responses expose neither plaintext passwords nor hashes. Avoid Lombok-generated entity `toString()` methods that could expose credential fields.
+Deleting a player does not cryptographically revoke its JWT. `/players/me` detects deletion through its lookup; future endpoints must apply their own resource and account checks. Refresh tokens, revocation, logout endpoints, account-status checks, rate limiting, and key rotation machinery are not implemented.
 
-Day 2 must align password validation with bcrypt's 72-byte UTF-8 limit; the existing `@Size(max = 72)` counts Java string length. Passwords must not be silently truncated or normalized.
+## Error ownership
 
-Future JWT handling must verify signatures and claims, reject invalid/expired tokens, and establish the authenticated player identity. Authorization must verify resource ownership and game participation on the server. Token storage and logout behavior will be decided when Angular integration begins.
+- `ApiExceptionHandler`: shared MVC handling and field-validation Problem Details.
+- `PlayerExceptionHandler`: player duplicates and known database constraints.
+- `AuthExceptionHandler`: invalid local credentials.
+- Spring Security filter chain: missing/invalid bearer credentials.
 
-## Error handling
+Feature-owned error constants avoid a global catalog of every feature's codes. Field errors omit rejected values to avoid exposing passwords. Filter-chain errors do not currently share the MVC Problem Detail format. HTTP status consistency is implemented; a universal error-body contract is not.
 
-Request Bean Validation currently handles malformed registration fields. A consistent error representation and duplicate-identity `409 Conflict` handling are pending. Add email length validation matching the schema, and define username/email normalization deliberately.
+## Tests and transaction semantics
 
-Map known uniqueness conflicts to specific API errors; do not classify every database integrity failure as a duplicate. Unexpected failures must not leak SQL, passwords, or internal exception details.
+Mockito tests cover registration, authentication, and duplicate prechecks. Standalone MockMvc covers request validation and selected exception mapping. PostgreSQL tests exercise persisted registration, actual unique constraints, and service rollback. Full-context MockMvc tests exercise registration/login/profile access and actual JWT decoding.
 
-## Planned game and matchmaking behavior
+JWT tests include missing/malformed token, valid token with a real player, altered signature, expiration, wrong issuer, missing/invalid subject including numeric overflow, missing expiration, and deleted-player lookup.
 
-Matchmaking owns eligibility, queue membership, pairing, and coordination of game creation. The game feature owns the resulting game state and lifecycle. Concurrency controls must prevent duplicate active assignments and stale or competing move submissions.
+Transactional tests normally roll back fixtures. Synchronous MockMvc shares the test thread; a real HTTP server would not share that transaction. The rollback-specific integration test has no enclosing test transaction and uses a mocked encoder to fail after player creation. It proves rollback at that failure point, not every possible persistence failure.
 
-The backend is authoritative for legal moves, turn order, game results, and persisted move history. Completed games must be durable; reconnection should recover authorized current state.
+Expected PostgreSQL constraint failures can appear in test logs. Do not continue querying within a failed transaction. Identity sequences need not rewind after rollback. Existing data from earlier committed tests is not removed by adding transactional annotations.
 
-Use direct service calls where the caller needs a result. Spring application events may decouple appropriate internal reactions, but are not durable messaging. Choose transaction/event timing according to whether listeners may observe committed state.
+## Configuration and closeout finding
 
-WebSocket with STOMP is planned for real-time updates. Authenticate connections and authorize commands, subscriptions, and destinations. Clients submit requests; the server validates them and sends authorized results. Redis and Kafka are outside the initial infrastructure.
+Shared configuration currently lives in `application.yaml`; test overrides use `application-test.yml`. Both are YAML. Ignored `application-local.yml` requires the `local` profile. Shared database defaults permit optional environment overrides.
 
-## Testing
+The reviewed snapshot incorrectly tracks a signing secret in shared YAML. Remove that setting, generate a replacement in ignored local configuration, and never reuse the disclosed value for deployment. The test profile has an intentionally public test-only key. This documentation-only revision records the finding without changing configuration.
 
-- Mockito unit tests verify registration orchestration and exception propagation.
-- Standalone MockMvc tests verify request mapping, validation, and controller responses; they do not execute the application security filter chain.
-- PostgreSQL integration tests verify persistence and Spring configuration.
-- A separate integration test without a test-managed transaction must prove the service transaction rolls back player creation after a later registration failure.
-- Security-chain, login, JWT, concurrency, WebSocket, and Angular tests will follow their implementations.
+Flyway migration-name validation is enabled only in the test profile; enable it in shared configuration as a follow-up.
 
-The current registration integration test is transactional and activates `test`. Flush and clear before persistence reads to avoid relying on managed objects. Real HTTP server work runs outside the test thread's transaction, so test rollback alone does not clean up those writes. Test rollback does not remove rows left by earlier runs, and generated identity values need not be consecutive.
+## Planned application growth
 
-## Configuration
+Matchmaking owns queue/pairing and coordinates game creation through services. Game owns state, legal moves, turn order, results, persistence, and reconnection recovery. Design concurrency controls before competing matchmaking or move operations are implemented.
 
-Use YAML. The current shared file is `application.yaml`; test overrides are in `application-test.yml`. Both extensions are valid. Ignored `application-local.yml` files may hold local overrides and require the `local` profile.
-
-The shared datasource currently provides local defaults and optional environment-variable overrides. The test datasource explicitly selects `chess_test_db`. Enable Flyway migration-name validation in shared configuration as a follow-up; it currently appears only in the test profile.
-
-## Scope
-
-Initial target: registration/login, player profiles, matchmaking, multiplayer games, server rules, history, results, reconnection, automated tests, and deployment documentation. Spectators, tournaments, chat, engine analysis, and distributed scaling remain outside the initial scope.
+Spring application events may decouple appropriate internal reactions, but are not durable messaging. WebSocket/STOMP is planned for real-time updates with authenticated connections and authorized subscriptions/commands. Redis and Kafka are outside the initial infrastructure. Spectators, tournaments, chat, engine analysis, and distributed scaling remain out of initial scope.

@@ -1,98 +1,84 @@
 # Development Progress
 
-Last source review: 16 October 2026. This document separates code present in the reviewed snapshot from behavior verified by executing tests.
+Reviewed: 17 October 2026. Source checkpoint: `55b452213142012f9b06826a802f937ccd407afd`, supplied through `git archive`. This documentation update changes no application code.
 
-## Goal and conventions
+## Status
 
-Approximately 30 working days at eight hours per day. Build a portfolio-quality backend and Angular client using Java 21, Spring Boot, Gradle, PostgreSQL, Flyway, Lombok, and YAML.
+Day 1 foundation and Day 2 authentication implementation are present. Day 2 is ready for local verification and configuration closeout; this review does not certify a passing build. The review runtime defaults to Java 17, and Gradle 9.8.1 could not download because network access was blocked.
 
-Use a modular monolith, package by feature, and conventional layers. Do not adopt DDD. Keep `Player`. Explain decisions and work incrementally; include verification commands without pausing for routine test confirmations.
+Architecture remains a modular monolith, package by feature with conventional layers, not DDD. Stack: Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, Flyway, Lombok, YAML. Angular and real-time chess features remain planned.
 
-## Current milestone
+## Implemented and reviewed
 
-Day 1 implementation is present; final testing improvements remain. Day 2 has not started. The uploaded snapshot declares Spring Boot 4.1.1 and Gradle wrapper 9.8.1, superseding older planning notes about Gradle 8.3. Angular is not scaffolded yet.
+- [x] Players/local credentials, Flyway V1/V2, minimal timestamp base entity.
+- [x] Transactional registration, password hashing, HTTP DTOs.
+- [x] Player service result DTO instead of cross-feature entity exposure.
+- [x] Duplicate prechecks and named PostgreSQL constraint fallback.
+- [x] Shared field-validation Problem Details and feature-owned error constants.
+- [x] Email maximum length and BCrypt UTF-8 byte-length validation.
+- [x] Exact-email credential verification and dummy-hash failure path.
+- [x] Login token issuance and no-store response header.
+- [x] HS256 bearer authentication, issuer/timestamp/required-expiration/subject checks.
+- [x] Database-backed `/api/v1/players/me` returning id, username, email.
+- [x] Test profile on the context-load test and other current Spring integration classes.
+- [x] Registration integration flush/clear, timestamps and credential-link assertions.
+- [x] Separate service-rollback integration test without test-level transaction.
+- [x] Actual PostgreSQL uniqueness/translation tests.
+- [x] Full registration → login → protected-profile integration test.
+- [x] Invalid credentials and invalid login email coverage.
+- [x] JWT valid/missing/malformed/expired/wrong-issuer/altered-signature cases.
+- [x] Missing/invalid subject, Long overflow, missing expiration, and deleted-player tests.
+- [x] Duplicate Flyway runtime/implementation dependency declaration removed.
 
-## Implemented in the snapshot
+Checked boxes mean code/tests exist in the reviewed snapshot, not that they executed successfully here.
 
-- [x] Repository, Gradle wrapper, and initial documentation.
-- [x] Java 21 toolchain configuration and Spring Boot dependencies.
-- [x] PostgreSQL datasource, Flyway, Hibernate schema validation, and disabled Open EntityManager in View.
-- [x] V1 players migration and V2 local credentials migration.
-- [x] `Player`, `AuthCredential`, and timestamp-only `BaseEntity`.
-- [x] Repositories and player creation service.
-- [x] Registration DTOs, service, and `POST /api/v1/auth/register` controller.
-- [x] Transactional registration and encoded password storage.
-- [x] Stateless HTTP security configuration with public registration.
-- [x] Mockito service tests and standalone MockMvc controller tests.
-- [x] PostgreSQL registration integration test with test profile and test rollback.
-- [x] Rollback annotation committed; uploaded working tree was clean at source review.
+## Required closeout
 
-These checks record implementation presence, not a claim that the test suite passed during review. The review environment could not download Gradle because network access was unavailable, and its default Java runtime was 17. No runtime test result was established here.
+1. Remove the tracked `app.jwt.secret` from shared YAML and generate a replacement in ignored `application-local.yml`. The archived signing key is disclosed; do not reuse it for deployment. Keep the test-only key confined to the test profile.
+2. Run focused authentication tests and the complete suite on Java 21/PostgreSQL.
+3. Run the suite again with `--rerun-tasks` to verify repeatability.
+4. Review and commit documentation/configuration changes. No commits were created during this review.
 
-## Finish Day 1
+The implemented login response contains token fields only. Including `PlayerResponse` alongside the token was discussed but is not implemented or required for this closeout.
 
-- [ ] Add `@ActiveProfiles("test")` to `ChessBackendApplicationTests` so it does not use the development database.
-- [ ] Flush and clear the persistence context before integration-test reads; assert email, credential linkage, and timestamps.
-- [ ] Add a rollback integration test without test-level `@Transactional`: force a failure after player creation, then verify the player was not committed.
-- [ ] Add `@Size(max = 255)` to registration email validation.
-- [ ] Remove the duplicated implementation declaration of `flyway-database-postgresql`; retain its runtime declaration.
-- [ ] Run the full suite twice against PostgreSQL to check repeatability.
-- [ ] Review the diff and commit the changes.
-
-The existing unit test for credential persistence failure verifies exception propagation only. The happy-path transactional integration test verifies persistence but cannot independently prove that the service transaction is required: the test supplies a transaction itself.
-
-For the rollback integration test, a controlled password-encoder failure after player insertion is a small first test of the current transaction boundary. Keep database uniqueness and credential constraint checks as separate coverage.
-
-## Verification commands
+## Verification
 
 From `backend/`:
 
 ```bash
 ./gradlew --version
-./gradlew test --tests com.chessapp.auth.service.AuthServiceTest --tests com.chessapp.auth.controller.AuthControllerTest
+./gradlew test --tests com.chessapp.auth.LoginIntegrationTest --tests com.chessapp.security.JwtSecurityIntegrationTest --tests com.chessapp.auth.service.AuthServiceTest
 SPRING_PROFILES_ACTIVE=test ./gradlew clean test
 SPRING_PROFILES_ACTIVE=test ./gradlew test --rerun-tasks
-git diff --check
 ```
 
-Use Java 21 and a running PostgreSQL instance with `chess_test_db` owned by the configured test user. The explicit profile on the complete suite protects the context-load test before its annotation is fixed. Test reports appear under `build/reports/tests/test/`.
+Use PostgreSQL `chess_test_db`, not development data. Test reports appear in `build/reports/tests/test/index.html`. Expected constraint failures in negative tests are not by themselves failures. Existing committed fixtures may still need targeted cleanup; never truncate development tables to fix tests.
 
-Existing rows from earlier non-transactional runs are not removed by adding `@Transactional`. Inspect and clean only the intended test fixtures if necessary; the credential foreign key requires deleting dependent credentials before their players. Do not treat gaps in generated IDs as a test failure.
+## Review notes and small follow-ups
 
-## Day 2 sequence
+- `PlayerExceptionHandlerTest` is still under `common.exception`. Move its file/package to `player.exception` for ownership consistency; behavior is unaffected.
+- `AuthServiceTest.authenticate_rejectsMissingLocalCredentials` does not initialize the dummy hash, so its mocked encoder sees a null hash. Initialize it and verify `matches(password, "dummy-hash")` as the unknown-email test already does.
+- `AuthServiceTest` mocks `PlayerResponse` in one test. A real record fixture is simpler and removes unnecessary getter stubbing.
+- The valid-token test narrows the ID with `intValue()`. Prefer JsonPath's explicit Long target type if fixtures ever exceed integer range.
+- Flyway migration-name validation remains test-only; enable it in shared configuration.
+- The registration integration fixture uses fixed identity values. Unique per-test values would make it more resilient to old committed fixtures.
+- Add not-before-future and unexpected-algorithm rejection coverage when extending token tests. Current required claims are already covered.
+- The repository does not declare Lombok test annotation processing. Add test Lombok dependencies only if tests start using Lombok annotations.
 
-| Order | Work | Completion evidence |
-| --- | --- | --- |
-| 1 | Consistent registration errors; known duplicate identities return 409 | Controller/integration tests cover invalid and duplicate requests |
-| 2 | Email/username identity rules and password byte-length validation | Boundary tests, including Unicode passwords, return controlled client errors |
-| 3 | Replace the player entity crossing into auth with a focused service DTO | Auth no longer imports player persistence entities; registration tests still pass |
-| 4 | Login with password verification | Valid credentials succeed; invalid credentials return a consistent authentication failure |
-| 5 | JWT issuance and request authentication | Valid token authenticates; expired, malformed, and invalid-signature tokens are rejected |
-| 6 | Current-player endpoint and real security-filter-chain tests | Public registration/login and protected-resource access are verified |
+## Accepted limitations
 
-Keep Day 2 backend-focused. Complete registration correctness before layering token authentication on top. Select the JWT library and configuration during implementation rather than documenting an unimplemented API as final.
+Email and username use stored-value comparisons without normalization. JWT lifetime is 15 minutes plus 60 seconds of clock tolerance. No refresh tokens, revocation, logout endpoint, account disabling, or rate limiting exists. Missing/invalid bearer responses use Spring Security's format, while MVC failures use Problem Details. `/players/me` checks account existence; bearer validation alone does not perform that check for every endpoint.
 
-## Deferred follow-ups
+## Next development increment
 
-- Enable Flyway migration-name validation in shared configuration.
-- Document and implement the chosen normalization/case policy for identities.
-- Keep actual deployment credentials outside version control; align local overrides with the documented profile convention.
-- Expand registration validation coverage and verify public registration through the real security chain.
-- Add future schema changes as new migrations rather than editing applied V1/V2.
-- Update this file after each completed increment, distinguishing implemented behavior from proposed work.
+After closeout, review the remaining 30-day plan before choosing Day 3 implementation. Matchmaking/game/WebSocket/Angular work has not started. Preserve the current feature boundaries and avoid adding Redis/Kafka or abstractions without a concrete requirement.
 
-## Suggested commits
+Guidance stays incremental: explain tradeoffs, add brief refactoring hints, provide verification commands, and do not pause for routine confirmation.
 
-For this documentation update:
+## Suggested documentation commit
 
 ```text
-docs: align architecture and progress with registration implementation
+docs: document day 2 authentication and verification status
 ```
 
-For the next code increment:
-
-```text
-test: isolate Spring tests and verify persisted registration data
-```
-
-Use a separate commit for the service rollback integration test when added. Review staged changes before committing; no commits were created by this documentation update.
+Commit the signing-key configuration correction separately. Once intended changes are committed, create the next review archive from the repository root with `git archive --format=zip --output=../chess-web-app.zip HEAD`.

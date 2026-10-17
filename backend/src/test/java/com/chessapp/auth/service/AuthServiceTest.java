@@ -173,19 +173,32 @@ class AuthServiceTest {
 
     @Test
     void authenticate_rejectsMissingLocalCredentials() {
+        when(passwordEncoder.encode(anyString()))
+                .thenReturn("dummy-hash");
+
+        authService.initializeDummyPasswordHash();
+
         PlayerResponse player = stubPlayerResponse(1L);
 
         when(playerService.findByEmail(request.email()))
                 .thenReturn(Optional.of(player));
 
-        when(credentialRepository.findByPlayerId(1L))
+        when(credentialRepository.findByPlayerId(player.id()))
                 .thenReturn(Optional.empty());
 
         assertThrows(
                 InvalidCredentialsException.class,
                 () -> authService.authenticate(
-                        new LoginRequest(request.email(), request.password())
+                        new LoginRequest(
+                                request.email(),
+                                request.password()
+                        )
                 )
+        );
+
+        verify(passwordEncoder).matches(
+                request.password(),
+                "dummy-hash"
         );
     }
 

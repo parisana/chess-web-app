@@ -1,6 +1,5 @@
-package com.chessapp.common.exception;
+package com.chessapp.player.exception;
 
-import com.chessapp.player.exception.PlayerExceptionHandler;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
