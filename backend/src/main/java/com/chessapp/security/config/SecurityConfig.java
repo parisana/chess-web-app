@@ -3,6 +3,7 @@ package com.chessapp.security.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -19,6 +20,7 @@ public class SecurityConfig {
             HttpSecurity http
     ) throws Exception {
 
+        /// Spring uses your JwtDecoder bean automatically.
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session
@@ -29,9 +31,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 HttpMethod.POST,
-                                "/api/v1/auth/register"
+                                "/api/v1/auth/register",
+                                "/api/v1/auth/login"
                         ).permitAll()
                         .anyRequest().authenticated()
+                )
+                .oauth2ResourceServer(resourceServer -> resourceServer
+                        .jwt(Customizer.withDefaults())
                 )
                 .build();
     }

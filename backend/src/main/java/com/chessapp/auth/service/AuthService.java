@@ -8,10 +8,13 @@ import com.chessapp.auth.exception.InvalidCredentialsException;
 import com.chessapp.auth.repository.AuthCredentialRepository;
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.service.PlayerService;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
 
 /**
  * @author pari on 10/16/26
@@ -23,6 +26,7 @@ public class AuthService {
     private final PlayerService playerService;
     private final AuthCredentialRepository credentialRepository;
     private final PasswordEncoder passwordEncoder;
+    private String dummyPasswordHash;
 
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
@@ -50,23 +54,33 @@ public class AuthService {
     }
     @Transactional(readOnly = true)
     public PlayerResponse authenticate(LoginRequest request) {
-        PlayerResponse player = playerService
-                .findByEmail(request.email())
-                .orElseThrow(InvalidCredentialsException::new);
+        var player = playerService.findByEmail(request.email());
 
-        AuthCredential credential = credentialRepository
-                .findByPlayerId(player.id())
-                .orElseThrow(InvalidCredentialsException::new);
-
-        boolean passwordMatches = passwordEncoder.matches(
-                request.password(),
-                credential.getPasswordHash()
+        var credential = player.flatMap(
+                value -> credentialRepository.findByPlayerId(value.id())
         );
 
-        if (!passwordMatches) {
+        String hash = credential
+                .map(AuthCredential::getPasswordHash)
+                .orElse(dummyPasswordHash);
+
+        boolean matches = passwordEncoder.matches(
+                request.password(),
+                hash
+        );
+
+        if (player.isEmpty() || credential.isEmpty() || !matches) {
             throw new InvalidCredentialsException();
         }
 
-        return player;
+        return player.orElseThrow();
+    }
+
+    /// so that an unknown account still performs a password-hash comparison. This reduces the obvious difference between “no account found” and “incorrect password”; it does not guarantee identical request timings.
+    @PostConstruct
+    void initializeDummyPasswordHash() {
+        dummyPasswordHash = passwordEncoder.encode(
+                UUID.randomUUID().toString()
+        );
     }
 }

@@ -14,3 +14,9 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+app:
+  jwt:
+    #signs and verifies tokens using the following same secret.
+    secret: "i5o0iYbJLEn9uTdbJPZrOCMgOUiXCjgKJyVpvK5P5Ls="
+    issuer: chess-web-app
+    access-token-ttl: 15m

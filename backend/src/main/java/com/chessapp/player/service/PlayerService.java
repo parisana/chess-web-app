@@ -47,6 +47,12 @@ public class PlayerService {
                 .map(PlayerService::toPlayerResponse);
     }
 
+    @Transactional(readOnly = true)
+    public Optional<PlayerResponse> findById(Long id) {
+        return playerRepository.findById(id)
+                .map(PlayerService::toPlayerResponse);
+    }
+
     private static PlayerResponse toPlayerResponse(Player player) {
         return new PlayerResponse(
                 player.getId(),

@@ -149,6 +149,10 @@ class AuthServiceTest {
 
     @Test
     void authenticate_rejectsUnknownEmail() {
+        when(passwordEncoder.encode(anyString()))
+                .thenReturn("dummy-hash");
+
+        authService.initializeDummyPasswordHash();
         when(playerService.findByEmail(request.email()))
                 .thenReturn(Optional.empty());
 
@@ -157,6 +161,11 @@ class AuthServiceTest {
                 () -> authService.authenticate(
                         new LoginRequest(request.email(), request.password())
                 )
+        );
+
+        verify(passwordEncoder).matches(
+                request.password(),
+                "dummy-hash"
         );
 
         verifyNoInteractions(credentialRepository);
