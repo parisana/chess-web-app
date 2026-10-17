@@ -11,20 +11,35 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize } from 'rxjs';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule,
+    RouterLink,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatProgressBarModule,
+  ],
   templateUrl: './login.html',
+  styleUrl: '../auth-page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Login {
+  readonly registrationComplete =
+    inject(ActivatedRoute).snapshot.queryParamMap.get('registered') === 'true';
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(NonNullableFormBuilder);
@@ -68,7 +83,6 @@ export class Login {
         void this.router.navigateByUrl('/home');
       },
       error: (error: unknown) => {
-        this.form.controls.password.reset();
         this.errorMessage.set(this.describeError(error));
       },
     });

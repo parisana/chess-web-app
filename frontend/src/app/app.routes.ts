@@ -4,6 +4,12 @@ import { authGuard } from './auth/guards/auth.guard';
 
 export const routes: Routes = [
   {
+    path: 'register',
+    title: 'Create account | Chess',
+    loadComponent: () =>
+      import('./auth/pages/register/register').then(module => module.Register),
+  },
+  {
     path: 'login',
     title: 'Sign in | Chess',
     loadComponent: () =>
