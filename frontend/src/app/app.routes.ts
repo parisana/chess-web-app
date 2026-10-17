@@ -1,3 +1,28 @@
 import { Routes } from '@angular/router';
 
-export const routes: Routes = [];
+import { authGuard } from './auth/guards/auth.guard';
+
+export const routes: Routes = [
+  {
+    path: 'login',
+    title: 'Sign in | Chess',
+    loadComponent: () =>
+      import('./auth/pages/login/login').then(module => module.Login),
+  },
+  {
+    path: 'home',
+    title: 'Home | Chess',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./home/pages/home/home').then(module => module.Home),
+  },
+  {
+    path: '',
+    pathMatch: 'full',
+    redirectTo: 'home',
+  },
+  {
+    path: '**',
+    redirectTo: 'home',
+  },
+];
