@@ -9,6 +9,11 @@
       @if (registrationComplete) {
       <p role="status">Account created. You can now sign in.</p>
       }
+      @if (sessionExpired) {
+      <p role="status">
+        Your session is no longer valid. Please sign in again.
+      </p>
+      }
       <form [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="submitting()" novalidate>
         <fieldset [disabled]="submitting()">
           <legend class="visually-hidden">Account credentials</legend>

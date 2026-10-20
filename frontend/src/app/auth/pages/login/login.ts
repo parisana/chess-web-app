@@ -38,6 +38,8 @@ import { AuthService } from '../../services/auth.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Login {
+  readonly sessionExpired =
+    inject(ActivatedRoute).snapshot.queryParamMap.get('sessionExpired') === 'true';
   readonly registrationComplete =
     inject(ActivatedRoute).snapshot.queryParamMap.get('registered') === 'true';
   private readonly auth = inject(AuthService);

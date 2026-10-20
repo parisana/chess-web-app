@@ -1,11 +1,10 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { catchError, defer, switchMap, tap, throwError } from 'rxjs';
 
 import { LoginRequest } from '../models/auth.models';
 import { AuthApiService } from './auth-api.service';
-import { TokenStore } from './token-store.service';
+import { AuthSessionStore } from './auth-session.store';
 import { PlayerApiService } from '../../player/services/player-api.service';
-import { PlayerResponse } from '../../player/models/player-response';
 
 @Injectable({
   providedIn: 'root',
@@ -14,16 +13,10 @@ import { PlayerResponse } from '../../player/models/player-response';
 export class AuthService {
   private readonly authApi = inject(AuthApiService);
   private readonly playerApi = inject(PlayerApiService);
-  private readonly tokenStore = inject(TokenStore);
-  // Signals expose state that templates can read reactively
-  private readonly playerState = signal<PlayerResponse | null>(null);
+  private readonly session = inject(AuthSessionStore);
 
-  readonly currentPlayer = this.playerState.asReadonly();
-
-  // computed derives authentication status rather than maintaining a separate boolean that could fall out of sync
-  readonly isAuthenticated = computed(
-    () => this.tokenStore.token() !== null && this.playerState() !== null,
-  );
+  readonly currentPlayer = this.session.currentPlayer;
+  readonly isAuthenticated = this.session.isAuthenticated;
 
 
   /**
@@ -39,9 +32,9 @@ export class AuthService {
       this.logout();
 
       return this.authApi.login(request).pipe(
-        tap(response => this.tokenStore.set(response.accessToken)),
+        tap(response => this.session.begin(response.accessToken)),
         switchMap(() => this.playerApi.currentPlayer()),
-        tap(player => this.playerState.set(player)),
+        tap(player => this.session.setPlayer(player)),
         catchError((error: unknown) => {
           this.logout();
           return throwError(() => error);
@@ -51,7 +44,6 @@ export class AuthService {
   }
 
   logout(): void {
-    this.tokenStore.clear();
-    this.playerState.set(null);
+    this.session.clear();
   }
 }
