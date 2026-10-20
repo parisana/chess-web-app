@@ -55,10 +55,7 @@ class AuthServiceTest {
 
     @Test
     void register_createsPlayerAndEncodedCredentials() {
-        PlayerResponse player = mock(PlayerResponse.class);
-        when(player.id()).thenReturn(1L);
-        when(player.username()).thenReturn(request.username());
-        when(player.email()).thenReturn(request.email());
+        PlayerResponse player = stubPlayerResponse(1L);
 
         when(playerService.createPlayer(
                 request.username(),
