@@ -4,13 +4,14 @@ A portfolio-quality real-time multiplayer chess application in development. The 
 
 ## Architecture and stack
 
-Modular monolith, package by feature with conventional layers; not DDD. Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, JPA, Flyway, Spring Security, and Lombok. Configuration uses YAML. Angular, matchmaking, the chess engine, and WebSocket/STOMP messaging are planned.
+Modular monolith, package by feature with conventional layers; not DDD. Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, JPA, Flyway, Spring Security, and Lombok. Configuration uses YAML. Angular 21 and Angular Material provide registration/login and a protected home page. Matchmaking, the chess engine, and real-time messaging are planned.
 
 - `backend/`: application, migrations, and tests.
+- `frontend/`: Angular application, Material theme, development proxy, and minimal authentication tests.
 - `docs/architecture.md`: responsibilities and implementation decisions.
 - `docs/development-progress.md`: reviewed coverage, limitations, and next steps.
 
-The Angular directory is not present in this Git archive because Git does not track empty directories.
+Checkpoint reviewed: Day 3, 20 October 2026. See `docs/development-progress.md` for verification blockers and the proposed next backend milestone.
 
 ## Local setup
 
@@ -24,35 +25,30 @@ CREATE DATABASE chess_test_db OWNER chess_app;
 
 These match the local defaults. Keep development and test data separate. Flyway applies V1/V2; Hibernate validates mappings instead of creating the schema.
 
-### Signing key: required closeout fix
-
-The reviewed snapshot contains a signing secret in tracked `backend/src/main/resources/application.yaml`. Move it out of shared configuration and replace it with a newly generated local key; the archived value must be treated as disclosed. This documentation update does not modify application configuration.
-
-Generate a replacement:
-
-```bash
-openssl rand -base64 32
-```
-
-Remove `app.jwt.secret` from shared YAML and put the new value in ignored `backend/src/main/resources/application-local.yml`:
-
-```yaml
-app:
-  jwt:
-    secret: "PASTE_NEW_BASE64_KEY"
-```
-
-Keep `issuer: chess-web-app` and `access-token-ttl: 15m` in shared configuration. The test profile has its own deliberately public test-only key. Do not use that key for a deployed application. A new local signing key invalidates existing locally issued tokens, so log in again.
-
-Shared datasource defaults accept optional `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` overrides; environment variables are not required for local setup. Real deployment credentials belong outside tracked files.
+Configuration remains user-managed. This review does not change secrets or require configuration cleanup before the next milestone. Shared datasource defaults accept optional `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` overrides.
 
 From the repository root:
 
 ```bash
 cd backend
 ./gradlew --version
-./gradlew bootRun --args='--spring.profiles.active=local'
+./gradlew bootRun
 ```
+
+### Frontend
+
+Use a Node version accepted by the checked-in Angular packages (their engine range is `^20.19.0 || ^22.12.0 || >=24.0.0`). `package.json` declares npm 11.6.2.
+
+From `frontend/`:
+
+```bash
+npm ci
+npm start
+```
+
+Open `http://localhost:4200`. `npm start` enables the checked-in proxy, forwarding `/api/**` to `http://localhost:8080`; Angular uses relative API URLs.
+
+The review's Node 24.19.0/npm 11.9.0 environment rejected `npm ci`, reporting missing `@emnapi/core@1.11.3` and `@emnapi/runtime@1.11.3` lockfile entries. If reproduced with the project's declared npm version, run `npm install --package-lock-only`, review the lockfile diff, then retry `npm ci`. No dependency files were changed during this review.
 
 ## API
 
@@ -102,7 +98,7 @@ Registration requires a nonblank username of 3–30 Java string units, a valid n
 
 ## JWT behavior
 
-HS256 tokens carry player ID in `sub`, plus issuer, issuance time, and expiration. They contain no username/email. The configured lifetime is 15 minutes with 60 seconds of validation clock tolerance. Signature, algorithm, issuer, required expiration, timestamp validity, and positive-Long subject are validated.
+HS256 tokens carry player ID in `sub`, plus issuer, issuance time, and expiration. They contain no username/email. The configured lifetime is 15 minutes with 60 seconds of validation clock tolerance. Signature, algorithm, issuer, required expiration, expiration/not-before validity, and positive-Long subject are validated.
 
 `/players/me` queries PostgreSQL for current data. Other protected endpoints do not automatically check player existence. Refresh tokens, server-side logout, revocation, and account disabling are not implemented. Login responses use `Cache-Control: no-store`.
 
@@ -118,7 +114,23 @@ SPRING_PROFILES_ACTIVE=test ./gradlew test --rerun-tasks
 
 All current Spring integration classes explicitly activate `test`. PostgreSQL must be available. Reports appear in `build/reports/tests/test/index.html`.
 
-Source and test presence were reviewed on 17 October 2026. Tests could not execute in the review environment because the Gradle download was blocked; its default Java runtime was 17. No passing build is claimed by this review.
+From `frontend/` after dependency installation:
+
+```bash
+npm test -- --watch=false --include='src/app/auth/services/auth-flow.spec.ts'
+npm test -- --watch=false
+npm run build
+```
+
+Five focused authentication tests are present. The full suite also contains a stale generated assertion in `app.spec.ts`: it expects a heading removed from `app.html`. Remove that obsolete title test; retain the app creation smoke test. See the progress document for coverage and limitations.
+
+Review execution on 20 October 2026: `npm ci` failed before tests/build could run. `bash gradlew --version` failed while downloading Gradle because network access was unavailable; the installed Java runtime is 17 rather than the project's 21. No successful test run or build is claimed.
+
+## Frontend session behavior
+
+Login stores the token in memory, calls `/api/v1/players/me`, and marks the session authenticated only after loading the player. Logout and login/profile errors clear session state. Reloading the page loses the session. The interceptor attaches bearer tokens only to relative `/api/` requests, excluding login/register, and clears the matching session on protected-request 401 responses. It redirects established sessions to login; 403 responses do not clear them.
+
+Failed login and registration submissions retain passwords. Login clears its password only on success; registration resets its form only on success. The backend remains authoritative for validation, including BCrypt's UTF-8 byte limit.
 
 Before committing:
 

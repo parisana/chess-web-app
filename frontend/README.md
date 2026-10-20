@@ -1,59 +1,32 @@
-# ChessFrontend
+# Chess Frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.27.
+Angular 21 standalone application with Angular Material, reactive forms, and in-memory authentication. Backend APIs use relative `/api/v1` URLs.
 
-## Development server
+## Run locally
 
-To start a local development server, run:
-
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+From this directory, use the Node engine range recorded in `package-lock.json` and the declared npm 11.6.2:
 
 ```bash
-ng generate component component-name
+npm ci
+npm start
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Open `http://localhost:4200`. `npm start` loads `proxy.conf.json` and forwards `/api/**` to the Spring backend on port 8080. Start the backend separately. Plain `ng serve` does not enable this proxy automatically.
+
+## Build and minimal tests
 
 ```bash
-ng generate --help
+npm run build
+npm test -- --watch=false --include='src/app/auth/services/auth-flow.spec.ts'
+npm test -- --watch=false
 ```
 
-## Building
+Five focused auth tests cover header attachment, external URL exclusion, protected 401 handling, profile-error cleanup, and logout. `app.spec.ts` also contains an obsolete generated heading assertion: remove that title test because the root template now only renders the router outlet. Keep the app creation smoke test. No end-to-end runner is configured.
 
-To build the project run:
+Review on 20 October 2026: `npm ci` failed under Node 24.19.0/npm 11.9.0 with missing `@emnapi/core@1.11.3` and `@emnapi/runtime@1.11.3` lockfile entries, so tests/build were not executed. Reproduce with the declared npm version; if needed, run `npm install --package-lock-only`, review the diff, and retry `npm ci`. This review changed no dependencies or tests.
 
-```bash
-ng build
-```
+## Behavior
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Register, then sign in. A successful login loads `/players/me` before opening the guarded home page. Logout clears the token/player. Browser reload loses the in-memory session. Protected-request 401 clears the matching session and redirects an established player to login; 403 does not clear it. Failed form submissions retain passwords; successful submissions reset them as appropriate.
 
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+See `../docs/development-progress.md` for review findings and the next backend proposal.
