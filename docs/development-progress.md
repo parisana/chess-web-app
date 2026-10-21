@@ -88,30 +88,23 @@ Small opportunistic improvements:
 - Add not-before/algorithm rejection cases when next extending backend token tests.
 - Keep email-bearing PlayerResponse private to self-profile/auth flows; matchmaking responses should not expose an opponent's email.
 
-## Proposed next backend milestone: persistent matchmaking queue
+## Matchmaking queue milestone — implemented
 
-This is a proposal, not implemented functionality. Build authenticated queue membership before pairing/game creation. It gives practice with schema design, service transactions, idempotent HTTP operations, and database-enforced concurrency without requiring frontend work.
+- [x] V3 queue migration, entity, and repository.
+- [x] Transactional join, leave, and status operations.
+- [x] Repeated joins preserve the original entry and timestamp.
+- [x] Database-enforced uniqueness and concurrent-join handling.
+- [x] Authenticated endpoints using JWT-derived player identity.
+- [x] Missing-player Problem Detail response.
+- [x] PostgreSQL integration tests for membership and concurrent joins.
+- [x] HTTP integration tests for authentication and queue operations.
+- [x] Minimal Angular queue controls with progress and error handling.
 
-Proposed initial contract:
+Current limitations: one queue, manual status refresh, no expiry, no pairing,
+no active-game eligibility checks, and no automatic queue removal on logout.
 
-| Method | Route | Behavior |
-| --- | --- | --- |
-| POST | `/api/v1/matchmaking/queue` | Join; repeated join returns the existing membership |
-| GET | `/api/v1/matchmaking/queue/me` | Return WAITING with enqueue time, or NOT_QUEUED |
-| DELETE | `/api/v1/matchmaking/queue/me` | Leave; return 204 even when already absent |
-
-Use the authenticated JWT subject, never a client-supplied player ID. Verify player existence through PlayerService. Introduce `matchmaking.controller/service/dto/entity/repository/exception` only as each is needed. Add a new V3 migration for queue entries, with a unique player ID, player foreign key, and enqueue timestamp. Preserve existing migrations. Start with a single queue; ratings and multiple time controls can follow requirements.
-
-A service transaction owns each operation. The unique constraint is the final guard against concurrent joins; do not rely on `exists` followed by `save`. Before coding, choose an atomic insert-on-conflict strategy or a retry outside a failed transaction. Use a matchmaking-owned projection for results and do not access player repositories directly.
-
-Increment order:
-
-1. Define the DTO/API behavior and V3 queue schema.
-2. Implement join/leave/status with transaction boundaries and duplicate-join concurrency handling.
-3. Add focused backend tests for missing auth, missing player, first/repeated join, status, repeated leave, and simultaneous joins retaining one row. Check that a repeated join preserves queue position.
-4. Add a small frontend queue control only after backend behavior is verified.
-
-Pairing is a later increment: first establish a minimal game-creation service, then atomically remove two queue entries and create one game. Define locking and rollback behavior before supporting concurrent pairers. Notifications and WebSocket authentication follow that service flow. Redis/Kafka are not needed for this initial single-instance PostgreSQL design.
+Next milestone: minimal persisted game creation, followed by transactional
+pairing of queued players.
 
 ## Suggested commit
 

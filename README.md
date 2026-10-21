@@ -1,6 +1,6 @@
 # Chess Web App
 
-A portfolio-quality real-time multiplayer chess application in development. The current backend supports registration, email/password login, JWT authentication, and current-player profile retrieval.
+A portfolio-quality real-time multiplayer chess application in development. The current backend supports registration, email/password login, JWT authentication, current-player profile retrieval and persistent queue membership.
 
 ## Architecture and stack
 
@@ -57,6 +57,9 @@ The review's Node 24.19.0/npm 11.9.0 environment rejected `npm ci`, reporting mi
 | POST | `/api/v1/auth/register` | Public | 201; `playerId`, `username`, `email` |
 | POST | `/api/v1/auth/login` | Public | 200; `accessToken`, `tokenType`, `expiresIn` |
 | GET | `/api/v1/players/me` | Bearer JWT | 200; `id`, `username`, `email` |
+| POST | `/api/v1/matchmaking/queue` | Bearer JWT | 200; current queue status |
+| GET | `/api/v1/matchmaking/queue/me` | Bearer JWT | 200; current queue status |
+| DELETE | `/api/v1/matchmaking/queue/me` | Bearer JWT | 204 |
 
 Register:
 

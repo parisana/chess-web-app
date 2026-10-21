@@ -93,8 +93,28 @@ Shared configuration lives in `application.yaml`; test overrides use `applicatio
 
 Flyway migration-name validation is enabled only in the test profile; enabling it in shared configuration is an optional small follow-up.
 
-## Planned application growth
+## Matchmaking queue
 
-Matchmaking owns queue/pairing and coordinates game creation through services. Game owns state, legal moves, turn order, results, persistence, and reconnection recovery. Design concurrency controls before competing matchmaking or move operations are implemented.
+The matchmaking feature owns persistent queue membership through conventional
+controller/service/DTO/entity/repository layers.
+
+Controllers derive player identity from the validated JWT subject. Clients
+cannot select another player through a request body or parameter.
+MatchmakingService checks player existence through PlayerService.
+
+Flyway V3 creates matchmaking_queue. A unique player_id constraint enforces
+one entry per player. An index on enqueued_at and id supports deterministic
+oldest-entry selection.
+
+Joining uses a PostgreSQL upsert that preserves the existing entry ID and
+enqueue timestamp. The conflict update locks the existing row until the
+service transaction completes. Repeated joins perform an update without
+changing business data.
+
+Leaving uses a bulk JPQL delete. Repeated leave succeeds when no entry exists.
+This operation bypasses JPA removal callbacks and remove cascades; the current
+queue entity requires neither.
+
+## Planned application growth
 
 Spring application events may decouple appropriate internal reactions, but are not durable messaging. WebSocket/STOMP remains a candidate for later real-time delivery, not an implemented dependency. It will need authenticated connections and authorized subscriptions/commands. Redis and Kafka are outside the initial infrastructure. Spectators, tournaments, chat, engine analysis, and distributed scaling remain out of initial scope.
