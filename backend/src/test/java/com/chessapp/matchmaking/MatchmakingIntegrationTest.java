@@ -7,13 +7,17 @@ import com.chessapp.matchmaking.service.MatchmakingService;
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.repository.PlayerRepository;
 import com.chessapp.player.service.PlayerService;
+import com.chessapp.security.service.JwtTokenService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -23,11 +27,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
  * @author pari on 10/21/26
  */
 @SpringBootTest
+@AutoConfigureMockMvc
 @ActiveProfiles("test")
 class MatchmakingIntegrationTest {
 
@@ -48,6 +55,17 @@ class MatchmakingIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private JwtTokenService tokenService;
+
+    private String bearerToken() {
+        return "Bearer " + tokenService.issueAccessToken(player.id())
+                .getTokenValue();
+    }
 
     private TransactionTemplate transactions;
     private PlayerResponse player;
@@ -237,5 +255,71 @@ class MatchmakingIntegrationTest {
                     "Queue workers should terminate before fixture cleanup"
             );
         }
+    }
+
+    @Test
+    void queueEndpoints_rejectMissingToken() throws Exception {
+        mockMvc.perform(post("/api/v1/matchmaking/queue"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/v1/matchmaking/queue/me"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(delete("/api/v1/matchmaking/queue/me"))
+                .andExpect(status().isUnauthorized());
+
+        assertEquals(0L, queueEntryCount());
+    }
+    @Test
+    void queueEndpoints_supportJoinStatusAndRepeatedLeave()
+            throws Exception {
+
+        String authorization = bearerToken();
+
+        mockMvc.perform(get("/api/v1/matchmaking/queue/me")
+                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("NOT_QUEUED"));
+
+        mockMvc.perform(post("/api/v1/matchmaking/queue")
+                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("WAITING"))
+                .andExpect(jsonPath("$.enqueuedAt").isNotEmpty());
+
+        mockMvc.perform(get("/api/v1/matchmaking/queue/me")
+                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("WAITING"));
+
+        mockMvc.perform(delete("/api/v1/matchmaking/queue/me")
+                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        mockMvc.perform(delete("/api/v1/matchmaking/queue/me")
+                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isNoContent());
+
+        assertEquals(0L, queueEntryCount());
+    }
+
+    @Test
+    void queueEndpoint_rejectsTokenForDeletedPlayer() throws Exception {
+        String authorization = bearerToken();
+
+        transactions.executeWithoutResult(transaction ->
+                playerRepository.deleteById(player.id())
+        );
+
+        mockMvc.perform(get("/api/v1/matchmaking/queue/me")
+                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(
+                        "application/problem+json"
+                ))
+                .andExpect(jsonPath("$.code").value(
+                        "AUTHENTICATED_PLAYER_UNAVAILABLE"
+                ));
     }
 }
