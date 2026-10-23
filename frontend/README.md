@@ -1,32 +1,53 @@
 # Chess Frontend
 
-Angular 21 standalone application with Angular Material, reactive forms, and in-memory authentication. Backend APIs use relative `/api/v1` URLs.
+Updated 23 October 2026 for the Day 5 guided username-editor increment. Source review covered the Day 4 archive; no fresh Day 5 source archive has been inspected.
+
+Angular 21 standalone application with Angular Material, reactive forms and in-memory authentication. Backend calls use relative `/api/v1` URLs.
 
 ## Run locally
 
-From this directory, use the Node engine range recorded in `package-lock.json` and the declared npm 11.6.2:
+From `frontend/`, use the project's declared npm 11.6.2 and a Node version accepted by the locked Angular packages:
 
 ```bash
 npm ci
 npm start
 ```
 
-Open `http://localhost:4200`. `npm start` loads `proxy.conf.json` and forwards `/api/**` to the Spring backend on port 8080. Start the backend separately. Plain `ng serve` does not enable this proxy automatically.
+Open `http://localhost:4200`. `npm start` loads `proxy.conf.json`, forwarding `/api/**` to the separately running Spring backend at port 8080. Plain `ng serve` does not enable this proxy automatically.
 
 ## Build and minimal tests
 
 ```bash
-npm run build
-npm test -- --watch=false --include='src/app/auth/services/auth-flow.spec.ts'
 npm test -- --watch=false
+npm run build
 ```
 
-Five focused auth tests cover header attachment, external URL exclusion, protected 401 handling, profile-error cleanup, and logout. `app.spec.ts` also contains an obsolete generated heading assertion: remove that title test because the root template now only renders the router outlet. Keep the app creation smoke test. No end-to-end runner is configured.
+Five focused tests in `src/app/auth/services/auth-flow.spec.ts` cover bearer attachment, external URL exclusion, protected 401 cleanup/redirect, cleanup after profile loading fails, and logout. There is no `app.spec.ts` in this checkpoint. No end-to-end runner is configured.
 
-Review on 20 October 2026: `npm ci` failed under Node 24.19.0/npm 11.9.0 with missing `@emnapi/core@1.11.3` and `@emnapi/runtime@1.11.3` lockfile entries, so tests/build were not executed. Reproduce with the declared npm version; if needed, run `npm install --package-lock-only`, review the diff, and retry `npm ci`. This review changed no dependencies or tests.
+The user reports passing tests for the completed Day 4 checkpoint. This documentation review did not rerun tests or builds. Separate Day 5 frontend test/build/manual-check outcomes have not been recorded. Older review-environment npm failures are not confirmed current blockers.
 
-## Behavior
+## Authentication behavior
 
-Register, then sign in. A successful login loads `/players/me` before opening the guarded home page. Logout clears the token/player. Browser reload loses the in-memory session. Protected-request 401 clears the matching session and redirects an established player to login; 403 does not clear it. Failed form submissions retain passwords; successful submissions reset them as appropriate.
+Registration and login use Material forms. Login loads `/api/v1/players/me` before establishing an authenticated session. Home is guarded. Logout clears the in-memory token/player and returns to login; a browser reload also loses the session.
 
-See `../docs/development-progress.md` for review findings and the next backend proposal.
+The interceptor attaches bearer tokens to relative protected API requests. A protected-request 401 clears the matching session and redirects an established player to login; a 403 does not clear the session. Failed form submissions preserve passwords. Successful login clears the password; successful registration resets the form.
+
+## Username editing
+
+Home embeds the standalone `ProfileEditor` component. It initializes the form from the in-memory player, validates a nonblank username of 3–30 UTF-16 string units, and calls PATCH `/api/v1/players/me` through `PlayerApiService`.
+
+The existing interceptor attaches the token. A successful response updates `AuthSessionStore`, immediately updating the welcome message. The form then resets to the server-returned username. Errors preserve the input and show validation, conflict, session or fallback feedback. A response for a changed session is ignored. No new frontend test suite was introduced for this increment.
+
+Usernames may contain spaces and special characters. No trimming or case normalization is performed. Email/password changes are outside this form. Username changes do not require a new token.
+
+Manual checks: successful rename and immediate header update; duplicate rejection with input retained; invalid input feedback; navigating back to Home with the updated profile. Use the browser network panel to inspect PATCH response statuses/codes listed in [API contracts](../docs/api-contracts.md).
+
+## Matchmaking behavior
+
+Home loads queue status when opened and provides Material join, leave and refresh controls with progress/error feedback. It displays `NOT_QUEUED`, the enqueue time for `WAITING`, or the game ID for `MATCHED`.
+
+Pairing runs on the backend when players join. The first player manually refreshes to discover the match. Leaving removes waiting membership without cancelling a game; logout does not leave the queue.
+
+There is no game API service, game route, chessboard or real-time subscription in this checkpoint.
+
+See [development-progress.md](../docs/development-progress.md) for current coverage and limitations, [architecture.md](../docs/architecture.md) for engineering decisions, and [roadmap.md](../docs/roadmap.md) for planning status.

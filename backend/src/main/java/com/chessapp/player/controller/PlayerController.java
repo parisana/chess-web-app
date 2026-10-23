@@ -2,7 +2,9 @@ package com.chessapp.player.controller;
 
 
 import com.chessapp.player.dto.PlayerResponse;
+import com.chessapp.player.dto.UpdatePlayerRequest;
 import com.chessapp.player.service.PlayerService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,6 +30,25 @@ public class PlayerController {
     ) {
         return playerService.findById(
                 Long.parseLong(Objects.requireNonNull(jwt.getSubject()))
+        ).orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.UNAUTHORIZED,
+                "Authenticated player no longer exists"
+        ));
+    }
+
+    @PatchMapping("/me")
+    public PlayerResponse updateCurrentPlayer(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody UpdatePlayerRequest request
+    ) {
+        // The validated JWT identifies the player allowed to change this profile.
+        Long playerId = Long.parseLong(
+                Objects.requireNonNull(jwt.getSubject())
+        );
+
+        return playerService.updateUsername(
+                playerId,
+                request.username()
         ).orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.UNAUTHORIZED,
                 "Authenticated player no longer exists"

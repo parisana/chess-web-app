@@ -1,5 +1,7 @@
 # Architecture
 
+Updated through the Day 5 guided implementation session on 23 October 2026. Reviewed source baseline: completed Day 4 in `chess-web-app-day5-start.zip`. Day 5 changes below describe the supplied implementation and session progress; a fresh source archive has not been reviewed. See `development-progress.md` for verification provenance and `roadmap.md` for scheduling.
+
 ## Style and ownership
 
 A single Spring Boot application, organized as a modular monolith with feature packages and conventional controller/service/DTO/entity/repository layers. Not DDD; no microservices or multi-project Gradle modules are required. Keep the domain term `Player`.
@@ -7,7 +9,7 @@ A single Spring Boot application, organized as a modular monolith with feature p
 | Package | Ownership | State |
 | --- | --- | --- |
 | `auth` | Registration, local credentials, login | Implemented |
-| `player` | Identity and profile data | Creation, lookup, current profile implemented |
+| `player` | Identity and profile data | Creation, lookup, current profile read and username updates |
 | `security` | HTTP authentication, password encoding, JWT machinery | Implemented |
 | `common` | Shared timestamps and request validation error handling | Implemented |
 | `matchmaking` | Persistent queue, eligibility, and transactional pairing | Implemented |
@@ -54,14 +56,32 @@ Password encoding uses `DelegatingPasswordEncoder`, bcrypt by default. Registrat
 
 Deleting a player does not cryptographically revoke its JWT. `/players/me` detects deletion through its lookup; future endpoints must apply their own resource and account checks. Refresh tokens, revocation, logout endpoints, account-status checks, rate limiting, and key rotation machinery are not implemented.
 
+## Current-player username updates
+
+`PATCH /api/v1/players/me` belongs to `PlayerController`. It validates `UpdatePlayerRequest` and derives player identity from the JWT subject. The body contains only the username; no client-supplied player ID chooses the update target. Email/password changes are outside this use case.
+
+Transactional `PlayerService.updateUsername()` returns `Optional<PlayerResponse>`. A missing player returns empty; the controller translates that result into 401 using `ResponseStatusException`, consistently with the current profile-read endpoint. HTTP concerns remain at the controller boundary.
+
+Submitting the current username returns without mutation. Otherwise, the service checks username availability, calls `Player.changeUsername()` on the managed entity and flushes through the repository. JPA dirty checking writes the update; an additional `save()` is unnecessary. The inherited `@PreUpdate` callback updates `updatedAt` for a changed entity. Flushing executes SQL without committing.
+
+The availability check improves feedback but cannot guarantee uniqueness under concurrency. PostgreSQL's existing `uk_players_username` constraint remains authoritative, and `PlayerExceptionHandler` maps its violation to `USERNAME_ALREADY_EXISTS`. Concurrent edits to the same player's username currently use last-write-wins behavior; `Player` has no optimistic-lock version. The `Game` version field does not protect player edits.
+
+Username validation remains nonblank and 3–30 Java UTF-16 string units, matching registration. There is no trimming, case normalization or special-character restriction. Existing IDs, credentials, game references and JWT subjects remain unchanged. No migration is introduced.
+
+`ProfileEditor` is a standalone component under `player/components/profile-editor`, embedded in authenticated Home. `PlayerApiService` handles PATCH transport; the component coordinates form feedback and updates `AuthSessionStore` from the returned profile. It ignores successful responses if the token or current player has changed. Destruction cancels its subscription. Server validation remains authoritative, errors preserve input, and successful saves reset the form to the returned username. The welcome message observes the same store through `AuthService`.
+
+The Day 5 integration-test increment covers persistence, same-username no-op behavior, duplicate rejection, validation, JWT-derived ownership, missing authentication, deleted-player access and reuse of the existing JWT after renaming. Transactional HTTP tests flush/clear before persistence assertions and roll back fixtures; they do not establish real HTTP commit behavior or reproduce a concurrent rename race.
+
 ## Error ownership
 
 - `ApiExceptionHandler`: shared MVC handling and field-validation Problem Details.
 - `PlayerExceptionHandler`: player duplicates and known database constraints.
 - `AuthExceptionHandler`: invalid local credentials.
+- `MatchmakingExceptionHandler`: unavailable authenticated players.
+- `GameExceptionHandler`: active-game conflicts, missing games, and participant access denial.
 - Spring Security filter chain: missing/invalid bearer credentials.
 
-Feature-owned error constants avoid a global catalog of every feature's codes. Field errors omit rejected values to avoid exposing passwords. Filter-chain errors do not currently share the MVC Problem Detail format. HTTP status consistency is implemented; a universal error-body contract is not.
+Feature-owned error constants avoid a global catalog of every feature's codes. Field errors omit rejected values to avoid exposing passwords. Filter-chain errors do not currently share the MVC Problem Detail format. HTTP status consistency is implemented; a universal error-body contract is not. [api-contracts.md](api-contracts.md) lists the expected status/code combinations by action, including failures without a guaranteed application code.
 
 ## Tests and transaction semantics
 
@@ -83,9 +103,9 @@ The interceptor attaches tokens only to relative `/api/` URLs and excludes publi
 
 Token/player state is not persisted, so reload requires another login. There is no expiry timer or token refresh; an idle page may retain displayed state until a protected request receives 401. Client logout clears memory; the JWT itself remains valid until expiry. Cancellation of the login subscription after token issuance can leave a token without a player; authentication still evaluates false. Revisit cleanup if this causes a concrete navigation problem.
 
-Both forms prevent duplicate submissions, show progress/errors, and retain passwords after failure. Successful login clears its password; successful registration resets the form and redirects to login. Registration displays backend duplicate/field-validation errors. Material theming is configured in `material-theme.scss`; home currently uses a plain button.
+Both forms prevent duplicate submissions, show progress/errors, and retain passwords after failure. Successful login clears its password; successful registration resets the form and redirects to login. Registration displays backend duplicate/field-validation errors. Material theming is configured in `material-theme.scss`; home uses Material cards, buttons, and progress indicators for queue controls and matched-game discovery.
 
-The five focused HTTP/store tests cover bearer attachment, external URL exclusion, protected 401 clearing/redirect, profile-load failure cleanup, and logout. They do not test forms, the guard, successful login completion, public-auth token exclusion with an existing token, stale-token responses, or password retention. These are coverage limits, not requests for a broad frontend suite. The generated app title test is obsolete.
+The five focused HTTP/store tests cover bearer attachment, external URL exclusion, protected 401 clearing/redirect, profile-load failure cleanup, and logout. They do not test forms, the guard, successful login completion, public-auth token exclusion with an existing token, stale-token responses, or password retention. These are coverage limits, not requests for a broad frontend suite. There is no generated `app.spec.ts` in this checkpoint; the five authentication tests are the current frontend suite.
 
 ## Configuration
 
@@ -151,6 +171,42 @@ JWT subject. GameService permits either participant to read the game,
 returns 404 for a missing game, and rejects nonparticipants with 403.
 The response contains player IDs rather than opponent profile details.
 
+## Planned chess rules boundary
+
+Status: planned for Day 6; not yet implemented.
+
+GameService depends on ChessRules. Our implementation owns chess
+behavior without depending on Spring, JPA or HTTP. A future library
+can be integrated through an adapter implementing the same interface.
+
+```mermaid
+classDiagram
+    direction TB
+
+    class GameService
+    class ChessRules {
+        <<interface>>
+    }
+    class StandardChessRules
+    class LibraryChessRulesAdapter
+
+    GameService --> ChessRules : uses
+    ChessRules <|.. StandardChessRules : implements
+    ChessRules <|.. LibraryChessRulesAdapter : future option
+```
+
+The library adapter is a documented extension point, not a class
+we need to implement now. Interface methods will be defined as
+the first rules use cases are established.
+
 ## Planned application growth
 
 Spring application events may decouple appropriate internal reactions, but are not durable messaging. WebSocket/STOMP remains a candidate for later real-time delivery, not an implemented dependency. It will need authenticated connections and authorized subscriptions/commands. Redis and Kafka are outside the initial infrastructure. Spectators, tournaments, chat, engine analysis, and distributed scaling remain out of initial scope.
+
+## Current gameplay boundary
+
+`GameStatus` currently contains only `IN_PROGRESS`. The stored FEN is the initial position; no service applies moves. `@Version` is present for future concurrent game updates, but move-command conflict handling is not implemented. There is no terminal status, result, lifecycle endpoint, or reservation-release operation.
+
+The Angular frontend has no game API service, game route, or chessboard. It discovers `gameId` through manual queue-status refresh. Spring application events and WebSocket/STOMP delivery remain planned; no notification feature is implemented.
+
+Queue operations acquire the queue advisory lock before queue access, including read-only status requests. This is a deliberate small-system serialization tradeoff. The lock is cooperative; database constraints remain necessary for game-creation callers outside matchmaking.

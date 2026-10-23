@@ -1,160 +1,138 @@
 # Development Progress
 
-Reviewed: 20 October 2026. Source: attached `chess-web-app-day3.zip`, archive commit `d649893cba9bef693890fc86804328f714e959b6`. This revision updates documentation only; application code, tests, dependency files, migrations, and configuration are unchanged.
+Updated: 23 October 2026.
+Reviewed source baseline: `chess-web-app-day5-start.zip`, archive commit `3817be2637a043ce261cea31609f0f2b6b924acc` (completed Day 4). Day 5 additions are recorded from this guided implementation session; no post-Day-5 source ZIP has been reviewed.
 
-## Day 3 status: historical
+This document describes the Day 4 baseline and the Day 5 username-update increment. Day numbers identify our working sessions and no longer align directly with the original 30-working-day schedule. The agreed Day 5 scope is recorded in [roadmap.md](roadmap.md). Expected API errors are listed in [api-contracts.md](api-contracts.md).
 
-The checkpoint contains the backend authentication foundation and the Angular authentication flow. Architecture remains a modular monolith, package by feature with conventional layers, not DDD. Stack: Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, Flyway, Lombok, YAML, Angular 21, and Angular Material.
+## Current checkpoint
 
-Implemented source and test presence have been reviewed. This is not certification of a passing build. Matchmaking, games, legal moves, and real-time delivery have not been implemented.
-
-## Day 4 checkpoint
-
-### Implemented
-
-- V4 game migration and initial-state persistence.
-- V5 active-player reservations enforcing one active game per player.
-- Rollback and concurrent game-creation integration tests.
-- Transaction-level advisory locking for the single matchmaking queue.
-- Oldest-first pairing with random color assignment.
-- Atomic game creation, player reservation, and queue removal.
-- MATCHED queue status with game ID.
-- Minimal Angular matched-game display using manual refresh.
-- Participant-protected game-read endpoint.
-- HTTP integration tests for both participants, nonparticipant access,
-  missing games, and missing authentication.
-
-### Current limitations
-
-- One queue with serialized operations, including status reads.
-- Pairing runs on join; there is no background pairing worker.
-- No queue expiry or automatic queue removal on logout.
-- No match acceptance, cancellation, completion, or reservation release.
-- Games begin IN_PROGRESS with the initial FEN.
-- No legal-move processing, move history, chessboard UI, or notifications.
-- Active reservations persist until a future lifecycle operation releases them.
-
-### Verification
-
-Run locally:
-
-Backend:
-SPRING_PROFILES_ACTIVE=test ./gradlew test
-
-Frontend:
-npm run build
-
-Manual flow:
-Join with two different players in separate browser sessions.
-Refresh the first player's status and confirm both receive the same game ID.
-Use each participant's token to retrieve the game.
-Confirm a third player's token receives 403.
-
-Record actual results after execution. The documentation update itself
-does not establish that these checks passed.
-
-## Backend reviewed
-
-- Transactional registration persists players and BCrypt credentials; V1/V2 own schema creation.
-- Auth calls PlayerService using DTOs rather than importing player entities/repositories.
-- Duplicate prechecks and named PostgreSQL constraints provide conflict handling.
-- Structured validation errors omit rejected password values; registration and login enforce the 72-byte UTF-8 password maximum.
-- Exact stored-email login uses a dummy hash for unknown/missing credentials and returns generic 401 errors.
-- Login issues HS256 JWTs with player ID subject and a no-store header.
-- JWT decoding checks algorithm, signature, issuer, required expiration, expiration/optional not-before validity with skew, and positive Long subject. Issued-at is emitted but there is no explicit future-issued-at validator.
-- `/api/v1/players/me` loads current database state and rejects missing players.
-- Unit, standalone MVC, PostgreSQL persistence/uniqueness/rollback, login, and JWT integration tests are present.
-
-Two previous follow-ups are already resolved: PlayerExceptionHandlerTest is in `player.exception`, and the missing-local-credentials test initializes and verifies the dummy hash. The earlier Day 2 documentation describing them as pending was stale.
-
-## Frontend reviewed
-
-- Registration/login use reactive forms and Angular Material, with progress and error handling.
-- Registration success redirects to login with feedback; failure preserves form values/password.
-- Login obtains a token, loads `/players/me`, then establishes the player session.
-- In-memory signals hold the token and player; reload loses the session.
-- The interceptor attaches bearer headers to relative backend URLs, excludes public auth calls, and avoids sending tokens to external services.
-- Protected-request 401 clears the matching session and redirects established sessions. 403 does not clear it.
-- Home is guarded; logout clears client state and returns to login.
-- Both failed form submissions preserve passwords. Success-only resets remain intentional.
-
-## Verification results and blockers
-
-| Check | Observed result |
+| Area | Implemented |
 | --- | --- |
-| Backend source/test review | Completed |
-| `bash gradlew --version` | Failed downloading Gradle 9.8.1: network unreachable |
-| Java runtime available here | Java 17; project requires Java 21 |
-| `npm ci --no-audit --no-fund` (with bounded fetch settings) | Failed with EUSAGE under Node 24.19.0/npm 11.9.0; missing `@emnapi/core@1.11.3` and `@emnapi/runtime@1.11.3` from lockfile |
-| Frontend tests/build | Not executed; dependencies not installed |
-| Backend tests/build | Not executed; Gradle/bootstrap and Java prerequisites unavailable |
+| Architecture | Modular monolith, package-by-feature with conventional layers; keep `Player`; not DDD |
+| Backend stack | Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, JPA, Flyway, Lombok, YAML |
+| Frontend stack | Angular 21, Angular Material, standalone components, reactive forms and signals |
+| Registration | Transactional player/credential creation, BCrypt, validation, duplicate handling and rollback coverage |
+| Login and security | Email/password login, HS256 JWT issuance/validation, JWT-derived player identity, protected APIs |
+| Player profile | Authenticated GET and PATCH `/api/v1/players/me`; PATCH changes username only |
+| Profile editor | Angular username form, server error feedback and immediate in-memory profile update |
+| Frontend authentication | Registration/login, in-memory session, interceptor, guard, logout and protected-request 401 handling |
+| Queue | Persistent join/leave/status, repeated-join timestamp preservation, authenticated endpoints |
+| Pairing | Oldest-first eligible pairing on join, random colors, transaction-level queue advisory lock |
+| Games | Initial FEN and `IN_PROGRESS` persistence; one-active-game-per-player reservations |
+| Atomicity | Game creation, both reservations and removal of paired queue entries commit or roll back together |
+| Discovery | `MATCHED` queue status with game ID; manual Angular status refresh |
+| Game access | Participant-protected `GET /api/v1/games/{gameId}` |
 
-The package manager declaration is npm 11.6.2. Reproduce installation with that version before attributing the lockfile failure to all environments. If needed, regenerate lock metadata using `npm install --package-lock-only`, inspect its diff, and rerun `npm ci`; do not start by upgrading Angular or deleting the lockfile.
+## Schema
 
-### Minimal frontend tests: current source status
+| Migration | Responsibility |
+| --- | --- |
+| V1 | Players |
+| V2 | Local authentication credentials |
+| V3 | Matchmaking queue and ordering index |
+| V4 | Initial game state, participants, timestamps and optimistic-lock version |
+| V5 | Active-player reservations and backfill from existing in-progress games |
 
-`auth-flow.spec.ts` contains five tests: protected bearer attachment, no token to an external service, protected 401 session clear/redirect, cleanup when profile loading fails after login, and logout. Their assertions match the reviewed flow, but they have not run in this review.
+Applied migrations remain immutable. Future schema changes use new Flyway SQL migrations. Hibernate validates the schema rather than generating it.
 
-`app.spec.ts` has an app creation smoke test and an obsolete generated title test expecting `Hello, chess-frontend`. `app.html` now contains only `<router-outlet />`, so that title expectation cannot pass when executed. Small follow-up: remove the obsolete title test, retaining the creation smoke test and five auth tests. No broad component/E2E suite is proposed.
+## Tests reviewed in the Day 4 source baseline
 
-### Local verification commands
+Backend coverage includes:
 
-From `frontend/`, after resolving installation:
+- Registration service/controller validation, duplicate handling and BCrypt password-byte limits.
+- PostgreSQL player uniqueness, registration persistence and rollback.
+- Login and JWT security, including valid, malformed, expired and altered tokens; issuer, subject and expiration requirements; deleted-player profile access.
+- Queue persistence, repeated join/leave, concurrent joins, authenticated HTTP operations and deleted-player rejection.
+- Initial game persistence and invalid/missing participant rejection.
+- Active-game conflicts, rollback of partial reservations, and concurrent creation sharing a player.
+- Pairing of two players, removal of paired entries, rollback with the enclosing transaction, and concurrent joins without duplicate games.
+- Game-read HTTP access for both participants, nonparticipants, missing games and missing authentication.
+
+The five focused Angular tests in `auth-flow.spec.ts` cover protected bearer attachment, exclusion of external requests, protected 401 cleanup/redirect, profile-load failure cleanup and logout. There is no `app.spec.ts` in this ZIP. No broad frontend component or end-to-end suite is introduced.
+
+Test presence describes coverage, not an independently reproduced passing run. Day 5 coverage is recorded separately below.
+
+## Day 5 username-update increment
+
+Implementation recorded through this session:
+
+- `UpdatePlayerRequest` validates a nonblank username of 3–30 Java UTF-16 string units.
+- `Player.changeUsername()` provides an explicit mutation operation.
+- Transactional `PlayerService.updateUsername()` preserves same-username submissions as no-ops, checks duplicates and flushes the managed entity.
+- `PlayerController` exposes authenticated PATCH `/api/v1/players/me`; a missing player is translated to 401 at the HTTP boundary.
+- Existing database uniqueness and exception translation protect username ownership when prechecks race.
+- `PlayerUpdateIntegrationTest` covers persistence, no-op timestamp preservation, duplicate conflicts, invalid fields, authenticated ownership, missing authentication, deleted players and existing-token reuse.
+- `PlayerApiService.updateUsername()` calls PATCH; `ProfileEditor` is embedded in Home.
+- The editor updates the session store from the successful server response, updates the welcome message immediately, preserves input after failures and ignores stale-session success responses.
+- Username special characters remain allowed. Email/password changes and normalization remain deferred.
+- No new migration, token claim, token refresh mechanism or frontend test suite is introduced.
+
+This records the agreed implementation increment, not an independently verified release. See verification provenance below.
+
+## Verification provenance
+
+- The user reports passing tests for the completed Day 4 checkpoint.
+- The source review inspected the Day 4 archive, migrations and relevant tests.
+- The user confirmed completion of the Day 5 backend integration-test step. No detailed result log was supplied; frontend build, test and manual-check outcomes were not separately recorded.
+- Day 5 implementation status follows the guided session; no new source archive has been inspected. This documentation update did not rerun application tests or builds.
+- Java/Gradle bootstrap and npm installation problems recorded during the 20 October review belong to that earlier review environment. They are not confirmed current project blockers.
+- This update changes documentation only; it does not change application code, dependencies, migrations or configuration.
+
+### Local verification
+
+With Java 21 and the configured PostgreSQL test database available, from `backend/`:
+
+```bash
+./gradlew --version
+SPRING_PROFILES_ACTIVE=test ./gradlew test
+```
+
+The integration test classes explicitly activate `test`. Reports: `build/reports/tests/test/index.html`.
+
+From `frontend/` using the declared npm version and a compatible Node version:
 
 ```bash
 npm ci
-npm test -- --watch=false --include='src/app/auth/services/auth-flow.spec.ts'
 npm test -- --watch=false
 npm run build
 ```
 
-From `backend/`, with Java 21 and PostgreSQL `chess_test_db` available:
+Manual smoke checks:
 
-```bash
-./gradlew --version
-./gradlew test --tests com.chessapp.auth.service.AuthServiceTest --tests com.chessapp.auth.controller.AuthControllerTest
-SPRING_PROFILES_ACTIVE=test ./gradlew clean test
-```
+1. Register and sign in with two players in separate browser sessions.
+2. Join the queue with both players; refresh the first player's status.
+3. Confirm both discover the same game ID and that repeated join returns the active game.
+4. Retrieve the game using each participant's token; confirm initial state and participant IDs.
+5. Confirm a third player's token receives 403 and a request without authentication receives 401.
+6. Confirm leaving the queue does not cancel the game.
+7. Save an available username; confirm the welcome message changes immediately.
+8. Try another player's username; confirm conflict feedback and preserved input.
+9. Submit invalid values; confirm validation. Navigate away and back to Home and confirm the stored profile is reflected.
+10. Use the existing token to retrieve `/players/me` after renaming; confirm it remains valid.
 
-Reports: `backend/build/reports/tests/test/index.html`. Test transactions roll back participating fixtures; earlier committed rows are not removed by adding `@Transactional`. Expected constraint errors in logs are not by themselves failed tests.
+## Current limitations
 
-Manual frontend smoke check using `npm start`: register → sign in → home → logout; wrong-password and duplicate registration failures retain the entered password; refresh returns to login. These checks are suggested, not claimed as performed here.
+- One queue; cooperating queue operations, including status reads, serialize through one advisory lock.
+- Pairing runs on join; no background worker or rating filter.
+- Manual status refresh; no application-event notifications or WebSocket/STOMP delivery.
+- No queue expiry or automatic leave on logout.
+- Games begin immediately in `IN_PROGRESS`; no acceptance stage.
+- No cancellation, completion, results or active-reservation release. Matched players therefore remain unavailable for another game through the current APIs.
+- No legal moves, move history, chessboard UI, game page or clocks.
+- Username updates are supported; email/password changes are not implemented.
+- Concurrent username edits use last-write-wins behavior; no player optimistic locking.
+- Sessions are in memory; browser reload requires login. No refresh tokens, revocation or server-side logout.
+- Username/email matching remains exact; no normalization policy.
+- Security filter-chain errors and MVC Problem Details have different body contracts.
+- Secrets and configuration cleanup remain user-managed and outside this documentation update.
 
-## Accepted limitations and brief refactoring hints
+## Working preferences
 
-Secrets remain user-managed and are not a prerequisite for this milestone. Identity matching has no trimming/case normalization policy. No refresh tokens, revocation, account disabling, rate limiting, or server logout exists. Security filter errors and MVC Problem Details have different body contracts. Only `/players/me` currently checks player existence after JWT validation.
+Keep the focus on backend engineering and explain decisions incrementally. Use Lombok where appropriate, avoiding `@Data` on JPA entities. Add concise comments for non-obvious behavior. Keep frontend tests minimal. Provide verification commands without waiting for routine test-pass confirmation. Preserve passwords after failed form submissions.
 
-Small opportunistic improvements:
+## Next planning action
 
-- Replace the mocked PlayerResponse record in AuthServiceTest with a real fixture.
-- Avoid narrowing IDs with `intValue()` in JWT test assertions.
-- Use unique identity values in AuthRegistrationIntegrationTest if old committed fixtures cause conflicts.
-- Keep transaction ownership explicit: PlayerService.createPlayer currently relies on the registration transaction or repository transaction. Give new multi-write use cases service-level transaction boundaries rather than assuming repository calls are atomic together.
-- Add not-before/algorithm rejection cases when next extending backend token tests.
-- Keep email-bearing PlayerResponse private to self-profile/auth flows; matchmaking responses should not expose an opponent's email.
+The agreed Day 5 implementation scope is username editing with backend tests and a minimal frontend form. Keep the actual verification results with the local checkpoint when committing.
 
-## Matchmaking queue milestone — implemented
-
-- [x] V3 queue migration, entity, and repository.
-- [x] Transactional join, leave, and status operations.
-- [x] Repeated joins preserve the original entry and timestamp.
-- [x] Database-enforced uniqueness and concurrent-join handling.
-- [x] Authenticated endpoints using JWT-derived player identity.
-- [x] Missing-player Problem Detail response.
-- [x] PostgreSQL integration tests for membership and concurrent joins.
-- [x] HTTP integration tests for authentication and queue operations.
-- [x] Minimal Angular queue controls with progress and error handling.
-
-Current limitations: one queue, manual status refresh, no expiry, no pairing,
-no active-game eligibility checks, and no automatic queue removal on logout.
-
-Next milestone: minimal persisted game creation, followed by transactional
-pairing of queued players.
-
-## Suggested commit
-
-```text
-docs: reconcile day 3 auth checkpoint and plan matchmaking queue
-```
-
-No git commits were created in this review.
+The next planning target is selecting the server-side chess rules approach and defining legal-move processing, corresponding to the original roadmap's rules-library milestone. No rules library has been selected, and no Day 6 implementation is recorded yet. Broader lifecycle operations, profile email changes and notifications are not automatically included in that next increment.

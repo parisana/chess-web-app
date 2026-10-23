@@ -12,4 +12,10 @@ export class PlayerApiService {
   currentPlayer() {
     return this.http.get<PlayerResponse>('/api/v1/players/me');
   }
+  updateUsername(username: string) {
+    return this.http.patch<PlayerResponse>(
+      '/api/v1/players/me',
+      { username },
+    );
+  }
 }

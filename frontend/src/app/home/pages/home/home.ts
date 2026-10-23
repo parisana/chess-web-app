@@ -19,6 +19,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { AuthService } from '../../../auth/services/auth.service';
 import { QueueStatusResponse } from '../../../matchmaking/models/queue-status-response';
 import { MatchmakingApiService } from '../../../matchmaking/services/matchmaking-api.service';
+import { ProfileEditor } from '../../../player/components/profile-editor/profile-editor';
 
 @Component({
   selector: 'app-home',
@@ -28,6 +29,7 @@ import { MatchmakingApiService } from '../../../matchmaking/services/matchmaking
     MatButtonModule,
     MatCardModule,
     MatProgressBarModule,
+    ProfileEditor
   ],
   template: `
     <main class="home-page">
@@ -38,7 +40,7 @@ import { MatchmakingApiService } from '../../../matchmaking/services/matchmaking
             Log out
           </button>
         </header>
-
+        <app-profile-editor />
         <mat-card [attr.aria-busy]="busy()">
           <mat-card-header>
             <mat-card-title>Matchmaking</mat-card-title>

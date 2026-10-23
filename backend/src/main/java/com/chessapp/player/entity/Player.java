@@ -29,4 +29,8 @@ public class Player extends BaseEntity {
         this.username = username;
         this.email = email;
     }
+
+    public void changeUsername(String username) {
+        this.username = username;
+    }
 }

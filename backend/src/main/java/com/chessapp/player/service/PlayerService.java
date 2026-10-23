@@ -53,6 +53,35 @@ public class PlayerService {
                 .map(PlayerService::toPlayerResponse);
     }
 
+    @Transactional
+    public Optional<PlayerResponse> updateUsername(
+            Long playerId,
+            String username
+    ) {
+        return playerRepository.findById(playerId)
+                .map(player -> {
+                    // Keeping the current username is a successful no-op.
+                    if (player.getUsername().equals(username)) {
+                        return toPlayerResponse(player);
+                    }
+
+                    if (playerRepository.existsByUsername(username)) {
+                        throw new DuplicatePlayerException(
+                                PlayerErrorCodes.USERNAME_ALREADY_EXISTS,
+                                "Username is already taken"
+                        );
+                    }
+
+                    player.changeUsername(username);
+
+                    // Execute the update before returning. The database unique
+                    // constraint remains authoritative if requests race.
+                    playerRepository.flush();
+
+                    return toPlayerResponse(player);
+                });
+    }
+
     private static PlayerResponse toPlayerResponse(Player player) {
         return new PlayerResponse(
                 player.getId(),
