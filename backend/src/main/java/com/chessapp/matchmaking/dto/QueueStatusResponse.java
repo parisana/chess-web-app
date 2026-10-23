@@ -7,20 +7,25 @@ import java.time.Instant;
  */
 public record QueueStatusResponse(
         QueueStatus status,
-        Instant enqueuedAt
+        Instant enqueuedAt,
+        Long gameId
 ) {
 
     public static QueueStatusResponse notQueued() {
         return new QueueStatusResponse(
-                QueueStatus.NOT_QUEUED,
-                null
+                QueueStatus.NOT_QUEUED, null, null
         );
     }
 
     public static QueueStatusResponse waiting(Instant enqueuedAt) {
         return new QueueStatusResponse(
-                QueueStatus.WAITING,
-                enqueuedAt
+                QueueStatus.WAITING, enqueuedAt, null
+        );
+    }
+
+    public static QueueStatusResponse matched(Long gameId) {
+        return new QueueStatusResponse(
+                QueueStatus.MATCHED, null, gameId
         );
     }
 }

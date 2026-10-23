@@ -2,6 +2,10 @@ package com.chessapp.game;
 
 import com.chessapp.game.exception.PlayerAlreadyInGameException;
 import com.chessapp.game.service.GameService;
+import com.chessapp.matchmaking.dto.QueueStatus;
+import com.chessapp.matchmaking.dto.QueueStatusResponse;
+import com.chessapp.matchmaking.repository.MatchmakingQueueRepository;
+import com.chessapp.matchmaking.service.MatchmakingService;
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.service.PlayerService;
 import org.junit.jupiter.api.AfterEach;
@@ -32,6 +36,12 @@ class ActiveGameIntegrationTest {
 
     @Autowired
     private PlayerService playerService;
+
+    @Autowired
+    private MatchmakingService matchmakingService;
+
+    @Autowired
+    private MatchmakingQueueRepository queueRepository;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -65,6 +75,10 @@ class ActiveGameIntegrationTest {
 
         new TransactionTemplate(transactionManager)
                 .executeWithoutResult(status -> {
+                    jdbcTemplate.update("""
+                            DELETE FROM matchmaking_queue
+                            WHERE player_id IN (?, ?, ?)
+                            """, ids);
                     jdbcTemplate.update("""
                             DELETE FROM active_game_players
                             WHERE player_id IN (?, ?, ?)
@@ -164,6 +178,146 @@ class ActiveGameIntegrationTest {
 
             assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
         }
+    }
+
+    @Test
+    void joiningTwoPlayers_createsOneGameAndRemovesTheirEntries() {
+        Long first = players.get(0).id();
+        Long second = players.get(1).id();
+
+        var waiting = matchmakingService.join(first);
+
+        assertEquals(QueueStatus.WAITING, waiting.status());
+        assertNotNull(waiting.enqueuedAt());
+        assertNull(waiting.gameId());
+
+        var matched = matchmakingService.join(second);
+
+        assertEquals(QueueStatus.MATCHED, matched.status());
+        assertNotNull(matched.gameId());
+        assertNull(matched.enqueuedAt());
+
+        assertEquals(matched, matchmakingService.status(first));
+        assertEquals(matched, matchmakingService.status(second));
+
+        assertTrue(queueRepository.findByPlayerId(first).isEmpty());
+        assertTrue(queueRepository.findByPlayerId(second).isEmpty());
+        assertEquals(1L, fixtureGameCount());
+
+        assertEquals(
+                matched.gameId(),
+                gameService.findActiveGameId(first).orElseThrow()
+        );
+        assertEquals(
+                matched.gameId(),
+                gameService.findActiveGameId(second).orElseThrow()
+        );
+
+        // Rejoining must not create another game.
+        assertEquals(matched, matchmakingService.join(first));
+        assertEquals(1L, fixtureGameCount());
+
+        // Leaving the queue must not cancel an established game.
+        matchmakingService.leave(first);
+        assertEquals(matched, matchmakingService.status(first));
+    }
+
+    @Test
+    void pairing_participatesInOuterTransactionAndRollsBackTogether() {
+        Long first = players.get(0).id();
+        Long second = players.get(1).id();
+
+        var originalWaiting = matchmakingService.join(first);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> new TransactionTemplate(transactionManager)
+                        .executeWithoutResult(status -> {
+                            var matched = matchmakingService.join(second);
+
+                            assertEquals(
+                                    QueueStatus.MATCHED,
+                                    matched.status()
+                            );
+
+                            throw new IllegalStateException(
+                                    "Simulated later transaction failure"
+                            );
+                        })
+        );
+
+        assertEquals(0L, fixtureGameCount());
+        assertTrue(gameService.findActiveGameId(first).isEmpty());
+        assertTrue(gameService.findActiveGameId(second).isEmpty());
+
+        assertEquals(originalWaiting, matchmakingService.status(first));
+        assertEquals(
+                QueueStatus.NOT_QUEUED,
+                matchmakingService.status(second).status()
+        );
+    }
+
+    @Test
+    void concurrentJoins_pairPlayersWithoutCreatingDuplicateGames()
+            throws Exception {
+
+        Long firstPlayerId = players.get(0).id();
+        Long secondPlayerId = players.get(1).id();
+
+        var executor = Executors.newFixedThreadPool(2);
+        var ready = new CountDownLatch(2);
+        var start = new CountDownLatch(1);
+
+        try {
+            var first = executor.submit(
+                    joinAttempt(firstPlayerId, ready, start)
+            );
+            var second = executor.submit(
+                    joinAttempt(secondPlayerId, ready, start)
+            );
+
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+
+            first.get(10, TimeUnit.SECONDS);
+            second.get(10, TimeUnit.SECONDS);
+
+            var firstStatus = matchmakingService.status(firstPlayerId);
+            var secondStatus = matchmakingService.status(secondPlayerId);
+
+            assertEquals(QueueStatus.MATCHED, firstStatus.status());
+            assertNotNull(firstStatus.gameId());
+            assertEquals(firstStatus, secondStatus);
+            assertEquals(1L, fixtureGameCount());
+
+            assertTrue(
+                    queueRepository.findByPlayerId(firstPlayerId).isEmpty()
+            );
+            assertTrue(
+                    queueRepository.findByPlayerId(secondPlayerId).isEmpty()
+            );
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+
+            assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+        }
+    }
+
+    private Callable<QueueStatusResponse> joinAttempt(
+            Long playerId,
+            CountDownLatch ready,
+            CountDownLatch start
+    ) {
+        return () -> {
+            ready.countDown();
+
+            if (!start.await(5, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Start signal timed out");
+            }
+
+            return matchmakingService.join(playerId);
+        };
     }
 
     private Callable<Boolean> attempt(

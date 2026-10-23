@@ -5,5 +5,6 @@ package com.chessapp.matchmaking.dto;
  */
 public enum QueueStatus {
     NOT_QUEUED,
-    WAITING
+    WAITING,
+    MATCHED
 }

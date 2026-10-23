@@ -10,7 +10,7 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize, map, Observable } from 'rxjs';
+import { finalize, map, Observable, switchMap } from 'rxjs';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -54,6 +54,10 @@ import { MatchmakingApiService } from '../../../matchmaking/services/matchmaking
                   You are in the queue.
                   Joined at {{ current.enqueuedAt | date:'mediumTime' }}.
                 </p>
+              } @else if (current.status === 'MATCHED') {
+                <p role="status">
+                  Match found. Your game ID is {{ current.gameId }}.
+                </p>
               } @else {
                 <p role="status">You are not in the queue.</p>
               }
@@ -61,7 +65,7 @@ import { MatchmakingApiService } from '../../../matchmaking/services/matchmaking
               <p>Queue status has not been loaded.</p>
             }
 
-            <p>Automatic pairing is coming in a later update.</p>
+            <p>Refresh your status to check whether a match has been found.</p>
 
             @if (errorMessage(); as message) {
               <p role="alert">{{ message }}</p>
@@ -156,6 +160,7 @@ export class Home implements OnInit {
     this.loadStatus();
   }
 
+  // Load status when home opens. PostgreSQL owns membership; the component reads that state.
   loadStatus(): void {
     this.runRequest(this.matchmakingApi.status());
   }
@@ -167,10 +172,7 @@ export class Home implements OnInit {
   leave(): void {
     this.runRequest(
       this.matchmakingApi.leave().pipe(
-        map((): QueueStatusResponse => ({
-          status: 'NOT_QUEUED',
-          enqueuedAt: null,
-        })),
+        switchMap(() => this.matchmakingApi.status()),
       ),
     );
   }

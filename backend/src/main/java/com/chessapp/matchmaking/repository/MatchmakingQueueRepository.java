@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -25,6 +26,15 @@ public interface MatchmakingQueueRepository
         extends JpaRepository<MatchmakingQueueEntry, Long> {
 
     Optional<MatchmakingQueueEntry> findByPlayerId(Long playerId);
+
+    @Query(value = """
+        SELECT *
+        FROM matchmaking_queue
+        ORDER BY enqueued_at ASC, id ASC
+        LIMIT 2
+        FOR UPDATE
+        """, nativeQuery = true)
+    List<MatchmakingQueueEntry> findOldestTwoForUpdate();
 
     /*
     *   Why perform that apparently redundant update? It keeps the existing row locked until our transaction completes, allowing the following lookup to return the entry without a concurrent leave removing it between those statements.
