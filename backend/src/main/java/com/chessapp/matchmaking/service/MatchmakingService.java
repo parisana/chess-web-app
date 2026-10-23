@@ -28,6 +28,8 @@ public class MatchmakingService {
 
     @Transactional
     public QueueStatusResponse join(Long playerId) {
+        // Acquire before accessing queue state so concurrent joins cannot
+        // both miss the other transaction's uncommitted entry.
         lockRepository.lockQueue();
         requirePlayer(playerId);
 

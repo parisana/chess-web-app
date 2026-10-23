@@ -24,4 +24,34 @@ public class GameExceptionHandler {
 
         return problem;
     }
+
+    @ExceptionHandler(GameNotFoundException.class)
+    public ProblemDetail handleGameNotFound(
+            GameNotFoundException exception
+    ) {
+        var problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.NOT_FOUND,
+                exception.getMessage()
+        );
+
+        problem.setTitle("Game not found");
+        problem.setProperty("code", "GAME_NOT_FOUND");
+
+        return problem;
+    }
+
+    @ExceptionHandler(GameAccessDeniedException.class)
+    public ProblemDetail handleGameAccessDenied(
+            GameAccessDeniedException exception
+    ) {
+        var problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.FORBIDDEN,
+                exception.getMessage()
+        );
+
+        problem.setTitle("Game access denied");
+        problem.setProperty("code", "GAME_ACCESS_DENIED");
+
+        return problem;
+    }
 }
