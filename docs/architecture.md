@@ -10,8 +10,8 @@ A single Spring Boot application, organized as a modular monolith with feature p
 | `player` | Identity and profile data | Creation, lookup, current profile implemented |
 | `security` | HTTP authentication, password encoding, JWT machinery | Implemented |
 | `common` | Shared timestamps and request validation error handling | Implemented |
-| `matchmaking` | Queue, eligibility, pairing | Planned |
-| `game` | Authoritative rules, state, moves, results, history | Planned |
+| `matchmaking` | Persistent queue, eligibility, and transactional pairing | Implemented |
+| `game` | Initial state, active-player reservations, and participant-protected retrieval | Implemented |
 | `notification` | Authorized outbound updates | Planned |
 
 Controllers handle transport and delegate. Services coordinate use cases and transaction boundaries. Repositories remain within their owning feature. Cross-feature calls use service operations and DTOs. Concrete services are sufficient; interfaces and mapper frameworks are introduced only when needed.
@@ -114,6 +114,42 @@ changing business data.
 Leaving uses a bulk JPQL delete. Repeated leave succeeds when no entry exists.
 This operation bypasses JPA removal callbacks and remove cascades; the current
 queue entity requires neither.
+
+## Game creation and transactional pairing
+
+Flyway V4 creates games with two distinct players, an initial FEN,
+IN_PROGRESS status, timestamps, and an optimistic-lock version.
+
+V5 creates active_game_players. Its player_id primary key prevents a player
+from occupying multiple active games across either color assignment.
+The game feature owns reservation writes.
+
+GameService creates the game through JPA, flushes it, and reserves both
+players through JdbcTemplate. Both use the same datasource and participate
+in the same Spring-managed transaction. Flushing executes pending SQL;
+it does not commit. A reservation conflict rolls back the game and any
+partial reservation.
+
+Matchmaking operations acquire the same transaction-level PostgreSQL
+advisory lock before accessing queue state. This serializes operations
+on the single queue across cooperating application instances.
+The lock is released when the surrounding transaction finishes.
+
+Pairing selects the oldest entries by enqueued_at and id, checks active-game
+eligibility, randomly assigns colors, creates the game, and removes both
+queue entries. These writes commit or roll back together.
+
+The reservation constraint independently protects against another
+game-creation caller that does not acquire the queue advisory lock.
+
+Queue status is NOT_QUEUED, WAITING, or MATCHED. MATCHED includes gameId.
+Repeated joins return an existing active game. Leaving removes queue
+membership and does not cancel an established game.
+
+GET /api/v1/games/{gameId} derives the requesting player from the validated
+JWT subject. GameService permits either participant to read the game,
+returns 404 for a missing game, and rejects nonparticipants with 403.
+The response contains player IDs rather than opponent profile details.
 
 ## Planned application growth
 

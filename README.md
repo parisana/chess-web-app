@@ -1,10 +1,17 @@
 # Chess Web App
 
-A portfolio-quality real-time multiplayer chess application in development. The current backend supports registration, email/password login, JWT authentication, current-player profile retrieval and persistent queue membership.
+A portfolio-quality multiplayer chess application in development.
+The backend supports registration, email/password login, JWT authentication,
+current-player profiles, persistent matchmaking, transactional pairing,
+and participant-protected game retrieval.
+
+The Angular frontend supports authentication, queue controls, and matched
+game discovery through manual refresh.
 
 ## Architecture and stack
 
-Modular monolith, package by feature with conventional layers; not DDD. Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, JPA, Flyway, Spring Security, and Lombok. Configuration uses YAML. Angular 21 and Angular Material provide registration/login and a protected home page. Matchmaking, the chess engine, and real-time messaging are planned.
+Modular monolith, package by feature with conventional layers; not DDD. Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, JPA, Flyway, Spring Security, and Lombok. Configuration uses YAML. Angular 21 and Angular Material provide registration/login and a protected home page. Persistent matchmaking and initial game state are implemented.
+Legal moves, gameplay UI, and real-time notifications remain planned.
 
 - `backend/`: application, migrations, and tests.
 - `frontend/`: Angular application, Material theme, development proxy, and minimal authentication tests.
@@ -23,7 +30,7 @@ CREATE DATABASE chess_db OWNER chess_app;
 CREATE DATABASE chess_test_db OWNER chess_app;
 ```
 
-These match the local defaults. Keep development and test data separate. Flyway applies V1/V2; Hibernate validates mappings instead of creating the schema.
+These match the local defaults. Keep development and test data separate. Flyway applies V1-V5; Hibernate validates mappings instead of creating the schema.
 
 Configuration remains user-managed. This review does not change secrets or require configuration cleanup before the next milestone. Shared datasource defaults accept optional `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` overrides.
 
@@ -60,6 +67,7 @@ The review's Node 24.19.0/npm 11.9.0 environment rejected `npm ci`, reporting mi
 | POST | `/api/v1/matchmaking/queue` | Bearer JWT | 200; current queue status |
 | GET | `/api/v1/matchmaking/queue/me` | Bearer JWT | 200; current queue status |
 | DELETE | `/api/v1/matchmaking/queue/me` | Bearer JWT | 204 |
+| GET | `/api/v1/games/{gameId}` | Participant bearer JWT | 200; game state |
 
 Register:
 

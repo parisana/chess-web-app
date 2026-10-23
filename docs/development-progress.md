@@ -2,11 +2,56 @@
 
 Reviewed: 20 October 2026. Source: attached `chess-web-app-day3.zip`, archive commit `d649893cba9bef693890fc86804328f714e959b6`. This revision updates documentation only; application code, tests, dependency files, migrations, and configuration are unchanged.
 
-## Day 3 status
+## Day 3 status: historical
 
 The checkpoint contains the backend authentication foundation and the Angular authentication flow. Architecture remains a modular monolith, package by feature with conventional layers, not DDD. Stack: Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, Flyway, Lombok, YAML, Angular 21, and Angular Material.
 
 Implemented source and test presence have been reviewed. This is not certification of a passing build. Matchmaking, games, legal moves, and real-time delivery have not been implemented.
+
+## Day 4 checkpoint
+
+### Implemented
+
+- V4 game migration and initial-state persistence.
+- V5 active-player reservations enforcing one active game per player.
+- Rollback and concurrent game-creation integration tests.
+- Transaction-level advisory locking for the single matchmaking queue.
+- Oldest-first pairing with random color assignment.
+- Atomic game creation, player reservation, and queue removal.
+- MATCHED queue status with game ID.
+- Minimal Angular matched-game display using manual refresh.
+- Participant-protected game-read endpoint.
+- HTTP integration tests for both participants, nonparticipant access,
+  missing games, and missing authentication.
+
+### Current limitations
+
+- One queue with serialized operations, including status reads.
+- Pairing runs on join; there is no background pairing worker.
+- No queue expiry or automatic queue removal on logout.
+- No match acceptance, cancellation, completion, or reservation release.
+- Games begin IN_PROGRESS with the initial FEN.
+- No legal-move processing, move history, chessboard UI, or notifications.
+- Active reservations persist until a future lifecycle operation releases them.
+
+### Verification
+
+Run locally:
+
+Backend:
+SPRING_PROFILES_ACTIVE=test ./gradlew test
+
+Frontend:
+npm run build
+
+Manual flow:
+Join with two different players in separate browser sessions.
+Refresh the first player's status and confirm both receive the same game ID.
+Use each participant's token to retrieve the game.
+Confirm a third player's token receives 403.
+
+Record actual results after execution. The documentation update itself
+does not establish that these checks passed.
 
 ## Backend reviewed
 
