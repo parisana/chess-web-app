@@ -1,5 +1,6 @@
 package com.chessapp.game.rules;
 
+import com.chessapp.game.rules.fen.FenParser;
 import com.chessapp.game.rules.model.ChessPosition;
 
 import java.util.Objects;

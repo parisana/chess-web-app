@@ -1,6 +1,6 @@
 # API Contracts
 
-Updated: 23 October 2026. Day 4 contracts follow the reviewed source archive; the username-update contract follows the Day 5 implementation supplied in this session. No post-Day-5 source archive or independent test run has been reviewed. See [development-progress.md](development-progress.md) for provenance.
+Reviewed on 24 October 2026 against `chess-web-app-day7-start.zip` (archive commit `16637bef7414cf6e55d8b4b099b786325f5fe2a1`), the completed Day 6 checkpoint. The user explicitly reports that all local tests passed. This review inspected source and documentation only; no independent tests or builds were run. Separate frontend build/manual-check results were not supplied. Day 6 introduces no endpoint or response-shape change. GameService now obtains initial FEN through the rules boundary; games still contain only the initial position.
 
 This document lists expected application failures by action. It is not an exhaustive catalog of framework, transport or infrastructure failures. An absent application code is intentional where the current implementation does not guarantee one.
 

@@ -1,6 +1,6 @@
 # Architecture
 
-Updated through the Day 5 guided implementation session on 23 October 2026. Reviewed source baseline: completed Day 4 in `chess-web-app-day5-start.zip`. Day 5 changes below describe the supplied implementation and session progress; a fresh source archive has not been reviewed. See `development-progress.md` for verification provenance and `roadmap.md` for scheduling.
+Reviewed on 24 October 2026 against `chess-web-app-day7-start.zip` (archive commit `16637bef7414cf6e55d8b4b099b786325f5fe2a1`), the completed Day 6 checkpoint. The user explicitly reports that all local tests passed. This review inspected source and documentation only; no independent tests or builds were run. Separate frontend build/manual-check results were not supplied. See `development-progress.md` for verification and `roadmap.md` for scheduling.
 
 ## Style and ownership
 
@@ -171,33 +171,27 @@ JWT subject. GameService permits either participant to read the game,
 returns 404 for a missing game, and rejects nonparticipants with 403.
 The response contains player IDs rather than opponent profile details.
 
-## Planned chess rules boundary
+## Day 6 rules foundation
 
-Status: planned for Day 6; not yet implemented.
+The source contains pure Java `game.rules` and `game.rules.model` code: `PieceColor`, `PieceType`, immutable `Piece` and `Square` records, an immutable `Board`, `CastlingRights`, and `ChessPosition`. Coordinates run from a1=(0,0) to h8=(7,7). Board owns placement and defensively copies its map with `Map.copyOf`; Piece holds color and type only.
 
-GameService depends on ChessRules. Our implementation owns chess
-behavior without depending on Spring, JPA or HTTP. A future library
-can be integrated through an adapter implementing the same interface.
+`ChessPosition` carries board, side to move, castling rights, optional en passant target, halfmove clock and fullmove number. `FenParser` validates FEN structure and representation constraints, not full legality or reachability. Separate `FenSerializer` emits canonical FEN.
 
-```mermaid
-classDiagram
-    direction TB
+`ChessRules` currently exposes only `initialPosition()`. `StandardChessRules` uses the parser and a private starting-FEN constant. `GameRulesConfig` wires the beans. `GameService` obtains the initial position through `ChessRules`, serializes it and passes nonblank initial FEN to `Game`; the entity no longer owns the starting-position constant. Rules/model code has no Spring, JPA, HTTP or persistence dependencies.
 
-    class GameService
-    class ChessRules {
-        <<interface>>
-    }
-    class StandardChessRules
-    class LibraryChessRulesAdapter
+Focused tests cover square conversion, board immutability, position metadata, FEN parsing/serialization/round trips and standard initial placement. Game creation/read integration assertions check the expected initial FEN. Test presence is a source finding; passing results are user-reported.
 
-    GameService --> ChessRules : uses
-    ChessRules <|.. StandardChessRules : implements
-    ChessRules <|.. LibraryChessRulesAdapter : future option
-```
+Day 6 changes no migration, endpoint or frontend behavior. There is no move generation/application, king-safety check, special-move execution, outcome evaluation or move history.
 
-The library adapter is a documented extension point, not a class
-we need to implement now. Interface methods will be defined as
-the first rules use cases are established.
+## Rules ownership and extension boundary
+
+`GameService` consumes the application-owned `ChessRules` interface. Define additional operations from actual use cases and keep input/output types application-owned. A future library adapter can implement the interface and translate library types internally; no placeholder adapter exists now. This is dependency inversion through an application-owned abstraction, with dependency injection at the Spring boundary.
+
+Transactions, persistence, participant authorization and gameplay concurrency remain in services. AI move selection is outside the MVP. Repetition detection requires history beyond a single FEN.
+
+`Board` currently has identity equality. Consequently, `ChessPosition` record equality does not establish board-content equality. Tests compare square contents where needed.
+
+Deferred TODO: evaluate a 64-entry array against map storage after the MVP, or earlier if profiling or concrete implementation benefits justify it. Preserve the board API.
 
 ## Planned application growth
 

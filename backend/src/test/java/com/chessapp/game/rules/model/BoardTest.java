@@ -78,4 +78,97 @@ class BoardTest {
             }
         }
     }
+
+    @Test
+    void movesPieceToEmptySquareWithoutChangingOriginalBoard() {
+        var from = Square.fromAlgebraic("d4");
+        var to = Square.fromAlgebraic("f5");
+        var kingSquare = Square.fromAlgebraic("e1");
+
+        var knight = new Piece(PieceColor.WHITE, PieceType.KNIGHT);
+        var king = new Piece(PieceColor.WHITE, PieceType.KING);
+
+        var original = new Board(Map.of(
+                from, knight,
+                kingSquare, king
+        ));
+
+        var candidate = original.movePiece(from, to);
+
+        assertAll(
+                () -> assertTrue(candidate.pieceAt(from).isEmpty()),
+                () -> assertEquals(
+                        knight,
+                        candidate.pieceAt(to).orElseThrow()
+                ),
+                () -> assertEquals(
+                        king,
+                        candidate.pieceAt(kingSquare).orElseThrow()
+                ),
+                () -> assertEquals(
+                        knight,
+                        original.pieceAt(from).orElseThrow()
+                ),
+                () -> assertTrue(original.pieceAt(to).isEmpty())
+        );
+    }
+
+    @Test
+    void replacesCapturedPieceWithoutChangingOriginalBoard() {
+        var from = Square.fromAlgebraic("d4");
+        var to = Square.fromAlgebraic("f5");
+
+        var knight = new Piece(PieceColor.WHITE, PieceType.KNIGHT);
+        var rook = new Piece(PieceColor.BLACK, PieceType.ROOK);
+
+        var original = new Board(Map.of(
+                from, knight,
+                to, rook
+        ));
+
+        var candidate = original.movePiece(from, to);
+
+        assertAll(
+                () -> assertTrue(candidate.pieceAt(from).isEmpty()),
+                () -> assertEquals(
+                        knight,
+                        candidate.pieceAt(to).orElseThrow()
+                ),
+                () -> assertEquals(
+                        knight,
+                        original.pieceAt(from).orElseThrow()
+                ),
+                () -> assertEquals(
+                        rook,
+                        original.pieceAt(to).orElseThrow()
+                )
+        );
+    }
+
+    @Test
+    void rejectsMovingFromEmptySquare() {
+        var board = new Board(Map.of());
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> board.movePiece(
+                        Square.fromAlgebraic("d4"),
+                        Square.fromAlgebraic("f5")
+                )
+        );
+    }
+
+    @Test
+    void rejectsMovingToSameSquare() {
+        var square = Square.fromAlgebraic("d4");
+        var board = new Board(Map.of(
+                square,
+                new Piece(PieceColor.WHITE, PieceType.KNIGHT)
+        ));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> board.movePiece(square, square)
+        );
+    }
 }

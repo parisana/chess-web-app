@@ -1,4 +1,4 @@
-package com.chessapp.game.rules;
+package com.chessapp.game.rules.fen;
 
 import com.chessapp.game.rules.model.*;
 

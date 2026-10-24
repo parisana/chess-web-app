@@ -17,10 +17,10 @@ Legal moves, gameplay UI, and real-time notifications remain planned.
 - `frontend/`: Angular application, Material theme, development proxy, and minimal authentication tests.
 - `docs/architecture.md`: responsibilities and implementation decisions.
 - `docs/development-progress.md`: current implementation, verification, and limitations.
-- `docs/roadmap.md`: original milestone crosswalk, agreed Day 5 scope and next planning target.
+- `docs/roadmap.md`: original milestone crosswalk, completed working sessions and proposed Day 7 scope.
 - `docs/api-contracts.md`: endpoint requests, responses and expected error codes.
 
-Checkpoint: Day 5 username-update implementation recorded on 23 October 2026. The reviewed source baseline is the completed Day 4 archive `chess-web-app-day5-start.zip` (commit `3817be2637a043ce261cea31609f0f2b6b924acc`); Day 5 changes are documented from this guided implementation session. No post-Day-5 source archive has been reviewed. See `docs/development-progress.md` for verification provenance and `docs/roadmap.md` for scheduling.
+Checkpoint: completed Day 6. Reviewed on 24 October 2026 against `chess-web-app-day7-start.zip` (archive commit `16637bef7414cf6e55d8b4b099b786325f5fe2a1`), the completed Day 6 checkpoint. The user explicitly reports that all local tests passed. This review inspected source and documentation only; no independent tests or builds were run. Separate frontend build/manual-check results were not supplied.
 
 ## Local setup
 
@@ -136,7 +136,7 @@ npm run build
 
 Five focused authentication tests are present in `auth-flow.spec.ts`. There is no `app.spec.ts` in this checkpoint. Frontend coverage remains intentionally minimal; see the progress document for backend integration coverage.
 
-Verification provenance: the user reported passing tests for Day 4 and confirmed completion of the Day 5 backend integration-test step. A detailed Day 5 test/build result log has not been supplied, and frontend build/manual-check outcomes have not been separately recorded. This documentation update reran no application tests or builds. Earlier review-environment failures are historical, not confirmed current blockers.
+Verification provenance: Reviewed on 24 October 2026 against `chess-web-app-day7-start.zip` (archive commit `16637bef7414cf6e55d8b4b099b786325f5fe2a1`), the completed Day 6 checkpoint. The user explicitly reports that all local tests passed. This review inspected source and documentation only; no independent tests or builds were run. Separate frontend build/manual-check results were not supplied.
 
 ## Profile editing
 
@@ -166,3 +166,31 @@ Before committing:
 git diff --check
 git diff --cached --check
 ```
+
+## Day 6 rules foundation
+
+The source contains pure Java `game.rules` and `game.rules.model` code: `PieceColor`, `PieceType`, immutable `Piece` and `Square` records, an immutable `Board`, `CastlingRights`, and `ChessPosition`. Coordinates run from a1=(0,0) to h8=(7,7). Board owns placement and defensively copies its map with `Map.copyOf`; Piece holds color and type only.
+
+`ChessPosition` carries board, side to move, castling rights, optional en passant target, halfmove clock and fullmove number. `FenParser` validates FEN structure and representation constraints, not full legality or reachability. Separate `FenSerializer` emits canonical FEN.
+
+`ChessRules` currently exposes only `initialPosition()`. `StandardChessRules` uses the parser and a private starting-FEN constant. `GameRulesConfig` wires the beans. `GameService` obtains the initial position through `ChessRules`, serializes it and passes nonblank initial FEN to `Game`; the entity no longer owns the starting-position constant. Rules/model code has no Spring, JPA, HTTP or persistence dependencies.
+
+Focused tests cover square conversion, board immutability, position metadata, FEN parsing/serialization/round trips and standard initial placement. Game creation/read integration assertions check the expected initial FEN. Test presence is a source finding; passing results are user-reported.
+
+Day 6 changes no migration, endpoint or frontend behavior. There is no move generation/application, king-safety check, special-move execution, outcome evaluation or move history.
+
+## Proposed Day 7 scope
+
+Goal: build a small, pure Java movement pipeline incrementally, without exposing partial rules as playable chess.
+
+1. Add an application-owned `Move` value with source and destination squares. Validate representation only; add promotion choice when pawn promotion becomes an actual use case.
+2. Add knight-only pseudo-legal generation: board edges, side to move, friendly occupancy and enemy captures. Exclude king capture. Use an explicitly knight-specific component; do not advertise a complete move list.
+3. Apply generated ordinary knight moves to a new candidate position, preserving the original. Update turn, en passant target, counters and castling rights affected by a captured rook. This is internal candidate application, not an authorized gameplay command.
+4. Implement square-attack detection for every piece type, then use it to reject knight candidates that leave the moving side's king attacked. Require valid king fixtures for this stage. Partial move generation cannot safely substitute for attack detection.
+5. Add focused tests and reconcile the checkpoint documentation with the work actually completed. If the attack-detection increment needs more time, keep it as the next bounded step rather than claiming legal gameplay is complete.
+
+Pseudo-legal moves obey movement/occupancy rules without establishing the moving king's safety. Legal moves also satisfy king safety and all applicable special-move restrictions. Even after king-safety filtering, a knight-only result is only a subset of legal moves; an empty subset does not establish checkmate or stalemate.
+
+No move endpoint, persistence/history, frontend, outcome, special-move execution or AI work is included. `ChessRules` remains unchanged until an actual service use case requires another operation. Service-layer transactions, authorization and gameplay concurrency stay outside the rules code.
+
+This is a proposal at the Day 7 start checkpoint, not implemented work.

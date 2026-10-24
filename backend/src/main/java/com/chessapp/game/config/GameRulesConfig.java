@@ -1,8 +1,8 @@
 package com.chessapp.game.config;
 
 import com.chessapp.game.rules.ChessRules;
-import com.chessapp.game.rules.FenParser;
-import com.chessapp.game.rules.FenSerializer;
+import com.chessapp.game.rules.fen.FenParser;
+import com.chessapp.game.rules.fen.FenSerializer;
 import com.chessapp.game.rules.StandardChessRules;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

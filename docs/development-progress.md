@@ -1,9 +1,8 @@
 # Development Progress
 
-Updated: 23 October 2026.
-Reviewed source baseline: `chess-web-app-day5-start.zip`, archive commit `3817be2637a043ce261cea31609f0f2b6b924acc` (completed Day 4). Day 5 additions are recorded from this guided implementation session; no post-Day-5 source ZIP has been reviewed.
+Reviewed on 24 October 2026 against `chess-web-app-day7-start.zip` (archive commit `16637bef7414cf6e55d8b4b099b786325f5fe2a1`), the completed Day 6 checkpoint. The user explicitly reports that all local tests passed. This review inspected source and documentation only; no independent tests or builds were run. Separate frontend build/manual-check results were not supplied.
 
-This document describes the Day 4 baseline and the Day 5 username-update increment. Day numbers identify our working sessions and no longer align directly with the original 30-working-day schedule. The agreed Day 5 scope is recorded in [roadmap.md](roadmap.md). Expected API errors are listed in [api-contracts.md](api-contracts.md).
+Day numbers identify working sessions and differ from the original 30-working-day schedule. See [roadmap.md](roadmap.md) for planning and [api-contracts.md](api-contracts.md) for endpoint behavior.
 
 ## Current checkpoint
 
@@ -23,6 +22,7 @@ This document describes the Day 4 baseline and the Day 5 username-update increme
 | Atomicity | Game creation, both reservations and removal of paired queue entries commit or roll back together |
 | Discovery | `MATCHED` queue status with game ID; manual Angular status refresh |
 | Game access | Participant-protected `GET /api/v1/games/{gameId}` |
+| Rules foundation | Pure Java immutable representation, separate FEN parser/serializer, initial-position rules boundary |
 
 ## Schema
 
@@ -36,7 +36,7 @@ This document describes the Day 4 baseline and the Day 5 username-update increme
 
 Applied migrations remain immutable. Future schema changes use new Flyway SQL migrations. Hibernate validates the schema rather than generating it.
 
-## Tests reviewed in the Day 4 source baseline
+## Existing backend and frontend test coverage
 
 Backend coverage includes:
 
@@ -51,11 +51,11 @@ Backend coverage includes:
 
 The five focused Angular tests in `auth-flow.spec.ts` cover protected bearer attachment, exclusion of external requests, protected 401 cleanup/redirect, profile-load failure cleanup and logout. There is no `app.spec.ts` in this ZIP. No broad frontend component or end-to-end suite is introduced.
 
-Test presence describes coverage, not an independently reproduced passing run. Day 5 coverage is recorded separately below.
+Test presence describes coverage. The user reports all local tests passing for the completed Day 6 checkpoint; this review did not reproduce that run.
 
 ## Day 5 username-update increment
 
-Implementation recorded through this session:
+Implementation present in the reviewed checkpoint:
 
 - `UpdatePlayerRequest` validates a nonblank username of 3–30 Java UTF-16 string units.
 - `Player.changeUsername()` provides an explicit mutation operation.
@@ -68,16 +68,25 @@ Implementation recorded through this session:
 - Username special characters remain allowed. Email/password changes and normalization remain deferred.
 - No new migration, token claim, token refresh mechanism or frontend test suite is introduced.
 
-This records the agreed implementation increment, not an independently verified release. See verification provenance below.
+These changes are present in the reviewed source. See verification provenance below.
+
+## Day 6 rules foundation
+
+The source contains pure Java `game.rules` and `game.rules.model` code: `PieceColor`, `PieceType`, immutable `Piece` and `Square` records, an immutable `Board`, `CastlingRights`, and `ChessPosition`. Coordinates run from a1=(0,0) to h8=(7,7). Board owns placement and defensively copies its map with `Map.copyOf`; Piece holds color and type only.
+
+`ChessPosition` carries board, side to move, castling rights, optional en passant target, halfmove clock and fullmove number. `FenParser` validates FEN structure and representation constraints, not full legality or reachability. Separate `FenSerializer` emits canonical FEN.
+
+`ChessRules` currently exposes only `initialPosition()`. `StandardChessRules` uses the parser and a private starting-FEN constant. `GameRulesConfig` wires the beans. `GameService` obtains the initial position through `ChessRules`, serializes it and passes nonblank initial FEN to `Game`; the entity no longer owns the starting-position constant. Rules/model code has no Spring, JPA, HTTP or persistence dependencies.
+
+Focused tests cover square conversion, board immutability, position metadata, FEN parsing/serialization/round trips and standard initial placement. Game creation/read integration assertions check the expected initial FEN. Test presence is a source finding; passing results are user-reported.
+
+Day 6 changes no migration, endpoint or frontend behavior. There is no move generation/application, king-safety check, special-move execution, outcome evaluation or move history.
 
 ## Verification provenance
 
-- The user reports passing tests for the completed Day 4 checkpoint.
-- The source review inspected the Day 4 archive, migrations and relevant tests.
-- The user confirmed completion of the Day 5 backend integration-test step. No detailed result log was supplied; frontend build, test and manual-check outcomes were not separately recorded.
-- Day 5 implementation status follows the guided session; no new source archive has been inspected. This documentation update did not rerun application tests or builds.
-- Java/Gradle bootstrap and npm installation problems recorded during the 20 October review belong to that earlier review environment. They are not confirmed current project blockers.
-- This update changes documentation only; it does not change application code, dependencies, migrations or configuration.
+Reviewed on 24 October 2026 against `chess-web-app-day7-start.zip` (archive commit `16637bef7414cf6e55d8b4b099b786325f5fe2a1`), the completed Day 6 checkpoint. The user explicitly reports that all local tests passed. This review inspected source and documentation only; no independent tests or builds were run. Separate frontend build/manual-check results were not supplied.
+
+The local confirmation supersedes earlier pending verification language. It does not supply a detailed result log or separate frontend build/manual outcomes.
 
 ### Local verification
 
@@ -131,8 +140,22 @@ Manual smoke checks:
 
 Keep the focus on backend engineering and explain decisions incrementally. Use Lombok where appropriate, avoiding `@Data` on JPA entities. Add concise comments for non-obvious behavior. Keep frontend tests minimal. Provide verification commands without waiting for routine test-pass confirmation. Preserve passwords after failed form submissions.
 
-## Next planning action
+## Proposed Day 7 scope
 
-The agreed Day 5 implementation scope is username editing with backend tests and a minimal frontend form. Keep the actual verification results with the local checkpoint when committing.
+Goal: build a small, pure Java movement pipeline incrementally, without exposing partial rules as playable chess.
 
-The next planning target is selecting the server-side chess rules approach and defining legal-move processing, corresponding to the original roadmap's rules-library milestone. No rules library has been selected, and no Day 6 implementation is recorded yet. Broader lifecycle operations, profile email changes and notifications are not automatically included in that next increment.
+1. Add an application-owned `Move` value with source and destination squares. Validate representation only; add promotion choice when pawn promotion becomes an actual use case.
+2. Add knight-only pseudo-legal generation: board edges, side to move, friendly occupancy and enemy captures. Exclude king capture. Use an explicitly knight-specific component; do not advertise a complete move list.
+3. Apply generated ordinary knight moves to a new candidate position, preserving the original. Update turn, en passant target, counters and castling rights affected by a captured rook. This is internal candidate application, not an authorized gameplay command.
+4. Implement square-attack detection for every piece type, then use it to reject knight candidates that leave the moving side's king attacked. Require valid king fixtures for this stage. Partial move generation cannot safely substitute for attack detection.
+5. Add focused tests and reconcile the checkpoint documentation with the work actually completed. If the attack-detection increment needs more time, keep it as the next bounded step rather than claiming legal gameplay is complete.
+
+Pseudo-legal moves obey movement/occupancy rules without establishing the moving king's safety. Legal moves also satisfy king safety and all applicable special-move restrictions. Even after king-safety filtering, a knight-only result is only a subset of legal moves; an empty subset does not establish checkmate or stalemate.
+
+No move endpoint, persistence/history, frontend, outcome, special-move execution or AI work is included. `ChessRules` remains unchanged until an actual service use case requires another operation. Service-layer transactions, authorization and gameplay concurrency stay outside the rules code.
+
+This is a proposal at the Day 7 start checkpoint, not implemented work.
+
+## Deferred representation evaluation
+
+Evaluate a 64-entry array against map storage after the MVP, or earlier for demonstrated benefits. Preserve Board API. Board identity equality remains a known representation characteristic. Repetition detection needs history beyond FEN.

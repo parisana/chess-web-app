@@ -6,7 +6,7 @@ import com.chessapp.game.exception.GameAccessDeniedException;
 import com.chessapp.game.exception.GameNotFoundException;
 import com.chessapp.game.repository.GameRepository;
 import com.chessapp.game.rules.ChessRules;
-import com.chessapp.game.rules.FenSerializer;
+import com.chessapp.game.rules.fen.FenSerializer;
 import com.chessapp.player.service.PlayerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
