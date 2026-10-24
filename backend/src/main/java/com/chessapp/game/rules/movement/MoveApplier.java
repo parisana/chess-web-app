@@ -12,11 +12,11 @@ import java.util.Optional;
 /**
  * @author pari on 10/24/26
  */
-public final class KnightMoveApplier {
+public final class MoveApplier {
 
     private final KnightMoveGenerator moveGenerator;
 
-    public KnightMoveApplier(KnightMoveGenerator moveGenerator) {
+    public MoveApplier(KnightMoveGenerator moveGenerator) {
         this.moveGenerator = Objects.requireNonNull(
                 moveGenerator,
                 "Knight move generator is required"
@@ -24,7 +24,8 @@ public final class KnightMoveApplier {
     }
 
     /**
-     * Applies a pseudo-legal knight move without checking king safety.
+     * Applies pseudo-legal candidates without checking king safety.
+     * Currently, supports knight moves only.
      * The algorithm is:
      * 1. Confirm the move appears in the knight’s pseudo-legal candidates.
      * 2. Inspect the destination before moving, to identify any capture.

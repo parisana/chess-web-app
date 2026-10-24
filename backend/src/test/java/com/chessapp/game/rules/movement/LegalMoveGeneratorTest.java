@@ -3,9 +3,6 @@ package com.chessapp.game.rules.movement;
 import com.chessapp.BoardTestRenderer;
 import com.chessapp.game.rules.attack.SquareAttackDetector;
 import com.chessapp.game.rules.fen.FenParser;
-import com.chessapp.game.rules.movement.KnightLegalMoveGenerator;
-import com.chessapp.game.rules.movement.KnightMoveApplier;
-import com.chessapp.game.rules.movement.KnightMoveGenerator;
 import com.chessapp.game.rules.model.Move;
 import com.chessapp.game.rules.model.Square;
 import org.junit.jupiter.api.Test;
@@ -17,16 +14,16 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * @author pari on 10/24/26
  */
-class KnightLegalMoveGeneratorTest {
+class LegalMoveGeneratorTest {
 
     private final FenParser parser = new FenParser();
     private final KnightMoveGenerator pseudoLegalGenerator =
             new KnightMoveGenerator();
 
-    private final KnightLegalMoveGenerator legalGenerator =
-            new KnightLegalMoveGenerator(
+    private final LegalMoveGenerator legalGenerator =
+            new LegalMoveGenerator(
                     pseudoLegalGenerator,
-                    new KnightMoveApplier(pseudoLegalGenerator),
+                    new MoveApplier(pseudoLegalGenerator),
                     new SquareAttackDetector()
             );
 

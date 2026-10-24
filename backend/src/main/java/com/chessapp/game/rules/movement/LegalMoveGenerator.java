@@ -14,18 +14,16 @@ import java.util.Set;
 
 /**
  * @author pari on 10/24/26
- * Generates legal moves for one knight, not a complete position-wide move list.
- * Assumes a valid standard-chess position; validates king counts defensively.
  */
-public final class KnightLegalMoveGenerator {
+public final class LegalMoveGenerator {
 
     private final KnightMoveGenerator moveGenerator;
-    private final KnightMoveApplier moveApplier;
+    private final MoveApplier moveApplier;
     private final SquareAttackDetector attackDetector;
 
-    public KnightLegalMoveGenerator(
+    public LegalMoveGenerator(
             KnightMoveGenerator moveGenerator,
-            KnightMoveApplier moveApplier,
+            MoveApplier moveApplier,
             SquareAttackDetector attackDetector
     ) {
         this.moveGenerator = Objects.requireNonNull(
@@ -43,12 +41,13 @@ public final class KnightLegalMoveGenerator {
     }
 
     /**
+     * Filters movement candidates using king safety.
+     * Currently, generates moves for a single knight source square only;
+     * an empty result does not establish checkmate or stalemate.
      * The algorithm is:
-     * 1. Locate the moving side’s king.
-     * 2. Generate knight candidates.
-     * 3. Apply each candidate to a temporary position.
-     * 4. Check whether the opponent attacks the king in that position.
-     * 5. Keep only candidates where the king is safe.
+     1. Generate candidates.
+     2. Apply each candidate.
+     3. Reject candidates that leave the moving side’s king attacked.
      * */
     public Set<Move> generate(ChessPosition position, Square from) {
         Objects.requireNonNull(position, "Position is required");

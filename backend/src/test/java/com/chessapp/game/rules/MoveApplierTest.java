@@ -6,7 +6,7 @@ import com.chessapp.game.rules.fen.FenSerializer;
 import com.chessapp.game.rules.model.ChessPosition;
 import com.chessapp.game.rules.model.Move;
 import com.chessapp.game.rules.model.Square;
-import com.chessapp.game.rules.movement.KnightMoveApplier;
+import com.chessapp.game.rules.movement.MoveApplier;
 import com.chessapp.game.rules.movement.KnightMoveGenerator;
 import org.junit.jupiter.api.Test;
 
@@ -17,13 +17,13 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * @author pari on 10/24/26
  */
-class KnightMoveApplierTest {
+class MoveApplierTest {
 
     private final FenParser parser = new FenParser();
     private final FenSerializer serializer = new FenSerializer();
     private final KnightMoveGenerator generator = new KnightMoveGenerator();
-    private final KnightMoveApplier applier =
-            new KnightMoveApplier(generator);
+    private final MoveApplier applier =
+            new MoveApplier(generator);
 
     @Test
     void whiteQuietMoveUpdatesMetadataAndPreservesOriginalPosition() {
