@@ -1,6 +1,6 @@
 # Development Progress
 
-Reviewed on 24 October 2026 against `chess-web-app-day7-start.zip` (archive commit `16637bef7414cf6e55d8b4b099b786325f5fe2a1`), the completed Day 6 checkpoint. The user explicitly reports that all local tests passed. This review inspected source and documentation only; no independent tests or builds were run. Separate frontend build/manual-check results were not supplied.
+Reviewed on 24 October 2026 against `chess-web-app-day7-end.zip` (archive commit `323715a1a49cb03867bcfd0b20096436f04d744f`). The user reports that all tests are green for this Day 7 checkpoint. This review inspected source and documentation only; no independent tests or builds were run. Separate frontend build/manual-check results were not supplied. Fixture corrections recorded in the development-progress document have not been applied or rerun as part of this review.
 
 Day numbers identify working sessions and differ from the original 30-working-day schedule. See [roadmap.md](roadmap.md) for planning and [api-contracts.md](api-contracts.md) for endpoint behavior.
 
@@ -23,6 +23,7 @@ Day numbers identify working sessions and differ from the original 30-working-da
 | Discovery | `MATCHED` queue status with game ID; manual Angular status refresh |
 | Game access | Participant-protected `GET /api/v1/games/{gameId}` |
 | Rules foundation | Pure Java immutable representation, separate FEN parser/serializer, initial-position rules boundary |
+| Movement | Knight-only pseudo-legal generation, candidate application and king-safety filtering; all-piece attack detection |
 
 ## Schema
 
@@ -51,7 +52,7 @@ Backend coverage includes:
 
 The five focused Angular tests in `auth-flow.spec.ts` cover protected bearer attachment, exclusion of external requests, protected 401 cleanup/redirect, profile-load failure cleanup and logout. There is no `app.spec.ts` in this ZIP. No broad frontend component or end-to-end suite is introduced.
 
-Test presence describes coverage. The user reports all local tests passing for the completed Day 6 checkpoint; this review did not reproduce that run.
+Test presence describes coverage. The user reports all local tests passing for the completed Day 7 checkpoint; this review did not reproduce that run.
 
 ## Day 5 username-update increment
 
@@ -80,11 +81,52 @@ The source contains pure Java `game.rules` and `game.rules.model` code: `PieceCo
 
 Focused tests cover square conversion, board immutability, position metadata, FEN parsing/serialization/round trips and standard initial placement. Game creation/read integration assertions check the expected initial FEN. Test presence is a source finding; passing results are user-reported.
 
-Day 6 changes no migration, endpoint or frontend behavior. There is no move generation/application, king-safety check, special-move execution, outcome evaluation or move history.
+Day 6 changes no migration, endpoint or frontend behavior. That historical Day 6 checkpoint had no movement pipeline. Day 7 adds the knight-only pipeline described below; special-move execution, outcomes and move history remain absent.
+
+## Day 7 movement pipeline
+
+Implemented in the reviewed checkpoint:
+
+- `Move` is an immutable source/destination value with nonnull, distinct squares. It represents a proposal, not proof of legality; promotion is not represented yet.
+- `Board.movePiece()` creates a new placement, replacing a captured destination piece and preserving the original. It performs placement checks only, not chess-movement validation.
+- `KnightMoveGenerator` enumerates the eight knight offsets, clips board boundaries, respects side to move, excludes friendly destinations and king capture, and returns an immutable set. Empty sources and opposing knights produce an empty set; non-knight sources are rejected.
+- `MoveApplier` currently accepts pseudo-legal knight candidates only. It updates placement, side to move, en passant expiry, halfmove/fullmove counters and castling rights affected by a captured corner rook. It does not check king safety. Counter increments reject integer overflow.
+- `SquareAttackDetector` recognizes pawn, knight, king, rook, bishop and queen attacks from either color, independent of side to move. Sliding rays stop at the first occupied square; pinned pieces still count as attackers.
+- `LegalMoveGenerator` requires exactly one king of each color, applies candidates and rejects those leaving the moving side's king attacked. It handles a single knight source; it assumes an otherwise valid standard-chess position rather than validating full legality/reachability.
+- Shared `MoveApplier` and `LegalMoveGenerator` replace the knight-specific application/filtering classes. Both still depend on `KnightMoveGenerator`; dispatch for other pieces is deferred until a second movement type is introduced.
+- `com.chessapp.BoardTestRenderer` lives in test sources. It marks inspected/source squares and supplied destinations, prints sorted candidates and can be included in assertion failure messages. It does not generate moves. `Candidates: (none)` means no moves were supplied to the renderer, not a game outcome.
+
+Tests cover board relocation/capture immutability, knight offsets/edges/occupancy/turn selection, candidate metadata and castling-right changes, attack types/blockers/pawn direction/pinned attacks, and king-safety filtering including checks answered by blocking or capture. Legal-move and attack tests use matching subpackages; other tests remain in their existing locations.
+
+Pseudo-legal moves follow movement and occupancy rules without establishing own-king safety. Legal moves additionally satisfy king safety and applicable special restrictions. This checkpoint generates only a knight subset: an empty result cannot establish checkmate or stalemate.
+
+No new migration, endpoint, frontend behavior, move history or persisted gameplay command is introduced. `ChessRules` still exposes only `initialPosition()`; `GameService` does not call the movement pipeline.
+
+## Day 7 source-review follow-ups
+
+No blocking defect was identified in the reviewed knight pipeline. Two fixture inconsistencies from the guided examples should be corrected in `MoveApplierTest`:
+
+1. `whiteQuietMoveUpdatesMetadataAndPreservesOriginalPosition`: `e6` records the immediately preceding double pawn move, so the original halfmove clock must be zero. Change the input to `4k3/8/8/4p3/3N4/8/8/4K3 w - e6 0 12`, and the expected candidate to `4k3/8/8/4pN2/8/8/8/4K3 b - - 1 12`.
+2. `blackCaptureUpdatesFullmoveNumberAndWhiteCastlingRights`: the original knight on c2 already attacks White's king on e1 while it is Black's turn. Put the knight on b3 instead: input `4k3/8/8/8/8/1n6/8/R3K2R b KQ - 8 12`, move `b3 -> a1`. The expected candidate remains `4k3/8/8/8/8/8/8/n3K2R w K - 0 13`.
+
+These are test-fixture corrections, not movement-code changes. They are recommendations against the uploaded checkpoint; the supplied documentation does not apply source changes or claim the corrected tests were executed.
+
+Some earlier low-level movement/attack fixtures still omit kings. Prefer complete, coherent FEN positions and scenario-appropriate turns for ordinary behavior tests. Explicit empty-board, missing-king and defensive king-capture fixtures may deliberately be invalid, but label that intent. The FEN parser's structural validation is intentionally not a position-legality validator. In `MoveApplierTest.stillAllowsCandidateThatExposesOwnKing`, update the stale comment to explain that king-safety filtering is deliberately outside MoveApplier (it now exists separately).
+
+Minor optional cleanup: `LegalMoveGenerator` still uses the constructor message "Knight move applier is required"; rename it to "Move applier is required".
+
+After applying the fixture corrections, run locally from `backend/`:
+
+```bash
+./gradlew test --tests 'com.chessapp.game.rules.MoveApplierTest'
+./gradlew test --tests 'com.chessapp.game.rules.*'
+```
+
+No independent execution is recorded for these commands.
 
 ## Verification provenance
 
-Reviewed on 24 October 2026 against `chess-web-app-day7-start.zip` (archive commit `16637bef7414cf6e55d8b4b099b786325f5fe2a1`), the completed Day 6 checkpoint. The user explicitly reports that all local tests passed. This review inspected source and documentation only; no independent tests or builds were run. Separate frontend build/manual-check results were not supplied.
+Reviewed on 24 October 2026 against `chess-web-app-day7-end.zip` (archive commit `323715a1a49cb03867bcfd0b20096436f04d744f`). The user reports that all tests are green for this Day 7 checkpoint. This review inspected source and documentation only; no independent tests or builds were run. Separate frontend build/manual-check results were not supplied. Fixture corrections recorded in the development-progress document have not been applied or rerun as part of this review.
 
 The local confirmation supersedes earlier pending verification language. It does not supply a detailed result log or separate frontend build/manual outcomes.
 
@@ -128,7 +170,7 @@ Manual smoke checks:
 - No queue expiry or automatic leave on logout.
 - Games begin immediately in `IN_PROGRESS`; no acceptance stage.
 - No cancellation, completion, results or active-reservation release. Matched players therefore remain unavailable for another game through the current APIs.
-- No legal moves, move history, chessboard UI, game page or clocks.
+- Knight-only rules support; no complete legal-move list, special-move execution, outcomes, move endpoint/history, chessboard UI, game page or clocks.
 - Username updates are supported; email/password changes are not implemented.
 - Concurrent username edits use last-write-wins behavior; no player optimistic locking.
 - Sessions are in memory; browser reload requires login. No refresh tokens, revocation or server-side logout.
@@ -138,23 +180,13 @@ Manual smoke checks:
 
 ## Working preferences
 
-Keep the focus on backend engineering and explain decisions incrementally. Use Lombok where appropriate, avoiding `@Data` on JPA entities. Add concise comments for non-obvious behavior. Keep frontend tests minimal. Provide verification commands without waiting for routine test-pass confirmation. Preserve passwords after failed form submissions.
+Keep the focus on backend engineering and explain decisions incrementally. Include concise algorithm walkthroughs and selected test-board renderings. Prefer complete FEN fixtures with coherent metadata/turns unless invalidity is deliberate and explained. Use Lombok where appropriate, avoiding `@Data` on JPA entities. Add concise comments for non-obvious behavior. Keep frontend tests minimal. Provide verification commands without waiting for routine test-pass confirmation. Preserve passwords after failed form submissions.
 
-## Proposed Day 7 scope
+## Proposed next working session
 
-Goal: build a small, pure Java movement pipeline incrementally, without exposing partial rules as playable chess.
+Extend the pure Java pipeline to sliding movement, starting with one bounded rook increment. Introduce shared piece dispatch when the second generator requires it, and extend MoveApplier to remove castling rights when a rook moves. Reuse candidate application, square-attack detection and king-safety filtering instead of creating per-piece application/filtering classes.
 
-1. Add an application-owned `Move` value with source and destination squares. Validate representation only; add promotion choice when pawn promotion becomes an actual use case.
-2. Add knight-only pseudo-legal generation: board edges, side to move, friendly occupancy and enemy captures. Exclude king capture. Use an explicitly knight-specific component; do not advertise a complete move list.
-3. Apply generated ordinary knight moves to a new candidate position, preserving the original. Update turn, en passant target, counters and castling rights affected by a captured rook. This is internal candidate application, not an authorized gameplay command.
-4. Implement square-attack detection for every piece type, then use it to reject knight candidates that leave the moving side's king attacked. Require valid king fixtures for this stage. Partial move generation cannot safely substitute for attack detection.
-5. Add focused tests and reconcile the checkpoint documentation with the work actually completed. If the attack-detection increment needs more time, keep it as the next bounded step rather than claiming legal gameplay is complete.
-
-Pseudo-legal moves obey movement/occupancy rules without establishing the moving king's safety. Legal moves also satisfy king safety and all applicable special-move restrictions. Even after king-safety filtering, a knight-only result is only a subset of legal moves; an empty subset does not establish checkmate or stalemate.
-
-No move endpoint, persistence/history, frontend, outcome, special-move execution or AI work is included. `ChessRules` remains unchanged until an actual service use case requires another operation. Service-layer transactions, authorization and gameplay concurrency stay outside the rules code.
-
-This is a proposal at the Day 7 start checkpoint, not implemented work.
+Bishop and queen generation, pawn movement/promotion/en passant, king movement/castling and full legal-move enumeration remain to be scheduled incrementally. A gameplay endpoint, persistence/history, concurrency handling, outcomes and reservation release require later service-level work. This proposal is not implemented Day 8 work.
 
 ## Deferred representation evaluation
 

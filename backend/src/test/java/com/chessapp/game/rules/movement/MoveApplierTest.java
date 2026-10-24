@@ -1,4 +1,4 @@
-package com.chessapp.game.rules;
+package com.chessapp.game.rules.movement;
 
 import com.chessapp.BoardTestRenderer;
 import com.chessapp.game.rules.fen.FenParser;
@@ -6,8 +6,6 @@ import com.chessapp.game.rules.fen.FenSerializer;
 import com.chessapp.game.rules.model.ChessPosition;
 import com.chessapp.game.rules.model.Move;
 import com.chessapp.game.rules.model.Square;
-import com.chessapp.game.rules.movement.MoveApplier;
-import com.chessapp.game.rules.movement.KnightMoveGenerator;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
@@ -28,7 +26,7 @@ class MoveApplierTest {
     @Test
     void whiteQuietMoveUpdatesMetadataAndPreservesOriginalPosition() {
         String originalFen =
-                "4k3/8/8/4p3/3N4/8/8/4K3 w - e6 7 12";
+                "4k3/8/8/4p3/3N4/8/8/4K3 w - e6 0 12";
 
         var original = parser.parse(originalFen);
         var move = move("d4", "f5");
@@ -39,7 +37,7 @@ class MoveApplierTest {
 
         assertAll(
                 () -> assertEquals(
-                        "4k3/8/8/4pN2/8/8/8/4K3 b - - 8 12",
+                        "4k3/8/8/4pN2/8/8/8/4K3 b - - 1 12",
                         serializer.serialize(candidate)
                 ),
                 // Compare contents through FEN rather than Board identity.
@@ -70,9 +68,9 @@ class MoveApplierTest {
     @Test
     void blackCaptureUpdatesFullmoveNumberAndWhiteCastlingRights() {
         var original = parser.parse(
-                "4k3/8/8/8/8/8/2n5/R3K2R b KQ - 8 12"
+                "4k3/8/8/8/8/1n6/8/R3K2R b KQ - 8 12"
         );
-        var move = move("c2", "a1");
+        var move = move("b3", "a1");
 
         var candidate = applier.apply(original, move);
 
@@ -119,7 +117,7 @@ class MoveApplierTest {
                 move("e2", "c3")
         );
 
-        // King-safety filtering has not been introduced yet.
+        // MoveApplier deliberately leaves king safety to LegalMoveGenerator.
         assertEquals(
                 "4r2k/8/8/8/8/2N5/8/4K3 b - - 1 1",
                 serializer.serialize(candidate)

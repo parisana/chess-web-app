@@ -1,6 +1,6 @@
 # Chess Frontend
 
-Reviewed on 24 October 2026 against `chess-web-app-day7-start.zip` (archive commit `16637bef7414cf6e55d8b4b099b786325f5fe2a1`), the completed Day 6 checkpoint. The user explicitly reports that all local tests passed. This review inspected source and documentation only; no independent tests or builds were run. Separate frontend build/manual-check results were not supplied. Day 6 changes no frontend implementation.
+Reviewed on 24 October 2026 against `chess-web-app-day7-end.zip` (archive commit `323715a1a49cb03867bcfd0b20096436f04d744f`). The user reports that all tests are green for this Day 7 checkpoint. This review inspected source and documentation only; no independent tests or builds were run. Separate frontend build/manual-check results were not supplied. Fixture corrections recorded in the development-progress document have not been applied or rerun as part of this review. Days 6 and 7 change no frontend implementation. Console board rendering exists only in backend test code; it is not a chessboard UI.
 
 Angular 21 standalone application with Angular Material, reactive forms and in-memory authentication. Backend calls use relative `/api/v1` URLs.
 
@@ -24,7 +24,7 @@ npm run build
 
 Five focused tests in `src/app/auth/services/auth-flow.spec.ts` cover bearer attachment, external URL exclusion, protected 401 cleanup/redirect, cleanup after profile loading fails, and logout. There is no `app.spec.ts` in this checkpoint. No end-to-end runner is configured.
 
-The user explicitly reports all local tests passing for the completed Day 6 checkpoint. This source/documentation review ran no tests or builds. Separate frontend build and manual-check results were not supplied.
+The user explicitly reports all local tests passing for the completed Day 7 checkpoint. This source/documentation review ran no tests or builds. Separate frontend build and manual-check results were not supplied.
 
 ## Authentication behavior
 

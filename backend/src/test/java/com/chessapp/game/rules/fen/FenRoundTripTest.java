@@ -1,7 +1,5 @@
-package com.chessapp.game.rules;
+package com.chessapp.game.rules.fen;
 
-import com.chessapp.game.rules.fen.FenParser;
-import com.chessapp.game.rules.fen.FenSerializer;
 import com.chessapp.game.rules.model.Square;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

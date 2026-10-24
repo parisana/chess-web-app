@@ -1,10 +1,9 @@
-package com.chessapp.game.rules;
+package com.chessapp.game.rules.movement;
 
 import com.chessapp.BoardTestRenderer;
 import com.chessapp.game.rules.fen.FenParser;
 import com.chessapp.game.rules.model.Move;
 import com.chessapp.game.rules.model.Square;
-import com.chessapp.game.rules.movement.KnightMoveGenerator;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
