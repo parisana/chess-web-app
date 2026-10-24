@@ -5,10 +5,11 @@ import com.chessapp.game.rules.model.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+
 /**
  * @author pari on 10/24/26
  */
-public final class FenCodec {
+public final class FenParser {
 
     public ChessPosition parse(String fen) {
         if (fen == null) {

@@ -11,13 +11,13 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * @author pari on 10/24/26
  */
-class FenCodecTest {
+class FenParserTest {
 
     private static final String INITIAL_FEN =
             "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
                     + " w KQkq - 0 1";
 
-    private final FenCodec codec = new FenCodec();
+    private final FenParser codec = new FenParser();
 
     @Test
     void parsesInitialPosition() {
