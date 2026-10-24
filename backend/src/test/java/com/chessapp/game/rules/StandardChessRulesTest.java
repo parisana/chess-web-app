@@ -1,9 +1,6 @@
 package com.chessapp.game.rules;
 
-import com.chessapp.game.rules.model.Piece;
-import com.chessapp.game.rules.model.PieceColor;
-import com.chessapp.game.rules.model.PieceType;
-import com.chessapp.game.rules.model.Square;
+import com.chessapp.game.rules.model.*;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -62,5 +59,32 @@ class StandardChessRulesTest {
                 );
             }
         }
+    }
+
+    @Test
+    void initialPositionHasStandardStartingMetadata() {
+        var position = rules.initialPosition();
+
+        assertAll(
+                () -> assertEquals(
+                        PieceColor.WHITE,
+                        position.sideToMove()
+                ),
+                () -> assertEquals(
+                        new CastlingRights(true, true, true, true),
+                        position.castlingRights()
+                ),
+                () -> assertTrue(
+                        position.enPassantTarget().isEmpty()
+                ),
+                () -> assertEquals(
+                        0,
+                        position.halfmoveClock()
+                ),
+                () -> assertEquals(
+                        1,
+                        position.fullmoveNumber()
+                )
+        );
     }
 }
