@@ -1,6 +1,5 @@
 package com.chessapp.game;
 
-import com.chessapp.game.entity.Game;
 import com.chessapp.game.entity.GameStatus;
 import com.chessapp.game.repository.GameRepository;
 import com.chessapp.game.service.GameService;
@@ -37,6 +36,9 @@ class GameCreationIntegrationTest {
 
     private PlayerResponse white;
     private PlayerResponse black;
+    private static final String EXPECTED_INITIAL_FEN =
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+                    + " w KQkq - 0 1";
 
     @BeforeEach
     void setUp() {
@@ -71,7 +73,7 @@ class GameCreationIntegrationTest {
                         GameStatus.IN_PROGRESS, response.status()
                 ),
                 () -> assertEquals(
-                        Game.INITIAL_FEN, response.currentFen()
+                        EXPECTED_INITIAL_FEN, response.currentFen()
                 ),
                 () -> assertNotNull(response.createdAt()),
                 () -> assertEquals(

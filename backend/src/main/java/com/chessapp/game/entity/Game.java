@@ -15,10 +15,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Game extends BaseEntity {
 
-    public static final String INITIAL_FEN =
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
-                    + " w KQkq - 0 1";
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -40,7 +36,11 @@ public class Game extends BaseEntity {
     @Column(nullable = false)
     private Long version;
 
-    public Game(Long whitePlayerId, Long blackPlayerId) {
+    public Game(
+            Long whitePlayerId,
+            Long blackPlayerId,
+            String initialFen
+    ) {
         requireValidPlayerId(whitePlayerId);
         requireValidPlayerId(blackPlayerId);
 
@@ -50,10 +50,16 @@ public class Game extends BaseEntity {
             );
         }
 
+        if (initialFen == null || initialFen.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Initial FEN must not be blank"
+            );
+        }
+
         this.whitePlayerId = whitePlayerId;
         this.blackPlayerId = blackPlayerId;
         this.status = GameStatus.IN_PROGRESS;
-        this.currentFen = INITIAL_FEN;
+        this.currentFen = initialFen;
     }
 
     private static void requireValidPlayerId(Long playerId) {

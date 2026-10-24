@@ -5,6 +5,8 @@ import com.chessapp.game.entity.Game;
 import com.chessapp.game.exception.GameAccessDeniedException;
 import com.chessapp.game.exception.GameNotFoundException;
 import com.chessapp.game.repository.GameRepository;
+import com.chessapp.game.rules.ChessRules;
+import com.chessapp.game.rules.FenSerializer;
 import com.chessapp.player.service.PlayerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,8 @@ public class GameService {
     private final GameRepository gameRepository;
     private final PlayerService playerService;
     private final ActiveGamePlayerRepository activeGamePlayerRepository;
+    private final ChessRules chessRules;
+    private final FenSerializer fenSerializer;
 
     @Transactional(readOnly = true)
     public GameResponse getGame(Long gameId, Long requestingPlayerId) {
@@ -49,7 +53,14 @@ public class GameService {
             Long whitePlayerId,
             Long blackPlayerId
     ) {
-        var game = new Game(whitePlayerId, blackPlayerId);
+        var initialPosition = chessRules.initialPosition();
+        var initialFen = fenSerializer.serialize(initialPosition);
+
+        var game = new Game(
+                whitePlayerId,
+                blackPlayerId,
+                initialFen
+        );
 
         requirePlayer(whitePlayerId);
         requirePlayer(blackPlayerId);

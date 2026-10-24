@@ -45,6 +45,9 @@ class GameReadIntegrationTest {
     private PlayerResponse black;
     private PlayerResponse outsider;
     private GameResponse game;
+    private static final String EXPECTED_INITIAL_FEN =
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+                    + " w KQkq - 0 1";
 
     @BeforeEach
     void setUp() {
@@ -67,7 +70,7 @@ class GameReadIntegrationTest {
                 .andExpect(jsonPath("$.whitePlayerId").value(white.id()))
                 .andExpect(jsonPath("$.blackPlayerId").value(black.id()))
                 .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
-                .andExpect(jsonPath("$.currentFen").value(Game.INITIAL_FEN))
+                .andExpect(jsonPath("$.currentFen").value(EXPECTED_INITIAL_FEN))
                 .andExpect(jsonPath("$.createdAt").isNotEmpty());
     }
 
