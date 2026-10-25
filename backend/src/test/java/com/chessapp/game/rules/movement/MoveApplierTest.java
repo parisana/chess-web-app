@@ -191,7 +191,7 @@ class MoveApplierTest {
     @Test
     void returningRookToOriginalCornerDoesNotRestoreCastlingRight() {
         var original = parser.parse(
-                "1n5k/8/8/8/8/8/8/R3K2R w KQ - 0 20"
+                "1n4k1/8/8/8/8/8/8/R3K2R w KQ - 0 20"
         );
 
         var afterRookLeaves = applier.apply(
