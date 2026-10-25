@@ -1,6 +1,6 @@
 # API Contracts
 
-Reviewed on 24 October 2026 against `chess-web-app-day7-end.zip` (archive commit `323715a1a49cb03867bcfd0b20096436f04d744f`). The user reports that all tests are green for this Day 7 checkpoint. This review inspected source and documentation only; no independent tests or builds were run. Separate frontend build/manual-check results were not supplied. Fixture corrections recorded in the development-progress document have not been applied or rerun as part of this review. Days 6 and 7 introduce no endpoint or response-shape change. GameService now obtains initial FEN through the rules boundary; games still contain only the initial position.
+Checkpoint documentation updated on 25 October 2026. The source baseline inspected was `chess-web-app-day8-start.zip` (archive commit `79871c70c4fe8d0065c61795ab37daf26642ba2d`). Both Day 7 MoveApplierTest fixture corrections were present in that archive. Day 8 implementation and test additions were supplied incrementally during the session; subsequent user replies reported no problems. No independent tests or builds were run. A fresh end-of-Day-8 source archive and its final verification report have not yet been reviewed. Day 8 sections describe the guided changes, not independently inspected final source. Days 6 and 7 introduce no endpoint or response-shape change. GameService now obtains initial FEN through the rules boundary; games still contain only the initial position.
 
 This document lists expected application failures by action. It is not an exhaustive catalog of framework, transport or infrastructure failures. An absent application code is intentional where the current implementation does not guarantee one.
 
@@ -147,3 +147,7 @@ No request body. Success returns `id`, `whitePlayerId`, `blackPlayerId`, `status
 ## Keeping contracts synchronized
 
 When changing an endpoint, update its owning DTO/service/controller, corresponding integration assertions, this action's contract and the checkpoint progress together. Keep feature error constants in their owning package. Tests verify documented behavior; this document does not establish that a test run passed.
+
+## Day 8 boundary
+
+The guided Day 8 increment adds internal knight/rook Strategy dispatch, rook movement, shared application/filtering and rook castling-right updates. It changes no endpoint, response shape or frontend implementation. ChessRules still exposes only initialPosition(); persisted games still contain the initial state. There is no move-submission API or chessboard UI. The final updated source archive has not yet been reviewed.

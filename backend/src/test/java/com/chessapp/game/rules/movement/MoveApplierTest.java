@@ -6,6 +6,9 @@ import com.chessapp.game.rules.fen.FenSerializer;
 import com.chessapp.game.rules.model.ChessPosition;
 import com.chessapp.game.rules.model.Move;
 import com.chessapp.game.rules.model.Square;
+import com.chessapp.game.rules.model.CastlingRights;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
@@ -19,7 +22,10 @@ class MoveApplierTest {
 
     private final FenParser parser = new FenParser();
     private final FenSerializer serializer = new FenSerializer();
-    private final KnightMoveGenerator generator = new KnightMoveGenerator();
+    private final PseudoLegalMoveGenerator generator = new PseudoLegalMoveGenerator(
+            new KnightMoveGenerator(),
+            new RookMoveGenerator()
+    );
     private final MoveApplier applier =
             new MoveApplier(generator);
 
@@ -121,6 +127,102 @@ class MoveApplierTest {
         assertEquals(
                 "4r2k/8/8/8/8/2N5/8/4K3 b - - 1 1",
                 serializer.serialize(candidate)
+        );
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "w, h1, h2, false, true,  true,  true",
+            "w, a1, a2, true,  false, true,  true",
+            "b, h8, h7, true,  true,  false, true",
+            "b, a8, a7, true,  true,  true,  false"
+    })
+    void movingCornerRookRemovesOnlyItsCastlingRight(
+            String sideToMove,
+            String from,
+            String to,
+            boolean whiteKingSide,
+            boolean whiteQueenSide,
+            boolean blackKingSide,
+            boolean blackQueenSide
+    ) {
+        var position = parser.parse(
+                "r3k2r/8/8/8/8/8/8/R3K2R "
+                        + sideToMove + " KQkq - 0 20"
+        );
+
+        var candidate = applier.apply(position, move(from, to));
+
+        assertEquals(
+                new CastlingRights(
+                        whiteKingSide,
+                        whiteQueenSide,
+                        blackKingSide,
+                        blackQueenSide
+                ),
+                candidate.castlingRights()
+        );
+    }
+
+    @Test
+    void rookCaptureCanRemoveCastlingRightsForBothPlayers() {
+        String originalFen =
+                "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 8 20";
+
+        var original = parser.parse(originalFen);
+        var selectedMove = move("a1", "a8");
+
+        var candidate = applier.apply(original, selectedMove);
+
+        printTransition(original, candidate, selectedMove);
+
+        assertAll(
+                () -> assertEquals(
+                        "R3k2r/8/8/8/8/8/8/4K2R b Kk - 0 20",
+                        serializer.serialize(candidate)
+                ),
+                () -> assertEquals(
+                        originalFen,
+                        serializer.serialize(original)
+                )
+        );
+    }
+
+    @Test
+    void returningRookToOriginalCornerDoesNotRestoreCastlingRight() {
+        var original = parser.parse(
+                "1n5k/8/8/8/8/8/8/R3K2R w KQ - 0 20"
+        );
+
+        var afterRookLeaves = applier.apply(
+                original,
+                move("a1", "a2")
+        );
+
+        // A supported Black reply allows White to move again.
+        var afterBlackReply = applier.apply(
+                afterRookLeaves,
+                move("b8", "c6")
+        );
+
+        var afterRookReturns = applier.apply(
+                afterBlackReply,
+                move("a2", "a1")
+        );
+
+        var remainingRights = new CastlingRights(
+                true, false, false, false
+        );
+
+        assertAll(
+                () -> assertEquals(
+                        remainingRights,
+                        afterRookLeaves.castlingRights()
+                ),
+                () -> assertEquals(
+                        remainingRights,
+                        afterRookReturns.castlingRights()
+                )
         );
     }
 

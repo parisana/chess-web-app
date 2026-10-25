@@ -17,8 +17,11 @@ import static org.junit.jupiter.api.Assertions.*;
 class LegalMoveGeneratorTest {
 
     private final FenParser parser = new FenParser();
-    private final KnightMoveGenerator pseudoLegalGenerator =
-            new KnightMoveGenerator();
+    private final PseudoLegalMoveGenerator pseudoLegalGenerator =
+            new PseudoLegalMoveGenerator(
+                    new KnightMoveGenerator(),
+                    new RookMoveGenerator()
+            );
 
     private final LegalMoveGenerator legalGenerator =
             new LegalMoveGenerator(
@@ -124,6 +127,114 @@ class LegalMoveGeneratorTest {
                         position,
                         Square.fromAlgebraic("d4")
                 )
+        );
+    }
+
+    @Test
+    void pinnedRookCanMoveAlongPinLineButCannotExposeOwnKing() {
+        var position = parser.parse(
+                "4r2k/8/8/8/8/8/4R3/4K3 w - - 0 20"
+        );
+        var source = Square.fromAlgebraic("e2");
+
+        var candidates = pseudoLegalGenerator.generate(position, source);
+        var legalMoves = legalGenerator.generate(position, source);
+
+        System.out.println("Pseudo-legal rook candidates:");
+        System.out.println(BoardTestRenderer.render(
+                position, source, candidates
+        ));
+
+        var visualization = BoardTestRenderer.render(
+                position, source, legalMoves
+        );
+
+        System.out.println("After king-safety filtering:");
+        System.out.println(visualization);
+
+        assertAll(
+                () -> assertTrue(candidates.contains(move("e2", "d2"))),
+                () -> assertEquals(
+                        Set.of(
+                                move("e2", "e3"),
+                                move("e2", "e4"),
+                                move("e2", "e5"),
+                                move("e2", "e6"),
+                                move("e2", "e7"),
+                                move("e2", "e8")
+                        ),
+                        legalMoves,
+                        visualization
+                )
+        );
+    }
+
+    @Test
+    void filtersPinnedRookMovesUsingBlacksKing() {
+        var position = parser.parse(
+                "4k3/4r3/8/8/8/8/8/K3R3 b - - 0 20"
+        );
+        var source = Square.fromAlgebraic("e7");
+
+        var legalMoves = legalGenerator.generate(position, source);
+        var visualization = BoardTestRenderer.render(
+                position, source, legalMoves
+        );
+        System.out.println("Legal Moves:");
+        System.out.println(visualization);
+
+        assertEquals(
+                Set.of(
+                        move("e7", "e6"),
+                        move("e7", "e5"),
+                        move("e7", "e4"),
+                        move("e7", "e3"),
+                        move("e7", "e2"),
+                        move("e7", "e1")
+                ),
+                legalMoves,
+                visualization
+        );
+    }
+
+    @Test
+    void rookCanAnswerCheckByBlockingAttack() {
+        var position = parser.parse(
+                "4r2k/8/8/8/8/8/R7/4K3 w - - 0 20"
+        );
+        var source = Square.fromAlgebraic("a2");
+
+        var legalMoves = legalGenerator.generate(position, source);
+        var visualization = BoardTestRenderer.render(
+                position, source, legalMoves
+        );
+
+        System.out.println(visualization);
+
+        assertEquals(
+                Set.of(move("a2", "e2")),
+                legalMoves,
+                visualization
+        );
+    }
+
+    @Test
+    void rookCanAnswerCheckByCapturingAttacker() {
+        var position = parser.parse(
+                "7k/8/8/8/R3r3/8/8/4K3 w - - 0 20"
+        );
+        var source = Square.fromAlgebraic("a4");
+
+        var legalMoves = legalGenerator.generate(position, source);
+        var visualization = BoardTestRenderer.render(
+                position, source, legalMoves
+        );
+        System.out.println(visualization);
+
+        assertEquals(
+                Set.of(move("a4", "e4")),
+                legalMoves,
+                visualization
         );
     }
 

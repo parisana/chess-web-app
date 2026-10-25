@@ -1,11 +1,6 @@
 package com.chessapp.game.rules.movement;
 
-import com.chessapp.game.rules.model.CastlingRights;
-import com.chessapp.game.rules.model.ChessPosition;
-import com.chessapp.game.rules.model.Move;
-import com.chessapp.game.rules.model.PieceColor;
-import com.chessapp.game.rules.model.PieceType;
-import com.chessapp.game.rules.model.Square;
+import com.chessapp.game.rules.model.*;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -14,12 +9,12 @@ import java.util.Optional;
  */
 public final class MoveApplier {
 
-    private final KnightMoveGenerator moveGenerator;
+    private final PseudoLegalMoveGenerator moveGenerator;
 
-    public MoveApplier(KnightMoveGenerator moveGenerator) {
+    public MoveApplier(PseudoLegalMoveGenerator moveGenerator) {
         this.moveGenerator = Objects.requireNonNull(
                 moveGenerator,
-                "Knight move generator is required"
+                "Pseudo-legal move generator is required"
         );
     }
 
@@ -27,14 +22,15 @@ public final class MoveApplier {
      * Applies pseudo-legal candidates without checking king safety.
      * Currently, supports knight moves only.
      * The algorithm is:
-     * 1. Confirm the move appears in the knight’s pseudo-legal candidates.
+     * 1. Confirm the move appears in the piece's pseudo-legal candidates.
      * 2. Inspect the destination before moving, to identify any capture.
      * 3. Create the new board.
      * 4. Switch the side to move.
      * 5. Clear the previous en passant target.
      * 6. Reset the halfmove clock on capture; otherwise increment it.
      * 7. Increment the fullmove number after Black moves.
-     * 8. Remove castling rights if a rook is captured on its original corner.
+     * 8. Remove castling rights when a rook moves from its original corner
+     *    or is captured on its original corner.
      */
     public ChessPosition apply(ChessPosition position, Move move) {
         Objects.requireNonNull(position, "Position is required");
@@ -42,7 +38,7 @@ public final class MoveApplier {
 
         if (!moveGenerator.generate(position, move.from()).contains(move)) {
             throw new IllegalArgumentException(
-                    "Move must be a pseudo-legal knight move"
+                    "Move must be a supported pseudo-legal move"
             );
         }
 
@@ -65,7 +61,7 @@ public final class MoveApplier {
         return new ChessPosition(
                 position.board().movePiece(move.from(), move.to()),
                 nextSide,
-                castlingRightsAfterCapture(position, move.to()),
+                castlingRightsAfterMove(position, move),
                 // An en passant opportunity lasts for only the next move.
                 Optional.empty(),
                 halfmoveClock,
@@ -73,24 +69,48 @@ public final class MoveApplier {
         );
     }
 
-    private CastlingRights castlingRightsAfterCapture(
+    private CastlingRights castlingRightsAfterMove(
             ChessPosition position,
-            Square destination
+            Move move
     ) {
         var rights = position.castlingRights();
-        var captured = position.board().pieceAt(destination);
+        var movingPiece = position.board()
+                .pieceAt(move.from())
+                .orElseThrow();
 
-        if (captured.isEmpty()
-                || captured.orElseThrow().type() != PieceType.ROOK) {
-            return rights;
+        if (movingPiece.type() == PieceType.ROOK) {
+            rights = removeCornerRookRight(
+                    rights,
+                    movingPiece.color(),
+                    move.from()
+            );
         }
 
-        if (captured.orElseThrow().color() == PieceColor.WHITE) {
+        var captured = position.board().pieceAt(move.to());
+
+        if (captured.isPresent()
+                && captured.orElseThrow().type() == PieceType.ROOK) {
+            rights = removeCornerRookRight(
+                    rights,
+                    captured.orElseThrow().color(),
+                    move.to()
+            );
+        }
+
+        return rights;
+    }
+
+    private CastlingRights removeCornerRookRight(
+            CastlingRights rights,
+            PieceColor color,
+            Square square
+    ) {
+        if (color == PieceColor.WHITE) {
             return new CastlingRights(
                     rights.whiteKingSide()
-                            && !destination.equals(Square.fromAlgebraic("h1")),
+                            && !square.equals(Square.fromAlgebraic("h1")),
                     rights.whiteQueenSide()
-                            && !destination.equals(Square.fromAlgebraic("a1")),
+                            && !square.equals(Square.fromAlgebraic("a1")),
                     rights.blackKingSide(),
                     rights.blackQueenSide()
             );
@@ -100,9 +120,9 @@ public final class MoveApplier {
                 rights.whiteKingSide(),
                 rights.whiteQueenSide(),
                 rights.blackKingSide()
-                        && !destination.equals(Square.fromAlgebraic("h8")),
+                        && !square.equals(Square.fromAlgebraic("h8")),
                 rights.blackQueenSide()
-                        && !destination.equals(Square.fromAlgebraic("a8"))
+                        && !square.equals(Square.fromAlgebraic("a8"))
         );
     }
 }

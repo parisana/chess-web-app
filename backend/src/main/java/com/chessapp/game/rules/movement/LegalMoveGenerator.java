@@ -1,12 +1,7 @@
 package com.chessapp.game.rules.movement;
 
 import com.chessapp.game.rules.attack.SquareAttackDetector;
-import com.chessapp.game.rules.model.Board;
-import com.chessapp.game.rules.model.ChessPosition;
-import com.chessapp.game.rules.model.Move;
-import com.chessapp.game.rules.model.PieceColor;
-import com.chessapp.game.rules.model.PieceType;
-import com.chessapp.game.rules.model.Square;
+import com.chessapp.game.rules.model.*;
 
 import java.util.HashSet;
 import java.util.Objects;
@@ -17,22 +12,22 @@ import java.util.Set;
  */
 public final class LegalMoveGenerator {
 
-    private final KnightMoveGenerator moveGenerator;
+    private final PseudoLegalMoveGenerator moveGenerator;
     private final MoveApplier moveApplier;
     private final SquareAttackDetector attackDetector;
 
     public LegalMoveGenerator(
-            KnightMoveGenerator moveGenerator,
+            PseudoLegalMoveGenerator moveGenerator,
             MoveApplier moveApplier,
             SquareAttackDetector attackDetector
     ) {
         this.moveGenerator = Objects.requireNonNull(
                 moveGenerator,
-                "Knight move generator is required"
+                "Pseudo-legal move generator is required"
         );
         this.moveApplier = Objects.requireNonNull(
                 moveApplier,
-                "Knight move applier is required"
+                "Move applier is required"
         );
         this.attackDetector = Objects.requireNonNull(
                 attackDetector,
@@ -42,7 +37,7 @@ public final class LegalMoveGenerator {
 
     /**
      * Filters movement candidates using king safety.
-     * Currently, generates moves for a single knight source square only;
+     * Currently, generates moves for a single supported piece source square;
      * an empty result does not establish checkmate or stalemate.
      * The algorithm is:
      1. Generate candidates.

@@ -14,8 +14,14 @@ import java.util.Set;
  * Enumerate those eight offsets, discard destinations outside the board, then exclude friendly-occupied squares and the opposing king’s square.
  * Each remaining destination becomes a candidate move. King safety is checked in a later stage.
  */
-public final class KnightMoveGenerator {
+public final class KnightMoveGenerator implements PiecePseudoLegalMoveGenerator {
 
+    @Override
+    public PieceType pieceType() {
+        return PieceType.KNIGHT;
+    }
+
+    @Override
     public Set<Move> generate(ChessPosition position, Square from) {
         Objects.requireNonNull(position, "Position is required");
         Objects.requireNonNull(from, "Source square is required");
