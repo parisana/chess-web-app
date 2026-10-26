@@ -1,0 +1,133 @@
+package com.chessapp.game.rules.movement;
+
+import com.chessapp.game.rules.model.ChessPosition;
+import com.chessapp.game.rules.model.Move;
+import com.chessapp.game.rules.model.PieceColor;
+import com.chessapp.game.rules.model.PieceType;
+import com.chessapp.game.rules.model.Square;
+
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
+/**
+ * @author pari on 10/26/26
+ * Generates ordinary pawn candidates.
+ * Promotion and possible en passant captures fail explicitly.
+ * King safety is checked separately.
+ */
+public final class PawnMoveGenerator
+        implements PiecePseudoLegalMoveGenerator {
+
+    @Override
+    public PieceType pieceType() {
+        return PieceType.PAWN;
+    }
+
+    /**
+     * Advances: require empty squares. The double advance is considered only after the first square is confirmed empty, and only from the starting rank.
+     * Captures: inspect the two forward diagonals and accept opposing non-king occupants.
+     * Direction: White increases the internal rank; Black decreases it.
+     * Special cases: fail before a partial result can escape.
+     * */
+    @Override
+    public Set<Move> generate(ChessPosition position, Square from) {
+        Objects.requireNonNull(position, "Position is required");
+        Objects.requireNonNull(from, "Source square is required");
+
+        var sourcePiece = position.board().pieceAt(from);
+
+        if (sourcePiece.isEmpty()) {
+            return Set.of();
+        }
+
+        var pawn = sourcePiece.orElseThrow();
+
+        if (pawn.type() != PieceType.PAWN) {
+            throw new IllegalArgumentException(
+                    "Source square must contain a pawn"
+            );
+        }
+
+        if (pawn.color() != position.sideToMove()) {
+            return Set.of();
+        }
+
+        // Unpromoted pawns cannot occupy either terminal rank.
+        if (from.rank() == 0 || from.rank() == 7) {
+            throw new IllegalArgumentException(
+                    "Pawn source must not be on rank 1 or 8"
+            );
+        }
+
+        int direction = pawn.color() == PieceColor.WHITE ? 1 : -1;
+        int startingRank = pawn.color() == PieceColor.WHITE ? 1 : 6;
+        int nextRank = from.rank() + direction;
+
+        Set<Move> moves = new HashSet<>();
+
+        var oneStep = new Square(from.file(), nextRank);
+
+        if (position.board().pieceAt(oneStep).isEmpty()) {
+            addOrdinaryMove(moves, from, oneStep);
+
+            // Reaching this branch also establishes a clear intermediate square.
+            if (from.rank() == startingRank) {
+                var twoSteps = new Square(
+                        from.file(),
+                        from.rank() + 2 * direction
+                );
+
+                if (position.board().pieceAt(twoSteps).isEmpty()) {
+                    addOrdinaryMove(moves, from, twoSteps);
+                }
+            }
+        }
+
+        for (int fileOffset : new int[] {-1, 1}) {
+            int file = from.file() + fileOffset;
+
+            if (file < 0 || file > 7) {
+                continue;
+            }
+
+            var to = new Square(file, nextRank);
+            var target = position.board().pieceAt(to);
+
+            if (target.isEmpty()) {
+                // Do not silently omit a possible unsupported special capture.
+                if (position.enPassantTarget()
+                        .filter(to::equals)
+                        .isPresent()) {
+                    throw new UnsupportedOperationException(
+                            "En passant capture generation is not supported yet"
+                    );
+                }
+
+                continue;
+            }
+
+            var occupant = target.orElseThrow();
+
+            if (occupant.color() != pawn.color()
+                    && occupant.type() != PieceType.KING) {
+                addOrdinaryMove(moves, from, to);
+            }
+        }
+
+        return Set.copyOf(moves);
+    }
+
+    private void addOrdinaryMove(
+            Set<Move> moves,
+            Square from,
+            Square to
+    ) {
+        if (to.rank() == 0 || to.rank() == 7) {
+            throw new UnsupportedOperationException(
+                    "Promotion move generation is not supported yet"
+            );
+        }
+
+        moves.add(new Move(from, to));
+    }
+}

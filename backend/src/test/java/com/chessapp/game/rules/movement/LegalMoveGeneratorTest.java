@@ -639,6 +639,186 @@ class LegalMoveGeneratorTest {
         );
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "'4r2k/8/8/8/8/3b4/4P3/4K3 w - - 0 20', e2, e3, e4, d3",
+            "'4k3/4p3/3B4/8/8/8/8/4R2K b - - 0 20', e7, e6, e5, d6"
+    })
+    void filePinnedPawnCanAdvanceButCannotExposeKingByCapturing(
+            String fen,
+            String from,
+            String oneStep,
+            String twoSteps,
+            String capture
+    ) {
+        var position = parser.parse(fen);
+        var source = Square.fromAlgebraic(from);
+
+        var candidates = pseudoLegalGenerator.generate(position, source);
+        var legalMoves = legalGenerator.generate(position, source);
+        var visualization = BoardTestRenderer.render(
+                position, source, legalMoves
+        );
+
+        System.out.println(visualization);
+
+        assertAll(
+                () -> assertEquals(
+                        Set.of(
+                                move(from, oneStep),
+                                move(from, twoSteps),
+                                move(from, capture)
+                        ),
+                        candidates
+                ),
+                () -> assertEquals(
+                        Set.of(
+                                move(from, oneStep),
+                                move(from, twoSteps)
+                        ),
+                        legalMoves,
+                        visualization
+                )
+        );
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "'k7/8/7b/8/8/8/3P4/2K5 w - - 0 20', d2, d3, d4",
+            "'2k5/3p4/8/8/8/7B/8/K7 b - - 0 20', d7, d6, d5"
+    })
+    void diagonallyPinnedPawnCannotAdvance(
+            String fen,
+            String from,
+            String oneStep,
+            String twoSteps
+    ) {
+        var position = parser.parse(fen);
+        var source = Square.fromAlgebraic(from);
+
+        var candidates = pseudoLegalGenerator.generate(position, source);
+        var legalMoves = legalGenerator.generate(position, source);
+
+        var visualization = BoardTestRenderer.render(
+                position, source, legalMoves
+        );
+
+        System.out.println(visualization);
+        assertAll(
+                () -> assertEquals(
+                        Set.of(
+                                move(from, oneStep),
+                                move(from, twoSteps)
+                        ),
+                        candidates
+                ),
+                () -> assertTrue(legalMoves.isEmpty())
+        );
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "'7k/8/8/8/K6r/8/3P4/8 w - - 0 20', d2, d3, d4",
+            "'8/3p4/8/k6R/8/8/8/7K b - - 0 20', d7, d6, d5"
+    })
+    void pawnCanAnswerRookCheckWithDoubleAdvance(
+            String fen,
+            String from,
+            String oneStep,
+            String twoSteps
+    ) {
+        var position = parser.parse(fen);
+        var source = Square.fromAlgebraic(from);
+
+        var candidates = pseudoLegalGenerator.generate(position, source);
+        var legalMoves = legalGenerator.generate(position, source);
+        var visualization = BoardTestRenderer.render(
+                position, source, legalMoves
+        );
+
+        System.out.println(visualization);
+
+        assertAll(
+                () -> assertEquals(
+                        Set.of(
+                                move(from, oneStep),
+                                move(from, twoSteps)
+                        ),
+                        candidates
+                ),
+                () -> assertEquals(
+                        Set.of(move(from, twoSteps)),
+                        legalMoves,
+                        visualization
+                )
+        );
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "'7k/8/8/8/8/5n2/4P3/4K3 w - - 0 20', e2, e3, e4, f3",
+            "'4k3/4p3/5N2/8/8/8/8/7K b - - 0 20', e7, e6, e5, f6"
+    })
+    void pawnCanAnswerKnightCheckByCapturingAttacker(
+            String fen,
+            String from,
+            String oneStep,
+            String twoSteps,
+            String capture
+    ) {
+        var position = parser.parse(fen);
+        var source = Square.fromAlgebraic(from);
+
+        var candidates = pseudoLegalGenerator.generate(position, source);
+        var legalMoves = legalGenerator.generate(position, source);
+
+        var visualization = BoardTestRenderer.render(
+                position, source, legalMoves
+        );
+
+        System.out.println(visualization);
+
+        assertAll(
+                () -> assertEquals(
+                        Set.of(
+                                move(from, oneStep),
+                                move(from, twoSteps),
+                                move(from, capture)
+                        ),
+                        candidates
+                ),
+                () -> assertEquals(
+                        Set.of(move(from, capture)),
+                        legalMoves
+                )
+        );
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "'k7/6P1/8/8/8/8/8/K7 w - - 0 20', g7",
+            "'7k/8/8/8/8/8/1p6/7K b - - 0 20', b2",
+            "'7k/8/8/3pP3/8/8/8/K7 w - d6 0 20', e5",
+            "'7k/8/8/8/3Pp3/8/8/K7 b - d3 0 20', e4"
+    })
+    void propagatesUnsupportedPawnGeneration(
+            String fen,
+            String from
+    ) {
+        var visualization = BoardTestRenderer.render(
+                parser.parse(fen), Square.fromAlgebraic(from), Set.of()
+        );
+
+        System.out.println(visualization);
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> legalGenerator.generate(
+                        parser.parse(fen),
+                        Square.fromAlgebraic(from)
+                )
+        );
+    }
+
     private static Move move(String from, String to) {
         return new Move(
                 Square.fromAlgebraic(from),

@@ -16,7 +16,8 @@ final class MovementTestFixtures {
                 new RookMoveGenerator(),
                 new BishopMoveGenerator(),
                 new QueenMoveGenerator(),
-                new KingMoveGenerator()
+                new KingMoveGenerator(),
+                new PawnMoveGenerator()
         );
     }
 

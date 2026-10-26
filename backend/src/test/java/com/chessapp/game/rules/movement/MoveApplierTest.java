@@ -415,6 +415,85 @@ class MoveApplierTest {
         );
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            // Quiet pawn moves reset the halfmove clock for both colors.
+            "'7k/8/8/8/3P4/8/8/K7 w - - 7 20', d4, d5, "
+                    + "'7k/8/8/3P4/8/8/8/K7 b - - 0 20'",
+            "'7k/8/8/3p4/8/8/8/K7 b - - 7 20', d5, d4, "
+                    + "'7k/8/8/8/3p4/8/8/K7 w - - 0 21'",
+
+            // Double advances record the passed-over square.
+            "'7k/8/8/8/8/8/3P4/K7 w - - 7 20', d2, d4, "
+                    + "'7k/8/8/8/3P4/8/8/K7 b - d3 0 20'",
+            "'7k/3p4/8/8/8/8/8/K7 b - - 7 20', d7, d5, "
+                    + "'7k/8/8/3p4/8/8/8/K7 w - d6 0 21'",
+
+            // Ordinary diagonal captures use shared board relocation.
+            "'7k/8/8/4n3/3P4/8/8/K7 w - - 7 20', d4, e5, "
+                    + "'7k/8/8/4P3/8/8/8/K7 b - - 0 20'",
+            "'7k/8/8/3p4/4N3/8/8/K7 b - - 7 20', d5, e4, "
+                    + "'7k/8/8/8/4p3/8/8/K7 w - - 0 21'",
+
+            // An ordinary advance expires an unrelated previous target.
+            "'7k/8/8/3p4/8/P7/8/K7 w - d6 0 20', a3, a4, "
+                    + "'7k/8/8/3p4/P7/8/8/K7 b - - 0 20'",
+
+            // A new double advance replaces the previous target.
+            "'7k/8/8/3p4/8/8/P7/K7 w - d6 0 20', a2, a4, "
+                    + "'7k/8/8/3p4/P7/8/8/K7 b - a3 0 20'",
+            "'7k/p7/8/8/3P4/8/8/K7 b - d3 0 20', a7, a5, "
+                    + "'7k/8/8/p7/3P4/8/8/K7 w - a6 0 21'"
+    })
+    void pawnMoveUpdatesMetadataAndPreservesOriginal(
+            String originalFen,
+            String from,
+            String to,
+            String expectedFen
+    ) {
+        var original = fenParser.parse(originalFen);
+        var pawnMove = move(from, to);
+
+        var candidate = moveApplier.apply(original, pawnMove);
+
+        printTransition(original, candidate, pawnMove);
+
+        assertAll(
+                () -> assertEquals(
+                        expectedFen,
+                        fenSerializer.serialize(candidate)
+                ),
+                () -> assertEquals(
+                        originalFen,
+                        fenSerializer.serialize(original)
+                )
+        );
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            // Promotion.
+            "'k7/6P1/8/8/8/8/8/K7 w - - 0 20', g7, g8",
+            "'7k/8/8/8/8/8/1p6/7K b - - 0 20', b2, b1",
+
+            // En passant capture.
+            "'7k/8/8/3pP3/8/8/8/K7 w - d6 0 20', e5, d6",
+            "'7k/8/8/8/3Pp3/8/8/K7 b - d3 0 20', e4, d3"
+    })
+    void rejectsUnsupportedPawnSpecialMoves(
+            String fen,
+            String from,
+            String to
+    ) {
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> moveApplier.apply(
+                        fenParser.parse(fen),
+                        move(from, to)
+                )
+        );
+    }
+
     private void printTransition(
             ChessPosition original,
             ChessPosition candidate,

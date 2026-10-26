@@ -1,10 +1,10 @@
 # Roadmap
 
-Reviewed on 26 October 2026 against `chess-web-app-day10-end.zip`. Source inspection confirms the Day 10 king-movement changes and associated tests. No blocking defect was found in the reviewed changes. The user reports all tests green for this archive. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+Reviewed on 26 October 2026 against `chess-web-app-day11-end.zip`. Source inspection confirms the Day 11 ordinary-pawn strategy, shared metadata updates, registration and associated tests. No blocking defect was found in the reviewed changes. The user reports all tests green. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
 
 ## Working-session numbering
 
-Working Days 1–10 identify actual development sessions and differ from the original 30-working-day estimate. Earlier work completed some planned later capabilities early. This page records implemented sessions and remaining capabilities; it does not establish a new complete 30-day schedule.
+Working Days 1–11 identify actual development sessions and differ from the original 30-working-day estimate. Earlier work completed some planned later capabilities early. This page records implemented sessions and remaining capabilities; it does not establish a new complete 30-day schedule.
 
 ## Completed working sessions
 
@@ -18,6 +18,7 @@ Working Days 1–10 identify actual development sessions and differ from the ori
 | Day 8 | Strategy dispatch, rook movement, shared pipeline and corner-rook castling-right updates |
 | Day 9 | Shared sliding traversal, bishop/queen strategies, centralized movement fixtures and pipeline tests |
 | Day 10 | Ordinary king candidates, resulting-square king safety, irreversible king castling-right removal and associated tests |
+| Day 11 | Guided ordinary pawn generation, pawn metadata application, registration, dispatcher coverage and king-safety tests; final source reviewed; user reports green tests |
 
 The final Day 10 archive contains these movement additions, and the user reports all tests green. Source review found no blocking defect in the Day 10 changes; tests/builds were not run independently.
 
@@ -31,11 +32,9 @@ King movement is one square in all eight directions. Shared filtering examines t
 
 Castling execution, pawn movement, outcomes and service/HTTP integration were excluded from this bounded milestone and remain pending.
 
-## Proposed next increment — Day 11
+## Proposed next increment — Day 12
 
-Introduce ordinary pawn movement for both colors: one-square advances, initial two-square advances with both squares clear, diagonal non-king captures and occupancy/turn checks. Update shared application for pawn halfmove-clock resets and double-advance en passant targets, and verify pawn king-safety filtering.
-
-Promotion, en passant capture execution and castling execution need explicit subsequent scope. Until promotion is represented, attempts to generate/apply moves reaching the last rank must fail explicitly rather than silently yielding an incomplete legal-move result. This next increment is proposed, not implemented or accepted as a final scope.
+Promotion is a candidate next bounded milestone: extend the move representation with an explicit promotion choice, generate all four standard choices, apply the selected replacement piece immutably and verify king safety and metadata. The final Day 11 source has been reviewed; promotion is the proposed next scope. En passant capture and castling execution remain separate later increments. This is a proposal, not implemented work.
 
 ## Remaining capabilities to schedule
 
@@ -53,3 +52,11 @@ Acceptance, cancellation, rating filters and expiry require an explicit scope de
 ## Engineering constraints
 
 Keep the modular monolith, Player terminology and cross-feature service boundaries. The rules package remains free of Spring/JPA/HTTP concerns. `ChessRules` still exposes only `initialPosition()`; no service applies moves. A subset of supported pieces cannot determine checkmate/stalemate. Candidate generation excludes king captures; attack detection includes pinned attackers. FEN is structural state, not proof of reachability or repetition history. Preserve useful comments, coherent FEN fixtures, selected board renderings, minimal frontend testing and user-managed secrets/configuration.
+
+## Day 11 completed checkpoint
+
+Ordinary pawn generation for both colors, pawn halfmove-clock resets, double-advance en passant targets, shared registration and king-safety tests are supplied. Available promotion candidates and possible en passant captures fail explicitly; no partial candidate set is returned. These special moves and castling execution remain deferred.
+
+No HTTP contract, DTO, migration, frontend implementation or persisted-game behavior changes. ChessRules exposes only initialPosition(); movement remains internal. The user reports all guided tests green; the final Day 11 source has been inspected with no blocking defect found in the reviewed changes. No tests/builds were run independently.
+
+See [Architecture](architecture.md) for the precise movement boundaries.

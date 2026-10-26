@@ -80,13 +80,19 @@ class PseudoLegalMoveGeneratorTest {
 
     @Test
     void rejectsUnsupportedPieceInsteadOfReturningNoMoves() {
+        // Intentionally incomplete registry preserves the dispatcher contract
+        // after the standard test registry gains pawn support.
+        var incompleteGenerator = new PseudoLegalMoveGenerator(
+                new KnightMoveGenerator()
+        );
+
         var position = parser.parse(
                 "7k/8/8/8/3P4/8/8/K7 w - - 0 20"
         );
 
         assertThrows(
                 UnsupportedOperationException.class,
-                () -> generator.generate(
+                () -> incompleteGenerator.generate(
                         position,
                         Square.fromAlgebraic("d4")
                 )
@@ -143,6 +149,28 @@ class PseudoLegalMoveGeneratorTest {
                 destinations(
                         "7k/8/8/8/8/8/8/4K3 w - - 0 20",
                         "e1"
+                )
+        );
+    }
+
+    @Test
+    void dispatchesWhitePawnMovement() {
+        assertEquals(
+                Set.of("d3", "d4"),
+                destinations(
+                        "7k/8/8/8/8/8/3P4/K7 w - - 0 1",
+                        "d2"
+                )
+        );
+    }
+
+    @Test
+    void dispatchesBlackPawnMovement() {
+        assertEquals(
+                Set.of("d6", "d5"),
+                destinations(
+                        "7k/3p4/8/8/8/8/8/K7 b - - 0 1",
+                        "d7"
                 )
         );
     }

@@ -1,6 +1,6 @@
 # API Contracts
 
-Reviewed on 26 October 2026 against `chess-web-app-day10-end.zip`. Source inspection confirms the Day 10 king-movement changes and associated tests. No blocking defect was found in the reviewed changes. The user reports all tests green for this archive. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+Reviewed on 26 October 2026 against `chess-web-app-day11-end.zip`. Source inspection confirms the Day 11 ordinary-pawn strategy, shared metadata updates, registration and associated tests. No blocking defect was found in the reviewed changes. The user reports all tests green. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
 
 This document lists expected application failures by action. It is not an exhaustive catalog of framework, transport or infrastructure failures. An absent application code is intentional where the current implementation does not guarantee one.
 
@@ -28,7 +28,7 @@ This document lists expected application failures by action. It is not an exhaus
 | DELETE | `/api/v1/matchmaking/queue/me` | Bearer JWT | 204; no body |
 | GET | `/api/v1/games/{gameId}` | Participant bearer JWT | 200; game state |
 
-There is no public game-creation or move-submission endpoint in the current implementation. Pairing invokes game creation internally. Day 7 movement classes are pure Java internal components; their exceptions are not HTTP application error contracts. Stored game state still remains at the initial position.
+There is no public game-creation or move-submission endpoint in the current implementation. Pairing invokes game creation internally. Movement classes are pure Java internal components; their exceptions are not HTTP application error contracts. Stored game state still remains at the initial position.
 
 ## Register — POST `/api/v1/auth/register`
 
@@ -159,3 +159,11 @@ The reviewed Day 9 source adds bishop/queen movement, shared sliding traversal, 
 ## Day 10 boundary
 
 Day 10 adds internal ordinary king candidates, resulting-square king-safety filtering and irreversible castling-right removal for moving kings. The shared test registry and tests are updated. Castling execution and pawn movement remain pending. No HTTP contract, DTO, migration, frontend implementation or persisted-game behavior changes. `ChessRules` still exposes only `initialPosition()`; there is no move-submission API or chessboard UI. The user reports all tests green for the final Day 10 archive; this review ran no tests or builds.
+
+## Day 11 completed checkpoint
+
+Ordinary pawn generation for both colors, pawn halfmove-clock resets, double-advance en passant targets, shared registration and king-safety tests are supplied. Available promotion candidates and possible en passant captures fail explicitly; no partial candidate set is returned. These special moves and castling execution remain deferred.
+
+No HTTP contract, DTO, migration, frontend implementation or persisted-game behavior changes. ChessRules exposes only initialPosition(); movement remains internal. The user reports all guided tests green; the final Day 11 source has been inspected with no blocking defect found in the reviewed changes. No tests/builds were run independently.
+
+See [Architecture](architecture.md) for the precise movement boundaries.

@@ -19,18 +19,9 @@ public final class MoveApplier {
     }
 
     /**
-     * Applies pseudo-legal candidates without checking king safety.
-     * Currently, supports knight, rook, bishop, queen and ordinary king moves through registered strategies.
-     * The algorithm is:
-     * 1. Confirm the move appears in the piece's pseudo-legal candidates.
-     * 2. Inspect the destination before moving, to identify any capture.
-     * 3. Create the new board.
-     * 4. Switch the side to move.
-     * 5. Clear the previous en passant target.
-     * 6. Reset the halfmove clock on capture; otherwise increment it.
-     * 7. Increment the fullmove number after Black moves.
-     * 8. Remove both rights for a moving king, and rights affected by
-     *    moving or capturing a rook on its original corner.
+     * Applies supported pseudo-legal candidates without checking king safety.
+     * Updates placement, turns, counters, en passant metadata and castling rights.
+     * Unsupported special moves remain the registered strategies' responsibility.
      */
     public ChessPosition apply(ChessPosition position, Move move) {
         Objects.requireNonNull(position, "Position is required");
@@ -42,6 +33,12 @@ public final class MoveApplier {
             );
         }
 
+        var movingPiece = position.board()
+                .pieceAt(move.from())
+                .orElseThrow();
+
+        boolean isPawnMove = movingPiece.type() == PieceType.PAWN;
+
         boolean isCapture = position.board()
                 .pieceAt(move.to())
                 .isPresent();
@@ -50,7 +47,7 @@ public final class MoveApplier {
                 ? PieceColor.BLACK
                 : PieceColor.WHITE;
 
-        int halfmoveClock = isCapture
+        int halfmoveClock = isPawnMove || isCapture
                 ? 0
                 : Math.incrementExact(position.halfmoveClock());
 
@@ -62,8 +59,7 @@ public final class MoveApplier {
                 position.board().movePiece(move.from(), move.to()),
                 nextSide,
                 castlingRightsAfterMove(position, move),
-                // An en passant opportunity lasts for only the next move.
-                Optional.empty(),
+                enPassantTargetAfterMove(move, movingPiece),
                 halfmoveClock,
                 fullmoveNumber
         );
@@ -147,5 +143,24 @@ public final class MoveApplier {
                 false,
                 false
         );
+    }
+
+    private Optional<Square> enPassantTargetAfterMove(
+            Move move,
+            Piece movingPiece
+    ) {
+        // Membership validation has already established a supported pawn advance.
+        if (movingPiece.type() == PieceType.PAWN
+                && Math.abs(move.to().rank() - move.from().rank()) == 2) {
+            int passedOverRank =
+                    (move.from().rank() + move.to().rank()) / 2;
+
+            return Optional.of(
+                    new Square(move.from().file(), passedOverRank)
+            );
+        }
+
+        // Every other supported move expires the previous opportunity.
+        return Optional.empty();
     }
 }
