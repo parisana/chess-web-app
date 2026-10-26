@@ -84,3 +84,7 @@ SPRING_PROFILES_ACTIVE=test ./gradlew test
 ```
 
 No frontend changes are introduced by Day 9. No endpoint, response shape, migration or persisted-game behavior changes.
+
+## Day 10 boundary
+
+Day 10 adds internal ordinary king candidates, resulting-square king-safety filtering and irreversible castling-right removal for moving kings. The shared test registry and tests are updated. Castling execution and pawn movement remain pending. No HTTP contract, DTO, migration, frontend implementation or persisted-game behavior changes. `ChessRules` still exposes only `initialPosition()`; there is no move-submission API or chessboard UI. The user reports all tests green for the final Day 10 archive; this review ran no tests or builds.

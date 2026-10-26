@@ -30,7 +30,7 @@ public final class MoveApplier {
      * 6. Reset the halfmove clock on capture; otherwise increment it.
      * 7. Increment the fullmove number after Black moves.
      * 8. Remove both rights for a moving king, and rights affected by
-     *  *    moving or capturing a rook on its original corner.
+     *    moving or capturing a rook on its original corner.
      */
     public ChessPosition apply(ChessPosition position, Move move) {
         Objects.requireNonNull(position, "Position is required");
