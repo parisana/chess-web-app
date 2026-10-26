@@ -1,6 +1,6 @@
 # Development Progress
 
-Checkpoint reviewed on 25 October 2026 against the attached `chess-web-app-day8-end(2).zip`. The knight/rook Strategy pipeline and its tests were inspected. Both Day 8 cleanup items are present: `returningRookToOriginalCornerDoesNotRestoreCastlingRight` starts with `1n4k1/8/8/8/8/8/8/R3K2R w KQ - 0 20`, and MoveApplier documents knight and rook support. No blocking movement-pipeline defect was found in this source review. The user reported all tests green for the earlier Day 8 end archive; a rerun of the corrected fixture is not confirmed. No independent tests or builds were run. Day 9 guided changes through queen generation/dispatch have a user-reported green-test result; final queen pipeline tests remain pending. No fresh Day 9 source archive has been inspected.
+Checkpoint reviewed on 26 October 2026 against `chess-web-app-day9-end.zip`. Source inspection confirms shared sliding traversal, bishop/queen strategies, centralized movement test fixtures and the final application/king-safety tests. No blocking defect was found in the reviewed Day 9 changes. The user reports all tests green for this archive. No independent tests or builds were run; no detailed test command/log or separate frontend build result was supplied.
 
 Day numbers identify working sessions and differ from the original 30-working-day schedule. See [roadmap.md](roadmap.md) for planning and [api-contracts.md](api-contracts.md) for endpoint behavior.
 
@@ -23,7 +23,7 @@ Day numbers identify working sessions and differ from the original 30-working-da
 | Discovery | `MATCHED` queue status with game ID; manual Angular status refresh |
 | Game access | Participant-protected `GET /api/v1/games/{gameId}` |
 | Rules foundation | Pure Java immutable representation, separate FEN parser/serializer, initial-position rules boundary |
-| Movement | Guided Day 8 extension: knight/rook strategies, shared dispatch/application/filtering and rook castling-right updates; all-piece attack detection |
+| Movement | Knight/rook/bishop/queen strategies, shared sliding traversal, dispatch/application/filtering, centralized test fixtures; all-piece attack detection |
 
 ## Schema
 
@@ -52,7 +52,7 @@ Backend coverage includes:
 
 The five focused Angular tests in `auth-flow.spec.ts` cover protected bearer attachment, exclusion of external requests, protected 401 cleanup/redirect, profile-load failure cleanup and logout. There is no `app.spec.ts` in this ZIP. No broad frontend component or end-to-end suite is introduced.
 
-Test presence describes coverage. The user reports all tests green for the earlier Day 8 end archive; this review ran no tests and does not establish a rerun of the corrected fixture.
+Test presence describes coverage. The user reports all tests green for the Day 9 final archive; this review ran no tests.
 
 ## Day 5 username-update increment
 
@@ -124,9 +124,9 @@ The actual focused test package is `com.chessapp.game.rules.movement`:
 
 ## Verification provenance
 
-Checkpoint reviewed on 25 October 2026 against the attached `chess-web-app-day8-end(2).zip`. The knight/rook Strategy pipeline and its tests were inspected. Both Day 8 cleanup items are present: `returningRookToOriginalCornerDoesNotRestoreCastlingRight` starts with `1n4k1/8/8/8/8/8/8/R3K2R w KQ - 0 20`, and MoveApplier documents knight and rook support. No blocking movement-pipeline defect was found in this source review. The user reported all tests green for the earlier Day 8 end archive; a rerun of the corrected fixture is not confirmed. No independent tests or builds were run. Day 9 guided changes through queen generation/dispatch have a user-reported green-test result; final queen pipeline tests remain pending. No fresh Day 9 source archive has been inspected.
+Checkpoint reviewed on 26 October 2026 against `chess-web-app-day9-end.zip`. Source inspection confirms shared sliding traversal, bishop/queen strategies, centralized movement test fixtures and the final application/king-safety tests. No blocking defect was found in the reviewed Day 9 changes. The user reports all tests green for this archive. No independent tests or builds were run; no detailed test command/log or separate frontend build result was supplied.
 
-Earlier test results remain user-reported. The Day 8 end source has been inspected; a rerun of the corrected fixture is not confirmed. No separate frontend build/manual outcomes were supplied.
+The final Day 9 source includes the corrected return-to-corner fixture. The user now reports all tests green for this archive. No separate frontend build/manual outcomes were supplied.
 
 ### Local verification
 
@@ -168,7 +168,7 @@ Manual smoke checks:
 - No queue expiry or automatic leave on logout.
 - Games begin immediately in `IN_PROGRESS`; no acceptance stage.
 - No cancellation, completion, results or active-reservation release. Matched players therefore remain unavailable for another game through the current APIs.
-- The guided pipeline supports knights and rooks only; no complete legal-move list, special-move execution, outcomes, move endpoint/history, chessboard UI, game page or clocks.
+- The pipeline supports knights, rooks, bishops and queens; no complete legal-move list, special-move execution, outcomes, move endpoint/history, chessboard UI, game page or clocks.
 - Username updates are supported; email/password changes are not implemented.
 - Concurrent username edits use last-write-wins behavior; no player optimistic locking.
 - Sessions are in memory; browser reload requires login. No refresh tokens, revocation or server-side logout.
@@ -179,7 +179,6 @@ Manual smoke checks:
 ## Working preferences
 
 Keep the focus on backend engineering and explain decisions incrementally. Include concise algorithm walkthroughs and selected test-board renderings. Prefer complete FEN fixtures with coherent metadata/turns unless invalidity is deliberate and explained. Use Lombok where appropriate, avoiding `@Data` on JPA entities. Add concise comments for non-obvious behavior. Keep frontend tests minimal. Provide verification commands without waiting for routine test-pass confirmation. Preserve passwords after failed form submissions.
-
 
 ## Deferred representation evaluation
 
@@ -200,31 +199,19 @@ This section supersedes the knight-only limitations in the historical Day 7 sect
 
 ChessRules still exposes only initialPosition(). GameService does not apply moves. No HTTP endpoint, migration, frontend behavior or persisted gameplay command changes in this increment. Empty knight/rook subsets do not establish checkmate or stalemate. King movement will require checking the king's destination square. Castling execution, pawn moves and promotion remain unsupported.
 
-## Day 9 guided checkpoint — 26 October 2026
+## Day 9 completed checkpoint — 26 October 2026
 
-This section describes the Day 9 guided changes and supersedes earlier Day 9 plans. Historical Day 7/8 sections describe their original checkpoints.
+Source review confirms:
 
-- Shared package-private SlidingRayTraversal handles candidate traversal for rooks, bishops and queens. Every occupant ends a ray; only opposing non-king occupants are capture candidates. SquareAttackDetector retains separate attack semantics.
-- BishopMoveGenerator and QueenMoveGenerator implement PiecePseudoLegalMoveGenerator. Queen generation uses eight nonzero unit directions; (0,0) is skipped because it represents no movement. In the current helper a zero direction encounters the occupied source and stops; it does not actually cause an infinite loop.
-- MovementTestFixtures centralizes standard test strategy registration and shared legal-generator construction. Direct piece tests and deliberate registration-contract tests keep explicit construction.
-- Guided tests cover bishop/queen candidates and dispatch; bishop application and king-safety scenarios; existing knight/rook regressions remain.
-- Final supplied increment adds queen capture/metadata application tests, White orthogonal and Black diagonal pins, and blocking/capturing a checking rook. These final tests have not yet been reported as run.
-- MoveApplier Javadoc should list knight, rook, bishop and queen support. ChessRules still exposes only initialPosition(); movement is not connected to GameService or HTTP.
+- Package-private SlidingRayTraversal is shared by rook, bishop and queen strategies. Empty destinations are candidates; an opposing non-king occupant is a capture candidate; every occupant ends a ray.
+- BishopMoveGenerator scans four diagonals. QueenMoveGenerator scans eight nonzero unit directions. Skipping (0,0) excludes no movement; with the current occupied source, that direction would immediately stop rather than loop forever.
+- MovementTestFixtures centralizes the standard knight/rook/bishop/queen test registry and shared legal-generator construction. Direct strategy and registration-contract tests retain explicit construction.
+- Bishop/queen tests cover central rays, edges, occupancy, captures, turn selection, wrong-piece rejection, king-capture exclusion and dispatch. Application tests cover capture metadata, corner-rook castling-right removal, Black counters and original-position preservation.
+- Legal-move tests cover White/Black bishop pins, bishop blocking/capturing responses, White orthogonal and Black diagonal queen pins, and queen blocking/capturing responses. Existing knight/rook tests remain regression coverage. Selected tests render boards.
+- MoveApplier Javadoc lists all four supported types. Candidate application and king-safety filtering remain shared. No bishop/queen-specific application or filtering classes were introduced.
 
-Verification: the user reported the tests green after queen generation and dispatch were supplied. No precise command or log was provided. This is user-reported evidence, not an independently reproduced run or inspection of a fresh Day 9 archive. The final queen pipeline tests are supplied in the same response as this documentation and remain pending local verification. No independent tests or builds were run.
+Day 9 core scope and queen stretch goal are complete. Passing tests are user-reported for this final archive; this review did not run them independently.
 
-Movement remains a subset: pawn and king generation, special moves, complete legal-move enumeration, checkmate/stalemate, history and persisted gameplay commands remain later work. The king-square filtering assumption must be revisited for king movement. Parser validation remains structural; board content must be compared explicitly because Board has identity equality. Repetition detection needs history. Service-level authorization, transactions and gameplay concurrency remain outside pure rules. AI is outside the MVP. Map-versus-array evaluation remains deferred.
+Current boundary: ChessRules exposes only initialPosition(); GameService does not apply moves. Pawn/king generation, special-move execution, complete legal-move enumeration and outcomes remain pending. Empty results for this subset cannot establish checkmate or stalemate. King filtering must use the king's resulting square when king moves are introduced. Parser validation is structural; Board has identity equality. Repetition needs history. Authorization, persistence, transactions and gameplay concurrency remain service responsibilities. AI is outside the MVP; map-versus-array evaluation remains deferred.
 
-From backend/:
-
-```bash
-./gradlew test --tests 'com.chessapp.game.rules.*'
-```
-
-For a full backend regression run with the configured PostgreSQL test database available:
-
-```bash
-SPRING_PROFILES_ACTIVE=test ./gradlew test
-```
-
-No frontend changes are introduced by Day 9. No endpoint, response shape, migration or persisted-game behavior changes.
+No endpoint, migration, frontend implementation or persisted-game behavior changes in Day 9.

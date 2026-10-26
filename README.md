@@ -1,246 +1,61 @@
-# Chess Web App
+# Chess Frontend
 
-A portfolio-quality multiplayer chess application in development.
-The backend supports registration, email/password login, JWT authentication,
-current-player profiles and username updates, persistent matchmaking, transactional pairing,
-and participant-protected game retrieval.
+Checkpoint reviewed on 26 October 2026 against `chess-web-app-day9-end.zip`. Source inspection confirms shared sliding traversal, bishop/queen strategies, centralized movement test fixtures and the final application/king-safety tests. No blocking defect was found in the reviewed Day 9 changes. The user reports all tests green for this archive. No independent tests or builds were run; no detailed test command/log or separate frontend build result was supplied. Days 6 and 7 change no frontend implementation. Console board rendering exists only in backend test code; it is not a chessboard UI.
 
-The Angular frontend supports authentication, username editing, queue controls,
-and matched-game discovery through manual refresh.
+Angular 21 standalone application with Angular Material, reactive forms and in-memory authentication. Backend calls use relative `/api/v1` URLs.
 
-## Architecture and stack
+## Run locally
 
-Modular monolith, package by feature with conventional layers; not DDD. Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, JPA, Flyway, Spring Security, and Lombok. Configuration uses YAML. Angular 21 and Angular Material provide registration/login and a protected home page. Persistent matchmaking and initial game state are implemented.
-The guided Day 8 increment extends pure Java candidate generation, application and king-safety filtering to knights and rooks through Strategy dispatch. Complete legal gameplay, gameplay UI and real-time notifications remain planned.
-
-- `backend/`: application, migrations, and tests.
-- `frontend/`: Angular application, Material theme, development proxy, and minimal authentication tests.
-- `docs/architecture.md`: responsibilities and implementation decisions.
-- `docs/development-progress.md`: current implementation, verification, and limitations.
-- `docs/roadmap.md`: original milestone crosswalk, completed working sessions and proposed next scope.
-- `docs/api-contracts.md`: endpoint requests, responses and expected error codes.
-
-Checkpoint: completed Day 8 source reviewed; Day 9 core scope established. Checkpoint reviewed on 25 October 2026 against the attached `chess-web-app-day8-end(2).zip`. The knight/rook Strategy pipeline and its tests were inspected. Both Day 8 cleanup items are present: `returningRookToOriginalCornerDoesNotRestoreCastlingRight` starts with `1n4k1/8/8/8/8/8/8/R3K2R w KQ - 0 20`, and MoveApplier documents knight and rook support. No blocking movement-pipeline defect was found in this source review. The user reported all tests green for the earlier Day 8 end archive; a rerun of the corrected fixture is not confirmed. No independent tests or builds were run. Day 9 guided changes through queen generation/dispatch have a user-reported green-test result; final queen pipeline tests remain pending. No fresh Day 9 source archive has been inspected.
-
-## Local setup
-
-Install Java 21 and PostgreSQL. Create databases using a PostgreSQL administrator account:
-
-```sql
-CREATE USER chess_app WITH PASSWORD 'password';
-CREATE DATABASE chess_db OWNER chess_app;
-CREATE DATABASE chess_test_db OWNER chess_app;
-```
-
-These match the local defaults. Keep development and test data separate. Flyway applies V1-V5; Hibernate validates mappings instead of creating the schema.
-
-Configuration remains user-managed. This review does not change secrets or require configuration cleanup before the next milestone. Shared datasource defaults accept optional `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` overrides.
-
-From the repository root:
-
-```bash
-cd backend
-./gradlew --version
-./gradlew bootRun
-```
-
-### Frontend
-
-Use a Node version accepted by the checked-in Angular packages (their engine range is `^20.19.0 || ^22.12.0 || >=24.0.0`). `package.json` declares npm 11.6.2.
-
-From `frontend/`:
+From `frontend/`, use the project's declared npm 11.6.2 and a Node version accepted by the locked Angular packages:
 
 ```bash
 npm ci
 npm start
 ```
 
-Open `http://localhost:4200`. `npm start` enables the checked-in proxy, forwarding `/api/**` to `http://localhost:8080`; Angular uses relative API URLs.
+Open `http://localhost:4200`. `npm start` loads `proxy.conf.json`, forwarding `/api/**` to the separately running Spring backend at port 8080. Plain `ng serve` does not enable this proxy automatically.
 
-## API
-
-| Method | Route | Authentication | Success |
-| --- | --- | --- | --- |
-| POST | `/api/v1/auth/register` | Public | 201; `playerId`, `username`, `email` |
-| POST | `/api/v1/auth/login` | Public | 200; `accessToken`, `tokenType`, `expiresIn` |
-| GET | `/api/v1/players/me` | Bearer JWT | 200; `id`, `username`, `email` |
-| PATCH | `/api/v1/players/me` | Bearer JWT | 200; updated `id`, `username`, `email` |
-| POST | `/api/v1/matchmaking/queue` | Bearer JWT | 200; current queue status |
-| GET | `/api/v1/matchmaking/queue/me` | Bearer JWT | 200; current queue status |
-| DELETE | `/api/v1/matchmaking/queue/me` | Bearer JWT | 204 |
-| GET | `/api/v1/games/{gameId}` | Participant bearer JWT | 200; game state |
-
-Register:
+## Build and minimal tests
 
 ```bash
-curl -i http://localhost:8080/api/v1/auth/register \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"chessplayer1","email":"player1@example.com","password":"StrongPassword123!"}'
-```
-
-Log in:
-
-```bash
-curl -i http://localhost:8080/api/v1/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"player1@example.com","password":"StrongPassword123!"}'
-```
-
-Use the returned token:
-
-```bash
-curl -i http://localhost:8080/api/v1/players/me \
-  -H 'Authorization: Bearer PASTE_ACCESS_TOKEN'
-```
-
-Login uses exact stored email matching. No trimming or lowercasing is implemented. Login returns token fields only; it does not currently embed `PlayerResponse`. Passwords and hashes are never public response fields.
-
-## Validation and errors
-
-Registration requires a nonblank username of 3–30 Java string units, a valid nonblank email of at most 255, and a nonblank password of at least 8 Java string units and at most 72 UTF-8 bytes. Login does not apply registration's minimum password length, but does enforce the byte maximum.
-
-| Failure | Status | Code/format |
-| --- | --- | --- |
-| Invalid request fields | 400 | Problem Detail with `VALIDATION_FAILED` and field/message entries |
-| Duplicate username | 409 | `USERNAME_ALREADY_EXISTS` |
-| Duplicate email | 409 | `EMAIL_ALREADY_EXISTS` |
-| Unknown account / incorrect password | 401 | `INVALID_CREDENTIALS`; generic message |
-| Missing or invalid bearer token | 401 | Spring Security bearer handling; not the MVC error contract |
-| Token player no longer exists at `/players/me` | 401 | MVC response-status error |
-
-## JWT behavior
-
-HS256 tokens carry player ID in `sub`, plus issuer, issuance time, and expiration. They contain no username/email. The configured lifetime is 15 minutes with 60 seconds of validation clock tolerance. Signature, algorithm, issuer, required expiration, expiration/not-before validity, and positive-Long subject are validated.
-
-`/players/me` queries PostgreSQL for current data. Matchmaking operations also check player existence. Game reads check the authenticated identity against the stored participants; JWT validation itself does not query the player table. Refresh tokens, server-side logout, revocation, and account disabling are not implemented. Login responses use `Cache-Control: no-store`.
-
-## Verification
-
-From `backend/`:
-
-```bash
-./gradlew test --tests com.chessapp.auth.service.AuthServiceTest --tests com.chessapp.auth.controller.AuthControllerTest
-SPRING_PROFILES_ACTIVE=test ./gradlew clean test
-SPRING_PROFILES_ACTIVE=test ./gradlew test --rerun-tasks
-```
-
-All current Spring integration classes explicitly activate `test`. PostgreSQL must be available. Reports appear in `build/reports/tests/test/index.html`.
-
-From `frontend/` after dependency installation:
-
-```bash
-npm test -- --watch=false --include='src/app/auth/services/auth-flow.spec.ts'
 npm test -- --watch=false
 npm run build
 ```
 
-Five focused authentication tests are present in `auth-flow.spec.ts`. There is no `app.spec.ts` in this checkpoint. Frontend coverage remains intentionally minimal; see the progress document for backend integration coverage.
+Five focused tests in `src/app/auth/services/auth-flow.spec.ts` cover bearer attachment, external URL exclusion, protected 401 cleanup/redirect, cleanup after profile loading fails, and logout. There is no `app.spec.ts` in this checkpoint. No end-to-end runner is configured.
 
-Verification provenance: Checkpoint reviewed on 25 October 2026 against the attached `chess-web-app-day8-end(2).zip`. The knight/rook Strategy pipeline and its tests were inspected. Both Day 8 cleanup items are present: `returningRookToOriginalCornerDoesNotRestoreCastlingRight` starts with `1n4k1/8/8/8/8/8/8/R3K2R w KQ - 0 20`, and MoveApplier documents knight and rook support. No blocking movement-pipeline defect was found in this source review. The user reported all tests green for the earlier Day 8 end archive; a rerun of the corrected fixture is not confirmed. No independent tests or builds were run. Day 9 guided changes through queen generation/dispatch have a user-reported green-test result; final queen pipeline tests remain pending. No fresh Day 9 source archive has been inspected.
+The user reports all tests green for the Day 9 final archive. This source/documentation review ran no tests or builds. Separate frontend build and manual-check results were not supplied.
 
-## Profile editing
+## Authentication behavior
 
-`PATCH /api/v1/players/me` accepts `{ "username": "new_username" }` and updates only the JWT-authenticated player. The username must be nonblank and 3–30 Java UTF-16 string units long. Matching remains exact and case-sensitive; spaces and special characters are permitted. The same username is a successful no-op. Duplicate usernames return 409 with `USERNAME_ALREADY_EXISTS`; invalid fields return 400 with `VALIDATION_FAILED`.
+Registration and login use Material forms. Login loads `/api/v1/players/me` before establishing an authenticated session. Home is guarded. Logout clears the in-memory token/player and returns to login; a browser reload also loses the session.
 
-The response is `PlayerResponse` (`id`, `username`, `email`). The Angular editor updates the in-memory player from that response, immediately changing the welcome message. Failed saves preserve input. Email, password and player ID are unchanged. Existing JWTs remain valid because their subject is the player ID. No migration is required. See [API contracts](docs/api-contracts.md) for action-specific errors.
+The interceptor attaches bearer tokens to relative protected API requests. A protected-request 401 clears the matching session and redirects an established player to login; a 403 does not clear the session. Failed form submissions preserve passwords. Successful login clears the password; successful registration resets the form.
 
-## Matchmaking and game behavior
+## Username editing
 
-Queue status is `NOT_QUEUED`, `WAITING`, or `MATCHED`. Only `WAITING` includes an enqueue timestamp; `MATCHED` includes a game ID. Repeated joins preserve waiting time or return the existing active game. Pairing runs when a player joins and matches the oldest eligible entries, with random colors.
+Home embeds the standalone `ProfileEditor` component. It initializes the form from the in-memory player, validates a nonblank username of 3–30 UTF-16 string units, and calls PATCH `/api/v1/players/me` through `PlayerApiService`.
 
-Game creation, reservations for both players, and removal of both queue entries share one transaction. A transaction-level PostgreSQL advisory lock serializes cooperating operations on the single queue. The reservation table independently enforces one active game per player.
+The existing interceptor attaches the token. A successful response updates `AuthSessionStore`, immediately updating the welcome message. The form then resets to the server-returned username. Errors preserve the input and show validation, conflict, session or fallback feedback. A response for a changed session is ignored. No new frontend test suite was introduced for this increment.
 
-Games start `IN_PROGRESS` with the initial FEN. Game retrieval returns `id`, `whitePlayerId`, `blackPlayerId`, `status`, `currentFen`, and `createdAt`. Either participant may read; a nonparticipant receives 403 and a missing game receives 404. The frontend currently displays the matched game ID; it has no game page or chessboard.
+Usernames may contain spaces and special characters. No trimming or case normalization is performed. Email/password changes are outside this form. Username changes do not require a new token.
 
-Leaving the queue does not cancel a game. Logout does not remove queue membership. No expiry, acceptance, cancellation, completion, reservation release, complete legal gameplay, move history, or notifications are implemented.
+Manual checks: successful rename and immediate header update; duplicate rejection with input retained; invalid input feedback; navigating back to Home with the updated profile. Use the browser network panel to inspect PATCH response statuses/codes listed in [API contracts](../docs/api-contracts.md).
 
-## Frontend session behavior
+## Matchmaking behavior
 
-Login stores the token in memory, calls `/api/v1/players/me`, and marks the session authenticated only after loading the player. Logout and login/profile errors clear session state. Reloading the page loses the session. The interceptor attaches bearer tokens only to relative `/api/` requests, excluding login/register, and clears the matching session on protected-request 401 responses. It redirects established sessions to login; 403 responses do not clear them.
+Home loads queue status when opened and provides Material join, leave and refresh controls with progress/error feedback. It displays `NOT_QUEUED`, the enqueue time for `WAITING`, or the game ID for `MATCHED`.
 
-Failed login and registration submissions retain passwords. Login clears its password only on success; registration resets its form only on success. The backend remains authoritative for validation, including BCrypt's UTF-8 byte limit.
+Pairing runs on the backend when players join. The first player manually refreshes to discover the match. Leaving removes waiting membership without cancelling a game; logout does not leave the queue.
 
-Before committing:
+There is no game API service, game route, chessboard or real-time subscription in this checkpoint.
 
-```bash
-git diff --check
-git diff --cached --check
-```
+See [development-progress.md](../docs/development-progress.md) for current coverage and limitations, [architecture.md](../docs/architecture.md) for engineering decisions, and [roadmap.md](../docs/roadmap.md) for planning status.
 
-## Day 6 rules foundation
+## Day 8 boundary
 
-The source contains pure Java `game.rules` and `game.rules.model` code: `PieceColor`, `PieceType`, immutable `Piece` and `Square` records, an immutable `Board`, `CastlingRights`, and `ChessPosition`. Coordinates run from a1=(0,0) to h8=(7,7). Board owns placement and defensively copies its map with `Map.copyOf`; Piece holds color and type only.
+The guided Day 8 increment adds internal knight/rook Strategy dispatch, rook movement, shared application/filtering and rook castling-right updates. It changes no endpoint, response shape or frontend implementation. ChessRules still exposes only initialPosition(); persisted games still contain the initial state. There is no move-submission API or chessboard UI. The corrected fixture remains present in the final Day 9 source, for which the user reports all tests green.
 
-`ChessPosition` carries board, side to move, castling rights, optional en passant target, halfmove clock and fullmove number. `FenParser` validates FEN structure and representation constraints, not full legality or reachability. Separate `FenSerializer` emits canonical FEN.
+## Day 9 boundary
 
-`ChessRules` currently exposes only `initialPosition()`. `StandardChessRules` uses the parser and a private starting-FEN constant. `GameRulesConfig` wires the beans. `GameService` obtains the initial position through `ChessRules`, serializes it and passes nonblank initial FEN to `Game`; the entity no longer owns the starting-position constant. Rules/model code has no Spring, JPA, HTTP or persistence dependencies.
-
-Focused tests cover square conversion, board immutability, position metadata, FEN parsing/serialization/round trips and standard initial placement. Game creation/read integration assertions check the expected initial FEN. Test presence is a source finding; passing results are user-reported.
-
-Day 6 changes no migration, endpoint or frontend behavior. That historical Day 6 checkpoint had no movement pipeline. Day 7 adds the knight-only pipeline described below; special-move execution, outcomes and move history remain absent.
-
-## Day 7 movement pipeline — historical checkpoint
-
-Implemented in the reviewed checkpoint:
-
-- `Move` is an immutable source/destination value with nonnull, distinct squares. It represents a proposal, not proof of legality; promotion is not represented yet.
-- `Board.movePiece()` creates a new placement, replacing a captured destination piece and preserving the original. It performs placement checks only, not chess-movement validation.
-- `KnightMoveGenerator` enumerates the eight knight offsets, clips board boundaries, respects side to move, excludes friendly destinations and king capture, and returns an immutable set. Empty sources and opposing knights produce an empty set; non-knight sources are rejected.
-- `MoveApplier` currently accepts pseudo-legal knight candidates only. It updates placement, side to move, en passant expiry, halfmove/fullmove counters and castling rights affected by a captured corner rook. It does not check king safety. Counter increments reject integer overflow.
-- `SquareAttackDetector` recognizes pawn, knight, king, rook, bishop and queen attacks from either color, independent of side to move. Sliding rays stop at the first occupied square; pinned pieces still count as attackers.
-- `LegalMoveGenerator` requires exactly one king of each color, applies candidates and rejects those leaving the moving side's king attacked. It handles a single knight source; it assumes an otherwise valid standard-chess position rather than validating full legality/reachability.
-- Shared `MoveApplier` and `LegalMoveGenerator` replace the knight-specific application/filtering classes. Both still depend on `KnightMoveGenerator`; dispatch for other pieces is deferred until a second movement type is introduced.
-- `com.chessapp.BoardTestRenderer` lives in test sources. It marks inspected/source squares and supplied destinations, prints sorted candidates and can be included in assertion failure messages. It does not generate moves. `Candidates: (none)` means no moves were supplied to the renderer, not a game outcome.
-
-Tests cover board relocation/capture immutability, knight offsets/edges/occupancy/turn selection, candidate metadata and castling-right changes, attack types/blockers/pawn direction/pinned attacks, and king-safety filtering including checks answered by blocking or capture. Legal-move and attack tests use matching subpackages; other tests remain in their existing locations.
-
-Pseudo-legal moves follow movement and occupancy rules without establishing own-king safety. Legal moves additionally satisfy king safety and applicable special restrictions. This checkpoint generates only a knight subset: an empty result cannot establish checkmate or stalemate.
-
-No new migration, endpoint, frontend behavior, move history or persisted gameplay command is introduced. `ChessRules` still exposes only `initialPosition()`; `GameService` does not call the movement pipeline.
-
-See [development progress](docs/development-progress.md) for resolved Day 7 fixture findings and Day 8 verification status.
-
-## Day 8 rook movement and Strategy dispatch
-
-This section supersedes the knight-only limitations in the historical Day 7 section. The described Day 8 implementation is present in the reviewed end checkpoint.
-
-- `PiecePseudoLegalMoveGenerator` is the strategy interface, exposing `pieceType()` and `generate(position, from)`.
-- `KnightMoveGenerator` and `RookMoveGenerator` implement that interface. Their generation is pseudo-legal: own-king safety is checked later.
-- `PseudoLegalMoveGenerator` registers strategies by PieceType, rejects duplicate registrations, and delegates by the source piece's type. Empty and opposing sources return no moves; unsupported own piece types throw UnsupportedOperationException instead of silently returning an empty set.
-- Registration uses EnumMap; Map.copyOf stores an immutable snapshot. The stored map need not retain EnumMap representation or iteration order. The dispatcher only relies on lookup.
-- Rook generation scans four orthogonal rays. Empty squares are candidates. The first opposing non-king occupant is a capture candidate; any occupant ends the ray. An opposing king blocks the ray but is never a capture candidate. SquareAttackDetector separately recognizes attacks on king squares.
-- Shared MoveApplier and LegalMoveGenerator now depend on PseudoLegalMoveGenerator. No per-piece application or filtering classes are added.
-- MoveApplier removes castling rights when a rook leaves its original corner or a rook is captured on its original corner. One move can remove rights for both colors. Returning a rook never restores a right. Turn, counters, en passant expiry and immutability behavior remain shared.
-- Rook legal-move tests cover White and Black pins, moves along a pin line, blocking check and capturing the checking attacker. Existing knight tests remain regression coverage for the shared pipeline. Selected rook tests render boards through com.chessapp.BoardTestRenderer.
-
-ChessRules still exposes only initialPosition(). GameService does not apply moves. No HTTP endpoint, migration, frontend behavior or persisted gameplay command changes in this increment. Empty knight/rook subsets do not establish checkmate or stalemate. King movement will require checking the king's destination square. Castling execution, pawn moves and promotion remain unsupported.
-
-
-## Day 9 guided checkpoint — 26 October 2026
-
-This section describes the Day 9 guided changes and supersedes earlier Day 9 plans. Historical Day 7/8 sections describe their original checkpoints.
-
-- Shared package-private SlidingRayTraversal handles candidate traversal for rooks, bishops and queens. Every occupant ends a ray; only opposing non-king occupants are capture candidates. SquareAttackDetector retains separate attack semantics.
-- BishopMoveGenerator and QueenMoveGenerator implement PiecePseudoLegalMoveGenerator. Queen generation uses eight nonzero unit directions; (0,0) is skipped because it represents no movement. In the current helper a zero direction encounters the occupied source and stops; it does not actually cause an infinite loop.
-- MovementTestFixtures centralizes standard test strategy registration and shared legal-generator construction. Direct piece tests and deliberate registration-contract tests keep explicit construction.
-- Guided tests cover bishop/queen candidates and dispatch; bishop application and king-safety scenarios; existing knight/rook regressions remain.
-- Final supplied increment adds queen capture/metadata application tests, White orthogonal and Black diagonal pins, and blocking/capturing a checking rook. These final tests have not yet been reported as run.
-- MoveApplier Javadoc should list knight, rook, bishop and queen support. ChessRules still exposes only initialPosition(); movement is not connected to GameService or HTTP.
-
-Verification: the user reported the tests green after queen generation and dispatch were supplied. No precise command or log was provided. This is user-reported evidence, not an independently reproduced run or inspection of a fresh Day 9 archive. The final queen pipeline tests are supplied in the same response as this documentation and remain pending local verification. No independent tests or builds were run.
-
-Movement remains a subset: pawn and king generation, special moves, complete legal-move enumeration, checkmate/stalemate, history and persisted gameplay commands remain later work. The king-square filtering assumption must be revisited for king movement. Parser validation remains structural; board content must be compared explicitly because Board has identity equality. Repetition detection needs history. Service-level authorization, transactions and gameplay concurrency remain outside pure rules. AI is outside the MVP. Map-versus-array evaluation remains deferred.
-
-From backend/:
-
-```bash
-./gradlew test --tests 'com.chessapp.game.rules.*'
-```
-
-For a full backend regression run with the configured PostgreSQL test database available:
-
-```bash
-SPRING_PROFILES_ACTIVE=test ./gradlew test
-```
-
-No frontend changes are introduced by Day 9. No endpoint, response shape, migration or persisted-game behavior changes.
+The reviewed Day 9 source adds bishop/queen movement, shared sliding traversal, centralized test fixtures and pipeline tests. The user reports all tests green; none were run independently. No endpoint, response shape, frontend implementation or migration changes. Games still store the initial position; no move-submission API or chessboard UI exists.
