@@ -48,43 +48,17 @@ public final class RookMoveGenerator implements PiecePseudoLegalMoveGenerator {
         Set<Move> moves = new HashSet<>();
 
         for (int direction : new int[] {-1, 1}) {
-            scanRay(position, from, direction, 0, moves); // horizontal left and right
-            scanRay(position, from, 0, direction, moves); // vertical up and down
+            // horizontal left and right
+            SlidingRayTraversal.addMoves(
+                    position, from, direction, 0, moves
+            );
+            // vertical up and down
+            SlidingRayTraversal.addMoves(
+                    position, from, 0, direction, moves
+            );
         }
 
         return Set.copyOf(moves);
     }
 
-    private void scanRay(
-            ChessPosition position,
-            Square from,
-            int fileStep,
-            int rankStep,
-            Set<Move> moves
-    ) {
-        int file = from.file() + fileStep;
-        int rank = from.rank() + rankStep;
-
-        while (file >= 0 && file < 8 && rank >= 0 && rank < 8) {
-            var to = new Square(file, rank);
-            var target = position.board().pieceAt(to);
-
-            if (target.isPresent()) {
-                var occupant = target.orElseThrow();
-
-                if (occupant.color() != position.sideToMove()
-                        && occupant.type() != PieceType.KING) {
-                    moves.add(new Move(from, to));
-                }
-
-                // Every occupied square ends this ray, including a capture.
-                break;
-            }
-
-            moves.add(new Move(from, to));
-
-            file += fileStep;
-            rank += rankStep;
-        }
-    }
 }

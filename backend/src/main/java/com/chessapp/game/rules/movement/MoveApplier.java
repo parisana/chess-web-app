@@ -20,7 +20,7 @@ public final class MoveApplier {
 
     /**
      * Applies pseudo-legal candidates without checking king safety.
-     * Currently, supports knight and rook moves through registered strategies.
+     * Currently, supports knight, rook, bishop and queen moves through registered strategies.
      * The algorithm is:
      * 1. Confirm the move appears in the piece's pseudo-legal candidates.
      * 2. Inspect the destination before moving, to identify any capture.

@@ -1,6 +1,9 @@
 package com.chessapp.game.rules.movement;
 
+import com.chessapp.BoardTestRenderer;
 import com.chessapp.game.rules.fen.FenParser;
+import com.chessapp.game.rules.model.ChessPosition;
+import com.chessapp.game.rules.model.Move;
 import com.chessapp.game.rules.model.Square;
 import org.junit.jupiter.api.Test;
 
@@ -17,20 +20,18 @@ class PseudoLegalMoveGeneratorTest {
     private final FenParser parser = new FenParser();
 
     private final PseudoLegalMoveGenerator generator =
-            new PseudoLegalMoveGenerator(
-                    new KnightMoveGenerator(),
-                    new RookMoveGenerator()
-            );
+            MovementTestFixtures.pseudoLegalGenerator();
 
     @Test
     void dispatchesKnightMovement() {
+        final Set<String> destinationSquares = destinations(
+                "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+                        + " w KQkq - 0 1",
+                "b1"
+        );
         assertEquals(
                 Set.of("a3", "c3"),
-                destinations(
-                        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
-                                + " w KQkq - 0 1",
-                        "b1"
-                )
+                destinationSquares
         );
     }
 
@@ -99,6 +100,38 @@ class PseudoLegalMoveGeneratorTest {
                 () -> new PseudoLegalMoveGenerator(
                         new KnightMoveGenerator(),
                         new KnightMoveGenerator()
+                )
+        );
+    }
+
+    @Test
+    void dispatchesBishopMovement() {
+        final String positionFen = "6k1/8/8/8/8/8/8/BK6 w - - 0 20";
+        final String sourceSquareStr = "a1";
+        final Set<String> destinationSquares = destinations(
+                positionFen,
+                sourceSquareStr
+        );
+        final String visualization = BoardTestRenderer.render(parser.parse(positionFen), Square.fromAlgebraic(sourceSquareStr),
+                destinationSquares.stream().map(str-> new Move(Square.fromAlgebraic(sourceSquareStr), Square.fromAlgebraic(str))).collect(Collectors.toUnmodifiableSet()));
+        System.out.println(visualization);
+        assertEquals(
+                Set.of("b2", "c3", "d4", "e5", "f6", "g7", "h8"),
+                destinationSquares
+        );
+    }
+
+    @Test
+    void dispatchesQueenMovement() {
+        // White's king on b1 blocks horizontal movement from a1.
+        assertEquals(
+                Set.of(
+                        "a2", "a3", "a4", "a5", "a6", "a7", "a8",
+                        "b2", "c3", "d4", "e5", "f6", "g7", "h8"
+                ),
+                destinations(
+                        "6k1/8/8/8/8/8/8/QK6 w - - 0 20",
+                        "a1"
                 )
         );
     }

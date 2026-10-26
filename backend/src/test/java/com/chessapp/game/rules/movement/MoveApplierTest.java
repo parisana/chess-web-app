@@ -20,13 +20,10 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class MoveApplierTest {
 
-    private final FenParser parser = new FenParser();
-    private final FenSerializer serializer = new FenSerializer();
-    private final PseudoLegalMoveGenerator generator = new PseudoLegalMoveGenerator(
-            new KnightMoveGenerator(),
-            new RookMoveGenerator()
-    );
-    private final MoveApplier applier =
+    private final FenParser fenParser = new FenParser();
+    private final FenSerializer fenSerializer = new FenSerializer();
+    private final PseudoLegalMoveGenerator generator = MovementTestFixtures.pseudoLegalGenerator();
+    private final MoveApplier moveApplier =
             new MoveApplier(generator);
 
     @Test
@@ -34,91 +31,91 @@ class MoveApplierTest {
         String originalFen =
                 "4k3/8/8/4p3/3N4/8/8/4K3 w - e6 0 12";
 
-        var original = parser.parse(originalFen);
+        var original = fenParser.parse(originalFen);
         var move = move("d4", "f5");
 
-        var candidate = applier.apply(original, move);
+        var candidate = moveApplier.apply(original, move);
 
         printTransition(original, candidate, move);
 
         assertAll(
                 () -> assertEquals(
                         "4k3/8/8/4pN2/8/8/8/4K3 b - - 1 12",
-                        serializer.serialize(candidate)
+                        fenSerializer.serialize(candidate)
                 ),
                 // Compare contents through FEN rather than Board identity.
                 () -> assertEquals(
                         originalFen,
-                        serializer.serialize(original)
+                        fenSerializer.serialize(original)
                 )
         );
     }
 
     @Test
     void capturingBlackCornerRookRemovesOnlyItsCastlingRight() {
-        var original = parser.parse(
+        var original = fenParser.parse(
                 "r3k2r/5N2/8/8/8/8/8/4K3 w kq - 9 12"
         );
         var move = move("f7", "h8");
 
-        var candidate = applier.apply(original, move);
+        var candidate = moveApplier.apply(original, move);
 
         printTransition(original, candidate, move);
 
         assertEquals(
                 "r3k2N/8/8/8/8/8/8/4K3 b q - 0 12",
-                serializer.serialize(candidate)
+                fenSerializer.serialize(candidate)
         );
     }
 
     @Test
     void blackCaptureUpdatesFullmoveNumberAndWhiteCastlingRights() {
-        var original = parser.parse(
+        var original = fenParser.parse(
                 "4k3/8/8/8/8/1n6/8/R3K2R b KQ - 8 12"
         );
         var move = move("b3", "a1");
 
-        var candidate = applier.apply(original, move);
+        var candidate = moveApplier.apply(original, move);
 
         printTransition(original, candidate, move);
 
         assertEquals(
                 "4k3/8/8/8/8/8/8/n3K2R w K - 0 13",
-                serializer.serialize(candidate)
+                fenSerializer.serialize(candidate)
         );
     }
 
     @Test
     void rejectsDestinationOutsideKnightMovementPattern() {
-        var position = parser.parse(
+        var position = fenParser.parse(
                 "4k3/8/8/8/3N4/8/8/4K3 w - - 0 1"
         );
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> applier.apply(position, move("d4", "d5"))
+                () -> moveApplier.apply(position, move("d4", "d5"))
         );
     }
 
     @Test
     void rejectsCaptureOfFriendlyPiece() {
-        var position = parser.parse(
+        var position = fenParser.parse(
                 "4k3/8/8/5P2/3N4/8/8/4K3 w - - 0 1"
         );
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> applier.apply(position, move("d4", "f5"))
+                () -> moveApplier.apply(position, move("d4", "f5"))
         );
     }
 
     @Test
     void stillAllowsCandidateThatExposesOwnKing() {
-        var position = parser.parse(
+        var position = fenParser.parse(
                 "4r2k/8/8/8/8/8/4N3/4K3 w - - 0 1"
         );
 
-        var candidate = applier.apply(
+        var candidate = moveApplier.apply(
                 position,
                 move("e2", "c3")
         );
@@ -126,7 +123,7 @@ class MoveApplierTest {
         // MoveApplier deliberately leaves king safety to LegalMoveGenerator.
         assertEquals(
                 "4r2k/8/8/8/8/2N5/8/4K3 b - - 1 1",
-                serializer.serialize(candidate)
+                fenSerializer.serialize(candidate)
         );
     }
 
@@ -146,12 +143,12 @@ class MoveApplierTest {
             boolean blackKingSide,
             boolean blackQueenSide
     ) {
-        var position = parser.parse(
+        var position = fenParser.parse(
                 "r3k2r/8/8/8/8/8/8/R3K2R "
                         + sideToMove + " KQkq - 0 20"
         );
 
-        var candidate = applier.apply(position, move(from, to));
+        var candidate = moveApplier.apply(position, move(from, to));
 
         assertEquals(
                 new CastlingRights(
@@ -169,43 +166,43 @@ class MoveApplierTest {
         String originalFen =
                 "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 8 20";
 
-        var original = parser.parse(originalFen);
+        var original = fenParser.parse(originalFen);
         var selectedMove = move("a1", "a8");
 
-        var candidate = applier.apply(original, selectedMove);
+        var candidate = moveApplier.apply(original, selectedMove);
 
         printTransition(original, candidate, selectedMove);
 
         assertAll(
                 () -> assertEquals(
                         "R3k2r/8/8/8/8/8/8/4K2R b Kk - 0 20",
-                        serializer.serialize(candidate)
+                        fenSerializer.serialize(candidate)
                 ),
                 () -> assertEquals(
                         originalFen,
-                        serializer.serialize(original)
+                        fenSerializer.serialize(original)
                 )
         );
     }
 
     @Test
     void returningRookToOriginalCornerDoesNotRestoreCastlingRight() {
-        var original = parser.parse(
+        var original = fenParser.parse(
                 "1n4k1/8/8/8/8/8/8/R3K2R w KQ - 0 20"
         );
 
-        var afterRookLeaves = applier.apply(
+        var afterRookLeaves = moveApplier.apply(
                 original,
                 move("a1", "a2")
         );
 
         // A supported Black reply allows White to move again.
-        var afterBlackReply = applier.apply(
+        var afterBlackReply = moveApplier.apply(
                 afterRookLeaves,
                 move("b8", "c6")
         );
 
-        var afterRookReturns = applier.apply(
+        var afterRookReturns = moveApplier.apply(
                 afterBlackReply,
                 move("a2", "a1")
         );
@@ -223,6 +220,88 @@ class MoveApplierTest {
                         remainingRights,
                         afterRookReturns.castlingRights()
                 )
+        );
+    }
+
+    @Test
+    void bishopCaptureRemovesCapturedCornerRooksCastlingRight() {
+        String originalFen =
+                "r3k2r/6B1/8/8/8/8/8/4K3 w kq - 9 12";
+
+        var original = fenParser.parse(originalFen);
+        var selectedMove = move("g7", "h8");
+
+        var candidate = moveApplier.apply(original, selectedMove);
+
+        printTransition(original, candidate, selectedMove);
+
+        assertAll(
+                () -> assertEquals(
+                        "r3k2B/8/8/8/8/8/8/4K3 b q - 0 12",
+                        fenSerializer.serialize(candidate)
+                ),
+                () -> assertEquals(
+                        originalFen,
+                        fenSerializer.serialize(original)
+                )
+        );
+    }
+
+    @Test
+    void blackQuietBishopMoveUpdatesCountersAndTurn() {
+        var original = fenParser.parse(
+                "b5k1/8/8/8/8/8/8/1K6 b - - 4 20"
+        );
+
+        var candidate = moveApplier.apply(
+                original,
+                move("a8", "b7")
+        );
+
+        assertEquals(
+                "6k1/1b6/8/8/8/8/8/1K6 w - - 5 21",
+                fenSerializer.serialize(candidate)
+        );
+    }
+
+    @Test
+    void queenCaptureRemovesCapturedCornerRooksCastlingRight() {
+        String originalFen =
+                "r3k2r/6Q1/8/8/8/8/8/4K3 w kq - 9 12";
+
+        var original = fenParser.parse(originalFen);
+        var selectedMove = move("g7", "h8");
+
+        var candidate = moveApplier.apply(original, selectedMove);
+
+        printTransition(original, candidate, selectedMove);
+
+        assertAll(
+                () -> assertEquals(
+                        "r3k2Q/8/8/8/8/8/8/4K3 b q - 0 12",
+                        fenSerializer.serialize(candidate)
+                ),
+                () -> assertEquals(
+                        originalFen,
+                        fenSerializer.serialize(original)
+                )
+        );
+    }
+
+    @Test
+    void blackQuietQueenMoveUpdatesCountersAndTurn() {
+        var original = fenParser.parse(
+                "q5k1/8/8/8/8/8/8/1K6 b - - 4 20"
+        );
+
+        var candidate = moveApplier.apply(
+                original,
+                move("a8", "b7")
+        );
+
+        assertEquals(
+                "6k1/1q6/8/8/8/8/8/1K6 w - - 5 21",
+                fenSerializer.serialize(candidate)
         );
     }
 
@@ -252,7 +331,7 @@ class MoveApplierTest {
                 Set.of()
         ));
 
-        System.out.println("FEN: " + serializer.serialize(candidate));
+        System.out.println("FEN: " + fenSerializer.serialize(candidate));
     }
 
     private static Move move(String from, String to) {
