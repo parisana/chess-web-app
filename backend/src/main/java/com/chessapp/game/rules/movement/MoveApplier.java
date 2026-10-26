@@ -20,7 +20,7 @@ public final class MoveApplier {
 
     /**
      * Applies pseudo-legal candidates without checking king safety.
-     * Currently, supports knight, rook, bishop and queen moves through registered strategies.
+     * Currently, supports knight, rook, bishop, queen and ordinary king moves through registered strategies.
      * The algorithm is:
      * 1. Confirm the move appears in the piece's pseudo-legal candidates.
      * 2. Inspect the destination before moving, to identify any capture.
@@ -29,8 +29,8 @@ public final class MoveApplier {
      * 5. Clear the previous en passant target.
      * 6. Reset the halfmove clock on capture; otherwise increment it.
      * 7. Increment the fullmove number after Black moves.
-     * 8. Remove castling rights when a rook moves from its original corner
-     *    or is captured on its original corner.
+     * 8. Remove both rights for a moving king, and rights affected by
+     *  *    moving or capturing a rook on its original corner.
      */
     public ChessPosition apply(ChessPosition position, Move move) {
         Objects.requireNonNull(position, "Position is required");
@@ -78,7 +78,9 @@ public final class MoveApplier {
                 .pieceAt(move.from())
                 .orElseThrow();
 
-        if (movingPiece.type() == PieceType.ROOK) {
+        if (movingPiece.type() == PieceType.KING) {
+            rights = removeKingRights(rights, movingPiece.color());
+        } else if (movingPiece.type() == PieceType.ROOK) {
             rights = removeCornerRookRight(
                     rights,
                     movingPiece.color(),
@@ -123,6 +125,27 @@ public final class MoveApplier {
                         && !square.equals(Square.fromAlgebraic("h8")),
                 rights.blackQueenSide()
                         && !square.equals(Square.fromAlgebraic("a8"))
+        );
+    }
+
+    private CastlingRights removeKingRights(
+            CastlingRights rights,
+            PieceColor color
+    ) {
+        if (color == PieceColor.WHITE) {
+            return new CastlingRights(
+                    false,
+                    false,
+                    rights.blackKingSide(),
+                    rights.blackQueenSide()
+            );
+        }
+
+        return new CastlingRights(
+                rights.whiteKingSide(),
+                rights.whiteQueenSide(),
+                false,
+                false
         );
     }
 }

@@ -305,6 +305,116 @@ class MoveApplierTest {
         );
     }
 
+    @Test
+    void whiteKingMoveRemovesOnlyWhiteCastlingRights() {
+        String originalFen =
+                "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 4 20";
+        var original = fenParser.parse(originalFen);
+        var move = move("e1", "f1");
+
+        var candidate = moveApplier.apply(original, move);
+
+        printTransition(original, candidate, move);
+
+        assertAll(
+                () -> assertEquals(
+                        "r3k2r/8/8/8/8/8/8/R4K1R b kq - 5 20",
+                        fenSerializer.serialize(candidate)
+                ),
+                () -> assertEquals(
+                        originalFen,
+                        fenSerializer.serialize(original)
+                )
+        );
+    }
+
+    @Test
+    void blackKingMoveRemovesOnlyBlackCastlingRights() {
+        String originalFen =
+                "r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 4 20";
+        var original = fenParser.parse(originalFen);
+
+        var candidate = moveApplier.apply(
+                original,
+                move("e8", "f8")
+        );
+
+        assertAll(
+                () -> assertEquals(
+                        "r4k1r/8/8/8/8/8/8/R3K2R w KQ - 5 21",
+                        fenSerializer.serialize(candidate)
+                ),
+                () -> assertEquals(
+                        originalFen,
+                        fenSerializer.serialize(original)
+                )
+        );
+    }
+
+    @Test
+    void returningKingsNeverRestoresCastlingRights() {
+        String originalFen =
+                "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 4 20";
+        var original = fenParser.parse(originalFen);
+
+        var afterWhiteLeaves = moveApplier.apply(
+                original,
+                move("e1", "f1")
+        );
+        var afterBlackLeaves = moveApplier.apply(
+                afterWhiteLeaves,
+                move("e8", "f8")
+        );
+        var afterWhiteReturns = moveApplier.apply(
+                afterBlackLeaves,
+                move("f1", "e1")
+        );
+        var afterBlackReturns = moveApplier.apply(
+                afterWhiteReturns,
+                move("f8", "e8")
+        );
+
+        assertAll(
+                () -> assertEquals(
+                        new CastlingRights(false, false, false, false),
+                        afterWhiteReturns.castlingRights()
+                ),
+                () -> assertEquals(
+                        // Placement returns to its original arrangement,
+                        // but castling rights remain lost.
+                        "r3k2r/8/8/8/8/8/8/R3K2R w - - 8 22",
+                        fenSerializer.serialize(afterBlackReturns)
+                ),
+                () -> assertEquals(
+                        originalFen,
+                        fenSerializer.serialize(original)
+                )
+        );
+    }
+
+    @Test
+    void kingCaptureResetsClockAndRemovesCapturedCornerRookRight() {
+        String originalFen =
+                "r3k2r/6K1/8/8/8/8/8/8 w kq - 4 20";
+        var original = fenParser.parse(originalFen);
+        var capture = move("g7", "h8");
+
+        var candidate = moveApplier.apply(original, capture);
+
+        printTransition(original, candidate, capture);
+
+        assertAll(
+                () -> assertEquals(
+                        "r3k2K/8/8/8/8/8/8/8 b q - 0 20",
+                        fenSerializer.serialize(candidate)
+                ),
+                () -> assertEquals(
+                        originalFen,
+                        fenSerializer.serialize(original)
+                )
+        );
+    }
+
     private void printTransition(
             ChessPosition original,
             ChessPosition candidate,

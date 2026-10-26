@@ -53,7 +53,8 @@ public final class LegalMoveGenerator {
                 ? PieceColor.BLACK
                 : PieceColor.WHITE;
 
-        var kingSquare = requireSingleKing(position.board(), movingColor);
+        // Reject incomplete or ambiguous positions before generating candidates.
+        requireSingleKing(position.board(), movingColor);
         requireSingleKing(position.board(), opposingColor);
 
         Set<Move> legalMoves = new HashSet<>();
@@ -61,8 +62,13 @@ public final class LegalMoveGenerator {
         for (var move : moveGenerator.generate(position, from)) {
             var candidate = moveApplier.apply(position, move);
 
-            // The candidate's sideToMove has switched. Check the king
-            // of the side that made the move, not the next side to move.
+            // King moves change its square; other moves preserve its location.
+            var kingSquare = requireSingleKing(
+                    candidate.board(),
+                    movingColor
+            );
+
+            // Application switches turns, but we inspect the side that just moved.
             if (!attackDetector.isAttacked(
                     candidate.board(),
                     kingSquare,

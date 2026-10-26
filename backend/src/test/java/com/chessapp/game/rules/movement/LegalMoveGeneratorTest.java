@@ -5,6 +5,8 @@ import com.chessapp.game.rules.fen.FenParser;
 import com.chessapp.game.rules.model.Move;
 import com.chessapp.game.rules.model.Square;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.Set;
 
@@ -418,6 +420,222 @@ class LegalMoveGeneratorTest {
                 ),
                 legalMoves,
                 visualization
+        );
+    }
+
+    @Test
+    void whiteKingCanEscapeCheckButCannotStayOnAttackedFile() {
+        // The rook checks along the e-file.
+        var position = parser.parse(
+                "4r2k/8/8/8/8/8/8/4K3 w - - 0 20"
+        );
+        var source = Square.fromAlgebraic("e1");
+
+        var candidates = pseudoLegalGenerator.generate(position, source);
+        var legalMoves = legalGenerator.generate(position, source);
+        var visualization = BoardTestRenderer.render(
+                position, source, legalMoves
+        );
+
+        System.out.println(visualization);
+
+        assertAll(
+                () -> assertTrue(candidates.contains(move("e1", "e2"))),
+                () -> assertEquals(
+                        Set.of(
+                                move("e1", "d1"),
+                                move("e1", "f1"),
+                                move("e1", "d2"),
+                                move("e1", "f2")
+                        ),
+                        legalMoves,
+                        visualization
+                )
+        );
+    }
+
+    @Test
+    void blackKingCannotMoveAdjacentToWhiteKing() {
+        var position = parser.parse(
+                "8/8/8/4k3/8/4K3/8/8 b - - 0 20"
+        );
+        var source = Square.fromAlgebraic("e5");
+
+        var candidates = pseudoLegalGenerator.generate(position, source);
+        var legalMoves = legalGenerator.generate(position, source);
+
+        assertAll(
+                // These satisfy ordinary movement but violate king safety.
+                () -> assertTrue(candidates.contains(move("e5", "e4"))),
+                () -> assertEquals(
+                        Set.of(
+                                move("e5", "d5"),
+                                move("e5", "f5"),
+                                move("e5", "d6"),
+                                move("e5", "e6"),
+                                move("e5", "f6")
+                        ),
+                        legalMoves
+                )
+        );
+    }
+
+    @Test
+    void rejectsDestinationAttackedAfterKingVacatesSource() {
+        // The king on d4 currently blocks the rook's attack toward e4. [e4 becomes attacked only after king leaves d4]
+        var position = parser.parse(
+                "7k/8/8/8/r2K4/8/8/8 w - - 0 20"
+        );
+        var source = Square.fromAlgebraic("d4");
+
+        var candidates = pseudoLegalGenerator.generate(position, source);
+        var legalMoves = legalGenerator.generate(position, source);
+        var visualization = BoardTestRenderer.render(
+                position, source, legalMoves
+        );
+
+        System.out.println(visualization);
+
+        assertAll(
+                () -> assertTrue(candidates.contains(move("d4", "e4"))),
+                () -> assertEquals(
+                        Set.of(
+                                move("d4", "c3"),
+                                move("d4", "d3"),
+                                move("d4", "e3"),
+                                move("d4", "c5"),
+                                move("d4", "d5"),
+                                move("d4", "e5")
+                        ),
+                        legalMoves,
+                        visualization
+                )
+        );
+    }
+
+    @Test
+    void kingCanCaptureAnUndefendedCheckingPiece() {
+        var position = parser.parse(
+                "7k/8/8/8/8/8/4r3/4K3 w - - 0 20"
+        );
+
+        assertTrue(
+                legalGenerator.generate(
+                        position,
+                        Square.fromAlgebraic("e1")
+                ).contains(move("e1", "e2"))
+        );
+    }
+
+    @Test
+    void kingCannotCapturePieceDefendedByBishop() {
+        // The rook checks e1; the bishop on b5 defends the rook on e2.
+        var position = parser.parse(
+                "7k/8/8/1b6/8/8/4r3/4K3 w - - 0 20"
+        );
+        var source = Square.fromAlgebraic("e1");
+        var capture = move("e1", "e2");
+
+        assertAll(
+                () -> assertTrue(
+                        pseudoLegalGenerator.generate(position, source)
+                                .contains(capture)
+                ),
+                () -> assertFalse(
+                        legalGenerator.generate(position, source)
+                                .contains(capture)
+                )
+        );
+    }
+
+    @Test
+    void kingCannotEnterSquareAttackedByPinnedKnight() {
+        // The rook on e1 pins the knight against Black's king.
+        // The knight still attacks d5 for White's king-safety check.
+        var position = parser.parse(
+                "4k3/4n3/8/8/2K5/8/8/4R3 w - - 0 20"
+        );
+        var source = Square.fromAlgebraic("c4");
+        var destination = move("c4", "d5");
+
+        assertAll(
+                () -> assertTrue(
+                        pseudoLegalGenerator.generate(position, source)
+                                .contains(destination)
+                ),
+                () -> assertFalse(
+                        legalGenerator.generate(position, source)
+                                .contains(destination)
+                )
+        );
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            // Black pawn and knight attack White's proposed destination f2.
+            "'k7/8/8/8/8/4p3/8/4K3 w - - 0 20', e1, f2",
+            "'k7/8/8/8/8/7n/8/4K3 w - - 0 20', e1, f2",
+
+            // White pawn and knight attack Black's proposed destination f7.
+            "'4k3/8/4P3/8/8/8/8/K7 b - - 0 20', e8, f7",
+            "'4k3/8/7N/8/8/8/8/K7 b - - 0 20', e8, f7"
+    })
+    void kingCannotEnterPawnOrKnightAttack(
+            String fen,
+            String from,
+            String to
+    ) {
+        var position = parser.parse(fen);
+        var source = Square.fromAlgebraic(from);
+        var proposedMove = move(from, to);
+        var visualization = BoardTestRenderer.render(
+                position, source, Set.of(proposedMove)
+        );
+        System.out.println("Proposed move: ");
+        System.out.println(visualization);
+
+        assertAll(
+                () -> assertTrue(
+                        pseudoLegalGenerator.generate(position, source)
+                                .contains(proposedMove)
+                ),
+                () -> assertFalse(
+                        legalGenerator.generate(position, source)
+                                .contains(proposedMove)
+                )
+        );
+    }
+
+    @Test
+    void blackKingCannotMoveAlongAttackExposedByVacatingSource() {
+        // Black's king on d5 currently shields e5 from White's rook.
+        var position = parser.parse(
+                "8/8/8/R2k4/8/8/8/7K b - - 0 20"
+        );
+        var source = Square.fromAlgebraic("d5");
+
+        var candidates = pseudoLegalGenerator.generate(position, source);
+        var legalMoves = legalGenerator.generate(position, source);
+        var visualization = BoardTestRenderer.render(
+                position, source, legalMoves
+        );
+
+        System.out.println(visualization);
+
+        assertAll(
+                () -> assertTrue(candidates.contains(move("d5", "e5"))),
+                () -> assertEquals(
+                        Set.of(
+                                move("d5", "c4"),
+                                move("d5", "d4"),
+                                move("d5", "e4"),
+                                move("d5", "c6"),
+                                move("d5", "d6"),
+                                move("d5", "e6")
+                        ),
+                        legalMoves,
+                        visualization
+                )
         );
     }
 

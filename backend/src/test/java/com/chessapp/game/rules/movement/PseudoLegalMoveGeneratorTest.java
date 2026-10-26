@@ -136,6 +136,17 @@ class PseudoLegalMoveGeneratorTest {
         );
     }
 
+    @Test
+    void dispatchesKingMovement() {
+        assertEquals(
+                Set.of("d1", "f1", "d2", "e2", "f2"),
+                destinations(
+                        "7k/8/8/8/8/8/8/4K3 w - - 0 20",
+                        "e1"
+                )
+        );
+    }
+
     private Set<String> destinations(String fen, String source) {
         return generator.generate(
                         parser.parse(fen),
