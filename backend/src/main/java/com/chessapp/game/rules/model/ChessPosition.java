@@ -5,6 +5,12 @@ import java.util.Optional;
 
 /**
  * @author pari on 10/24/26
+ * Immutable board state and position metadata.
+ *
+ * @param enPassantTarget the square passed over by the preceding double
+ *                        pawn advance, and the destination of a potential
+ *                        en passant capture; not the captured pawn's square.
+ *                        Its presence does not guarantee a capture is available.
  */
 public record ChessPosition(
         Board board,

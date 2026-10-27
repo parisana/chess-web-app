@@ -136,21 +136,19 @@ class PawnMoveGeneratorTest {
 
     @ParameterizedTest
     @CsvSource({
-            "'7k/8/8/3pP3/8/8/8/K7 w - d6 0 20', e5",
-            "'7k/8/8/8/3Pp3/8/8/K7 b - d3 0 20', e4"
+            "'7k/8/8/3pP3/8/8/8/K7 w - d6 0 20', e5, 'd6 e6'",
+            "'7k/8/8/3Pp3/8/8/8/K7 w - e6 0 20', d5, 'd6 e6'",
+            "'7k/8/8/8/3Pp3/8/8/K7 b - d3 0 20', e4, 'd3 e3'",
+            "'7k/8/8/8/3pP3/8/8/K7 b - e3 0 20', d4, 'd3 e3'"
     })
-    void rejectsPossibleEnPassantInsteadOfReturningPartialMoves(
+    void generatesEnPassantAlongsideOrdinaryAdvance(
             String fen,
-            String from
+            String from,
+            String expected
     ) {
-        // Each pawn also has an ordinary advance. Returning only that
-        // advance would silently omit the unsupported special capture.
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> generator.generate(
-                        parser.parse(fen),
-                        Square.fromAlgebraic(from)
-                )
+        assertEquals(
+                Set.of(expected.split(" ")),
+                destinations(fen, from)
         );
     }
 

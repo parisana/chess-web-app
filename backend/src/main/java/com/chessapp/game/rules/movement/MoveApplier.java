@@ -39,9 +39,18 @@ public final class MoveApplier {
 
         boolean isPawnMove = movingPiece.type() == PieceType.PAWN;
 
-        boolean isCapture = position.board()
+        boolean destinationOccupied = position.board()
                 .pieceAt(move.to())
                 .isPresent();
+
+        // Exact candidate membership has already validated the target,
+        // geometry and adjacent opposing pawn. A supported pawn move
+        // diagonally into an empty square must therefore be en passant.
+        boolean isEnPassant = isPawnMove
+                && move.from().file() != move.to().file()
+                && !destinationOccupied;
+
+        boolean isCapture = destinationOccupied || isEnPassant;
 
         var nextSide = position.sideToMove() == PieceColor.WHITE
                 ? PieceColor.BLACK
@@ -65,6 +74,17 @@ public final class MoveApplier {
                 move.to(),
                 destinationPiece
         );
+
+        if (isEnPassant) {
+            // En passant captures beside the source, not on the destination:
+            // e5 -> d6 removes d5; e4 -> d3 removes d4.
+            var capturedSquare = new Square(
+                    move.to().file(),
+                    move.from().rank()
+            );
+
+            nextBoard = nextBoard.removePiece(capturedSquare);
+        }
 
         return new ChessPosition(
                 nextBoard,

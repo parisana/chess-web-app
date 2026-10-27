@@ -472,20 +472,52 @@ class MoveApplierTest {
 
     @ParameterizedTest
     @CsvSource({
-            // En passant capture.
-            "'7k/8/8/3pP3/8/8/8/K7 w - d6 0 20', e5, d6",
-            "'7k/8/8/8/3Pp3/8/8/K7 b - d3 0 20', e4, d3"
+            "'7k/8/8/3pP3/8/8/8/K7 w - d6 0 20', e5, d6, d5, "
+                    + "'7k/8/3P4/8/8/8/8/K7 b - - 0 20'",
+            "'7k/8/8/8/3Pp3/8/8/K7 b - d3 0 20', e4, d3, d4, "
+                    + "'7k/8/8/8/8/3p4/8/K7 w - - 0 21'"
     })
-    void rejectsUnsupportedPawnSpecialMoves(
-            String fen,
+    void appliesEnPassantAndPreservesOriginalPosition(
+            String originalFen,
             String from,
-            String to
+            String to,
+            String captured,
+            String expectedFen
     ) {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> moveApplier.apply(
-                        fenParser.parse(fen),
-                        move(from, to)
+        var original = fenParser.parse(originalFen);
+        var selectedMove = move(from, to);
+        var movingPawn = original.board()
+                .pieceAt(selectedMove.from())
+                .orElseThrow();
+
+        var candidate = moveApplier.apply(original, selectedMove);
+
+        printTransition(original, candidate, selectedMove);
+
+        assertAll(
+                () -> assertTrue(
+                        candidate.board()
+                                .pieceAt(selectedMove.from())
+                                .isEmpty()
+                ),
+                () -> assertTrue(
+                        candidate.board()
+                                .pieceAt(Square.fromAlgebraic(captured))
+                                .isEmpty()
+                ),
+                () -> assertEquals(
+                        movingPawn,
+                        candidate.board()
+                                .pieceAt(selectedMove.to())
+                                .orElseThrow()
+                ),
+                () -> assertEquals(
+                        expectedFen,
+                        fenSerializer.serialize(candidate)
+                ),
+                () -> assertEquals(
+                        originalFen,
+                        fenSerializer.serialize(original)
                 )
         );
     }

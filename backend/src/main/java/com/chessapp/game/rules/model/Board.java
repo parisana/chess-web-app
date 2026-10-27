@@ -77,4 +77,23 @@ public final class Board {
 
         return new Board(updatedPieces);
     }
+
+    /**
+     * Returns a new board without the piece on the supplied square.
+     * The caller owns capture-rule validation.
+     */
+    public Board removePiece(Square square) {
+        Objects.requireNonNull(square, "Removal square is required");
+
+        if (pieceAt(square).isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Removal square must contain a piece"
+            );
+        }
+
+        var updatedPieces = new HashMap<>(pieces);
+        updatedPieces.remove(square);
+
+        return new Board(updatedPieces);
+    }
 }

@@ -796,24 +796,32 @@ class LegalMoveGeneratorTest {
 
     @ParameterizedTest
     @CsvSource({
-            "'7k/8/8/3pP3/8/8/8/K7 w - d6 0 20', e5",
-            "'7k/8/8/8/3Pp3/8/8/K7 b - d3 0 20', e4"
+            "'7k/8/8/3pP3/8/8/8/K7 w - d6 0 20', e5, d6, e6",
+            "'7k/8/8/8/3Pp3/8/8/K7 b - d3 0 20', e4, d3, e3"
     })
-    void propagatesUnsupportedPawnGeneration(
+    void permitsSafeEnPassantAlongsideOrdinaryAdvance(
             String fen,
-            String from
+            String from,
+            String capture,
+            String advance
     ) {
+        var position = parser.parse(fen);
+        var source = Square.fromAlgebraic(from);
+
+        var moves = legalGenerator.generate(position, source);
         var visualization = BoardTestRenderer.render(
-                parser.parse(fen), Square.fromAlgebraic(from), Set.of()
+                position, source, moves
         );
 
         System.out.println(visualization);
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> legalGenerator.generate(
-                        parser.parse(fen),
-                        Square.fromAlgebraic(from)
-                )
+
+        assertEquals(
+                Set.of(
+                        move(from, capture),
+                        move(from, advance)
+                ),
+                moves,
+                visualization
         );
     }
 

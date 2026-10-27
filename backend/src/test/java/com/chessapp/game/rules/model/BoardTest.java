@@ -171,4 +171,68 @@ class BoardTest {
                 () -> board.movePiece(square, square)
         );
     }
+
+    @Test
+    void removesPieceWithoutChangingOriginalBoardOrOtherSquares() {
+        var capturedSquare = Square.fromAlgebraic("d5");
+        var pawnSquare = Square.fromAlgebraic("e5");
+        var whiteKingSquare = Square.fromAlgebraic("a1");
+        var blackKingSquare = Square.fromAlgebraic("h8");
+
+        var capturedPawn = new Piece(PieceColor.BLACK, PieceType.PAWN);
+        var movingPawn = new Piece(PieceColor.WHITE, PieceType.PAWN);
+        var whiteKing = new Piece(PieceColor.WHITE, PieceType.KING);
+        var blackKing = new Piece(PieceColor.BLACK, PieceType.KING);
+
+        var original = new Board(Map.of(
+                capturedSquare, capturedPawn,
+                pawnSquare, movingPawn,
+                whiteKingSquare, whiteKing,
+                blackKingSquare, blackKing
+        ));
+
+        var candidate = original.removePiece(capturedSquare);
+
+        // Compare contents explicitly: Board uses identity equality.
+        for (int file = 0; file < 8; file++) {
+            for (int rank = 0; rank < 8; rank++) {
+                var square = new Square(file, rank);
+
+                if (square.equals(capturedSquare)) {
+                    assertTrue(candidate.pieceAt(square).isEmpty());
+                } else {
+                    assertEquals(
+                            original.pieceAt(square),
+                            candidate.pieceAt(square),
+                            square.toAlgebraic()
+                    );
+                }
+            }
+        }
+
+        assertEquals(
+                capturedPawn,
+                original.pieceAt(capturedSquare).orElseThrow()
+        );
+    }
+
+    @Test
+    void rejectsRemovingFromEmptySquare() {
+        var board = new Board(Map.of());
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> board.removePiece(Square.fromAlgebraic("d5"))
+        );
+    }
+
+    @Test
+    void rejectsNullRemovalSquare() {
+        var board = new Board(Map.of());
+
+        assertThrows(
+                NullPointerException.class,
+                () -> board.removePiece(null)
+        );
+    }
 }

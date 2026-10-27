@@ -12,8 +12,7 @@ import java.util.Optional;
 import java.util.Set;
 /**
  * @author pari on 10/26/26
- * Generates ordinary pawn candidates.
- * Possible en passant captures fail explicitly.
+ * Generates ordinary pawn, promotion and en passant candidates.
  * King safety is checked separately.
  */
 public final class PawnMoveGenerator
@@ -29,7 +28,8 @@ public final class PawnMoveGenerator
      * Captures: inspect the two forward diagonals and accept opposing non-king occupants.
      * Direction: White increases the internal rank; Black decreases it.
      * Special cases: expand promotions into four choices;
-     * possible en passant captures fail before a partial result can escape.
+     * en passant requires matching metadata, the correct source rank,
+     * an empty destination and an adjacent opposing pawn.
      * */
     @Override
     public Set<Move> generate(ChessPosition position, Square from) {
@@ -96,13 +96,30 @@ public final class PawnMoveGenerator
             var target = position.board().pieceAt(to);
 
             if (target.isEmpty()) {
-                // Do not silently omit a possible unsupported special capture.
-                if (position.enPassantTarget()
+                int enPassantSourceRank =
+                        pawn.color() == PieceColor.WHITE ? 4 : 3;
+
+                // The diagonal loop already establishes one file sideways
+                // and one rank forward. Metadata alone is insufficient.
+                if (from.rank() == enPassantSourceRank
+                        && position.enPassantTarget()
                         .filter(to::equals)
                         .isPresent()) {
-                    throw new UnsupportedOperationException(
-                            "En passant capture generation is not supported yet"
-                    );
+
+                    // The target is the empty landing square. The captured pawn sits
+                    // on that file, beside the capturing pawn on its original rank.
+                    // Example: e5 -> d6 captures the pawn on d5.
+                    var capturedSquare = new Square(to.file(), from.rank());
+
+                    boolean hasOpposingPawn = position.board()
+                            .pieceAt(capturedSquare)
+                            .filter(piece -> piece.type() == PieceType.PAWN
+                                    && piece.color() != pawn.color())
+                            .isPresent();
+
+                    if (hasOpposingPawn) {
+                        moves.add(new Move(from, to));
+                    }
                 }
 
                 continue;
