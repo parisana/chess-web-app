@@ -36,28 +36,66 @@ public final class LegalMoveGenerator {
     }
 
     /**
-     * Generates legal moves for one supported source square.
-     * An empty result does not establish checkmate or stalemate.
-
-     * Algorithm:
-     * 1. Require exactly one king per color.
-     * 2. Generate pseudo-legal candidates.
-     * 3. For castling, reject attacked starting or transit squares.
-     * 4. Apply each remaining candidate.
-     * 5. Reject candidates whose resulting board leaves the moving king attacked.
+     * Generates legal moves for one source square.
+     * An empty source-specific result does not establish a position outcome.
      */
     public Set<Move> generate(ChessPosition position, Square from) {
         Objects.requireNonNull(position, "Position is required");
         Objects.requireNonNull(from, "Source square is required");
 
+        requireKings(position.board());
+
+        return generateForSource(position, from);
+    }
+
+    /**
+     * Generates every legal move for the side to move.
+
+     * Algorithm:
+     * 1. Require exactly one king per color.
+     * 2. Inspect every square for a moving-side piece.
+     * 3. Combine its moves using the shared legal filtering pipeline.
+     * 4. Return an immutable set.
+     */
+    public Set<Move> generate(ChessPosition position) {
+        Objects.requireNonNull(position, "Position is required");
+
+        // Validate before traversal so an empty board cannot look like zero replies.
+        requireKings(position.board());
+
+        Set<Move> legalMoves = new HashSet<>();
+
+        for (int file = 0; file < 8; file++) {
+            for (int rank = 0; rank < 8; rank++) {
+                var from = new Square(file, rank);
+
+                boolean belongsToMovingSide = position.board()
+                        .pieceAt(from)
+                        .filter(piece ->
+                                piece.color() == position.sideToMove())
+                        .isPresent();
+
+                if (belongsToMovingSide) {
+                    // Each source is evaluated against the same original position.
+                    legalMoves.addAll(generateForSource(position, from));
+                }
+            }
+        }
+
+        return Set.copyOf(legalMoves);
+    }
+
+    /**
+     * Generates moves after the public entry point has validated the input.
+     */
+    private Set<Move> generateForSource(
+            ChessPosition position,
+            Square from
+    ) {
         var movingColor = position.sideToMove();
         var opposingColor = movingColor == PieceColor.WHITE
                 ? PieceColor.BLACK
                 : PieceColor.WHITE;
-
-        // Reject incomplete or ambiguous positions before generating candidates.
-        requireSingleKing(position.board(), movingColor);
-        requireSingleKing(position.board(), opposingColor);
 
         Set<Move> legalMoves = new HashSet<>();
 
@@ -66,6 +104,7 @@ public final class LegalMoveGenerator {
                     && !isCastlingPathSafe(position, move, opposingColor)) {
                 continue;
             }
+
             var candidate = moveApplier.apply(position, move);
 
             // King moves change its square; other moves preserve its location.
@@ -85,6 +124,11 @@ public final class LegalMoveGenerator {
         }
 
         return Set.copyOf(legalMoves);
+    }
+
+    private void requireKings(Board board) {
+        requireSingleKing(board, PieceColor.WHITE);
+        requireSingleKing(board, PieceColor.BLACK);
     }
 
     /**

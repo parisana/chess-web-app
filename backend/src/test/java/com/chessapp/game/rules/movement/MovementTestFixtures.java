@@ -5,12 +5,12 @@ import com.chessapp.game.rules.attack.SquareAttackDetector;
 /**
  * @author pari on 10/25/26
  */
-final class MovementTestFixtures {
+public final class MovementTestFixtures {
 
     private MovementTestFixtures() {
     }
 
-    static PseudoLegalMoveGenerator pseudoLegalGenerator() {
+    public static PseudoLegalMoveGenerator pseudoLegalGenerator() {
         return new PseudoLegalMoveGenerator(
                 new KnightMoveGenerator(),
                 new RookMoveGenerator(),
@@ -21,7 +21,7 @@ final class MovementTestFixtures {
         );
     }
 
-    static LegalMoveGenerator legalGenerator(
+    public static LegalMoveGenerator legalGenerator(
             PseudoLegalMoveGenerator generator
     ) {
         return new LegalMoveGenerator(
