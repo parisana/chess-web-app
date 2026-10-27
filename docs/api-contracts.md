@@ -1,6 +1,6 @@
 # API Contracts
 
-Reviewed on 27 October 2026 against `chess-web-app-day13-end.zip`. Source inspection confirms en passant candidate generation, immutable off-destination pawn removal, shared metadata handling and associated tests. No blocking defect was found in the reviewed Day 13 changes. The user reports all tests green, including the final additional tests. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+Reviewed on 27 October 2026 against `chess-web-app-day14-end.zip`. Source inspection confirms standard castling for both colors and both sides, immutable king/rook relocation, castling-specific king-safety filtering and associated tests. No blocking defect was found in the reviewed Day 14 changes. The user reported green tests through the king-safety increment. The final additional boundary tests are present in this archive, but no subsequent passing result was explicitly reported. No independent tests or builds were run.
 
 This document lists expected application failures by action. It is not an exhaustive catalog of framework, transport or infrastructure failures. An absent application code is intentional where the current implementation does not guarantee one.
 
@@ -160,7 +160,7 @@ The reviewed Day 9 source adds bishop/queen movement, shared sliding traversal, 
 
 Day 10 adds internal ordinary king candidates, resulting-square king-safety filtering and irreversible castling-right removal for moving kings. The shared test registry and tests are updated. Castling execution and pawn movement remain pending. No HTTP contract, DTO, migration, frontend implementation or persisted-game behavior changes. `ChessRules` still exposes only `initialPosition()`; there is no move-submission API or chessboard UI. The user reports all tests green for the final Day 10 archive; this review ran no tests or builds.
 
-## Day 13 completed checkpoint — 27 October 2026
+## Day 13 completed checkpoint — historical, 27 October 2026
 
 En passant is implemented for both colors. Generation requires the correct source rank, one forward diagonal step, matching target metadata, an empty destination and an adjacent opposing pawn. An inconsistent or unavailable opportunity contributes no en passant candidate and does not suppress ordinary moves. Attempting an omitted capture fails exact candidate membership with `IllegalArgumentException`; no unsupported-en-passant exception remains.
 
@@ -173,3 +173,9 @@ Shared handling switches turns, resets the pawn halfmove clock, increments the f
 The user reports all tests green for the final Day 13 archive. Review was by source inspection; no independent tests or builds were run.
 
 Movement remains internal pure Java code. `ChessRules` exposes only `initialPosition()`; `GameService` still stores the initial FEN and does not apply moves. Day 13 changes no HTTP contract, DTO, migration or frontend implementation. Castling execution, complete legal-move enumeration, outcomes, move history and gameplay integration remain pending. Generation handles a single source; an empty result cannot establish checkmate or stalemate. FEN parsing is structural, not proof of legality or reachability; the implementation does not reconstruct the preceding move from history. Board equality is identity-based, repetition requires history, and authorization, transactions, persistence and gameplay concurrency remain service responsibilities. AI and map-versus-array evaluation remain deferred.
+
+## Day 14 current boundary — 27 October 2026
+
+Standard castling for both colors and both sides is implemented internally. Candidate generation checks rights and placement; application relocates both pieces; legal filtering checks starting, transit and destination safety. See [architecture.md](architecture.md) for responsibilities and verification provenance. Day 14 changes no endpoint, DTO, migration or frontend implementation.
+
+Movement remains internal pure Java code. `ChessRules` exposes only `initialPosition()`; `GameService` creates and stores the initial FEN and does not apply moves. Complete legal-move enumeration, outcomes, move history and gameplay integration remain pending. Single-source generation cannot establish checkmate or stalemate. FEN parsing remains structural, Board equality remains identity-based, and repetition requires history. Authorization, transactions, persistence and gameplay concurrency remain service responsibilities. AI and map-versus-array evaluation remain deferred.

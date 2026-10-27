@@ -1,8 +1,8 @@
 # Development Progress
 
-Reviewed on 27 October 2026 against `chess-web-app-day13-end.zip`. Source inspection confirms en passant candidate generation, immutable off-destination pawn removal, shared metadata handling and associated tests. No blocking defect was found in the reviewed Day 13 changes. The user reports all tests green, including the final additional tests. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+Reviewed on 27 October 2026 against `chess-web-app-day14-end.zip`. Source inspection confirms standard castling for both colors and both sides, immutable king/rook relocation, castling-specific king-safety filtering and associated tests. No blocking defect was found in the reviewed Day 14 changes. The user reported green tests through the king-safety increment. The final additional boundary tests are present in this archive, but no subsequent passing result was explicitly reported. No independent tests or builds were run.
 
-Historical Day 6–12 sections describe earlier checkpoints. The Day 13 section defines current en passant behavior and supersedes earlier unsupported-en-passant descriptions.
+Historical Day 6–13 sections describe earlier checkpoints. The Day 14 section defines current castling behavior; Day 13 defines en passant behavior and supersedes earlier unsupported-en-passant descriptions.
 
 Day numbers identify working sessions and differ from the original 30-working-day schedule. See [roadmap.md](roadmap.md) for planning and [api-contracts.md](api-contracts.md) for endpoint behavior.
 
@@ -25,7 +25,7 @@ Day numbers identify working sessions and differ from the original 30-working-da
 | Discovery | `MATCHED` queue status with game ID; manual Angular status refresh |
 | Game access | Participant-protected `GET /api/v1/games/{gameId}` |
 | Rules foundation | Pure Java immutable representation, separate FEN parser/serializer, initial-position rules boundary |
-| Movement | Knight/rook/bishop/queen/ordinary-king/ordinary-pawn strategies and explicit promotions and en passant (Day 13), shared traversal/application/filtering, resulting-square king safety, irreversible rook/king castling-right removal, centralized test fixtures; all-piece attack detection |
+| Movement | Knight/rook/bishop/queen/king/pawn strategies, explicit promotions, en passant and standard castling (Day 14), shared traversal/application/filtering, resulting-square king safety, irreversible rook/king castling-right removal, centralized test fixtures; all-piece attack detection |
 
 ## Schema
 
@@ -54,7 +54,7 @@ Backend coverage includes:
 
 The five focused Angular tests in `auth-flow.spec.ts` cover protected bearer attachment, exclusion of external requests, protected 401 cleanup/redirect, profile-load failure cleanup and logout. There is no `app.spec.ts` in this ZIP. No broad frontend component or end-to-end suite is introduced.
 
-Test presence describes coverage. The user reports all tests green for the Day 13 final archive; this review ran no tests.
+Test presence describes source coverage. The user reported green tests through the Day 14 king-safety increment; final additional boundary tests have no subsequent explicit passing report. This review ran no tests.
 
 ## Day 5 username-update increment
 
@@ -126,9 +126,9 @@ The actual focused test package is `com.chessapp.game.rules.movement`:
 
 ## Verification provenance
 
-Reviewed on 27 October 2026 against `chess-web-app-day13-end.zip`. Source inspection confirms en passant candidate generation, immutable off-destination pawn removal, shared metadata handling and associated tests. No blocking defect was found in the reviewed Day 13 changes. The user reports all tests green, including the final additional tests. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+Reviewed on 27 October 2026 against `chess-web-app-day14-end.zip`. Source inspection confirms standard castling for both colors and both sides, immutable king/rook relocation, castling-specific king-safety filtering and associated tests. No blocking defect was found in the reviewed Day 14 changes. The user reported green tests through the king-safety increment. The final additional boundary tests are present in this archive, but no subsequent passing result was explicitly reported. No independent tests or builds were run.
 
-The Day 13 archive retains earlier regression tests, including the corrected return-to-corner fixture and promotion coverage. The current green result is user-reported; no detailed test log or separate frontend build/manual outcomes were supplied.
+The Day 14 archive retains earlier regression tests, including king/rook rights removal, promotion and en passant coverage. Green tests were reported through the king-safety increment, before the final additional boundary tests. No detailed test log or separate frontend build/manual outcomes were supplied.
 
 ### Local verification
 
@@ -170,7 +170,7 @@ Manual smoke checks:
 - No queue expiry or automatic leave on logout.
 - Games begin immediately in `IN_PROGRESS`; no acceptance stage.
 - No cancellation, completion, results or active-reservation release. Matched players therefore remain unavailable for another game through the current APIs.
-- Day 13 supports all six piece strategies, promotions and en passant; castling execution, complete legal-move enumeration, outcomes, move endpoint/history, chessboard UI, game page and clocks remain pending.
+- Day 14 supports all six piece strategies, promotions, en passant and standard castling; complete legal-move enumeration, outcomes, move endpoint/history, chessboard UI, game page and clocks remain pending.
 - Username updates are supported; email/password changes are not implemented.
 - Concurrent username edits use last-write-wins behavior; no player optimistic locking.
 - Sessions are in memory; browser reload requires login. No refresh tokens, revocation or server-side logout.
@@ -276,7 +276,7 @@ Focused local verification from `backend/` (no database required):
 ./gradlew test --tests 'com.chessapp.game.rules.*'
 ```
 
-## Day 13 completed checkpoint — 27 October 2026
+## Day 13 completed checkpoint — historical, 27 October 2026
 
 En passant is implemented for both colors. Generation requires the correct source rank, one forward diagonal step, matching target metadata, an empty destination and an adjacent opposing pawn. An inconsistent or unavailable opportunity contributes no en passant candidate and does not suppress ordinary moves. Attempting an omitted capture fails exact candidate membership with `IllegalArgumentException`; no unsupported-en-passant exception remains.
 
@@ -289,3 +289,17 @@ Shared handling switches turns, resets the pawn halfmove clock, increments the f
 The user reports all tests green for the final Day 13 archive. Review was by source inspection; no independent tests or builds were run.
 
 Movement remains internal pure Java code. `ChessRules` exposes only `initialPosition()`; `GameService` still stores the initial FEN and does not apply moves. Day 13 changes no HTTP contract, DTO, migration or frontend implementation. Castling execution, complete legal-move enumeration, outcomes, move history and gameplay integration remain pending. Generation handles a single source; an empty result cannot establish checkmate or stalemate. FEN parsing is structural, not proof of legality or reachability; the implementation does not reconstruct the preceding move from history. Board equality is identity-based, repetition requires history, and authorization, transactions, persistence and gameplay concurrency remain service responsibilities. AI and map-versus-array evaluation remain deferred.
+
+## Day 14 completed implementation — 27 October 2026
+
+Standard castling is implemented for both colors and both sides. Candidates require the matching castling right, the king on e1/e8, a same-color rook on its original corner, and an empty intervening path. Inconsistent rights/placement omit the affected candidate while ordinary moves remain available. Rights are historical metadata; local placement checks do not reconstruct move history or distinguish a promoted rook from an original rook.
+
+`MoveApplier` validates exact candidate membership, relocates the king and rook through immutable Board operations, and reuses shared metadata handling. Castling increments the halfmove clock once, increments the fullmove number after Black, switches turns once, clears the en passant target and permanently removes both rights for the moving king's color. Promotion choices on castling are rejected through candidate membership.
+
+`LegalMoveGenerator` identifies castling separately from path safety. It checks the starting square on the original board, then the transit square with the king relocated and the rook still at its corner. The existing shared safety check examines the destination on the completed castling board. `MoveApplier` intentionally does not check attacks. Pinned pieces still count as attackers. Queenside b1/b8 must be empty but may be attacked; an attacked rook does not itself prohibit castling.
+
+Source-confirmed coverage includes all four relocations and resulting FENs, ordinary king moves alongside castling, individual/absent rights, every intervening square, missing/wrong-color/non-rook corner pieces, displaced kings, attacks on starting/transit/destination squares, pinned-knight attacks, attacked rooks and b-file squares, en passant expiry, promotion-choice rejection and original-position preservation. `KingMoveGeneratorTest` replaces its obsolete castling-exclusion expectation. `CastlingTest` contains ten parameterized test methods; selected cases use `com.chessapp.BoardTestRenderer`. Existing movement, promotion and en passant test sources are unchanged.
+
+Verification: the user reported green tests through the king-safety increment. Final additional boundary tests are present, with no subsequent explicit passing report. No independent tests or builds were run.
+
+Movement remains internal pure Java code. `ChessRules` exposes only `initialPosition()`; `GameService` creates and stores the initial FEN and does not apply moves. Complete legal-move enumeration, outcomes, move history and gameplay integration remain pending. Single-source generation cannot establish checkmate or stalemate. FEN parsing remains structural, Board equality remains identity-based, and repetition requires history. Authorization, transactions, persistence and gameplay concurrency remain service responsibilities. AI and map-versus-array evaluation remain deferred.
