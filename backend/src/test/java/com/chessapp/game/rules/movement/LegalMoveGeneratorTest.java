@@ -796,8 +796,6 @@ class LegalMoveGeneratorTest {
 
     @ParameterizedTest
     @CsvSource({
-            "'k7/6P1/8/8/8/8/8/K7 w - - 0 20', g7",
-            "'7k/8/8/8/8/8/1p6/7K b - - 0 20', b2",
             "'7k/8/8/3pP3/8/8/8/K7 w - d6 0 20', e5",
             "'7k/8/8/8/3Pp3/8/8/K7 b - d3 0 20', e4"
     })

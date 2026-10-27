@@ -136,29 +136,6 @@ class PawnMoveGeneratorTest {
 
     @ParameterizedTest
     @CsvSource({
-            // Available quiet promotion.
-            "'k7/6P1/8/8/8/8/8/K7 w - - 0 20', g7",
-            "'7k/8/8/8/8/8/1p6/7K b - - 0 20', b2",
-
-            // Forward square blocked; promotion capture remains available.
-            "'k5nr/6P1/8/8/8/8/8/K7 w - - 0 20', g7",
-            "'7k/8/8/8/8/8/1p6/Rn5K b - - 0 20', b2"
-    })
-    void rejectsUnsupportedPromotionGeneration(
-            String fen,
-            String from
-    ) {
-        assertThrows(
-                UnsupportedOperationException.class,
-                () -> generator.generate(
-                        parser.parse(fen),
-                        Square.fromAlgebraic(from)
-                )
-        );
-    }
-
-    @ParameterizedTest
-    @CsvSource({
             "'7k/8/8/3pP3/8/8/8/K7 w - d6 0 20', e5",
             "'7k/8/8/8/3Pp3/8/8/K7 b - d3 0 20', e4"
     })

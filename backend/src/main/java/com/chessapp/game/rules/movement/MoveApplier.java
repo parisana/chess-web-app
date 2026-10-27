@@ -55,8 +55,19 @@ public final class MoveApplier {
                 ? Math.incrementExact(position.fullmoveNumber())
                 : position.fullmoveNumber();
 
+        // Candidate membership has established whether promotion is required and whether this exact replacement choice is supported.
+        var destinationPiece = move.promotion()
+                .map(type -> new Piece(movingPiece.color(), type))
+                .orElse(movingPiece);
+
+        var nextBoard = position.board().movePiece(
+                move.from(),
+                move.to(),
+                destinationPiece
+        );
+
         return new ChessPosition(
-                position.board().movePiece(move.from(), move.to()),
+                nextBoard,
                 nextSide,
                 castlingRightsAfterMove(position, move),
                 enPassantTargetAfterMove(move, movingPiece),

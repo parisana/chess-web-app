@@ -61,7 +61,10 @@ public final class BoardTestRenderer {
         String moveList = moves.stream()
                 .map(move -> move.from().toAlgebraic()
                         + "->"
-                        + move.to().toAlgebraic())
+                        + move.to().toAlgebraic()
+                        + move.promotion()
+                        .map(type -> "=" + type.name())
+                        .orElse(""))
                 .sorted()
                 .collect(Collectors.joining(", "));
 

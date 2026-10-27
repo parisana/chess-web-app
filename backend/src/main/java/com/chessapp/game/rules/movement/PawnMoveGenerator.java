@@ -8,11 +8,12 @@ import com.chessapp.game.rules.model.Square;
 
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 /**
  * @author pari on 10/26/26
  * Generates ordinary pawn candidates.
- * Promotion and possible en passant captures fail explicitly.
+ * Possible en passant captures fail explicitly.
  * King safety is checked separately.
  */
 public final class PawnMoveGenerator
@@ -27,7 +28,8 @@ public final class PawnMoveGenerator
      * Advances: require empty squares. The double advance is considered only after the first square is confirmed empty, and only from the starting rank.
      * Captures: inspect the two forward diagonals and accept opposing non-king occupants.
      * Direction: White increases the internal rank; Black decreases it.
-     * Special cases: fail before a partial result can escape.
+     * Special cases: expand promotions into four choices;
+     * possible en passant captures fail before a partial result can escape.
      * */
     @Override
     public Set<Move> generate(ChessPosition position, Square from) {
@@ -68,7 +70,7 @@ public final class PawnMoveGenerator
         var oneStep = new Square(from.file(), nextRank);
 
         if (position.board().pieceAt(oneStep).isEmpty()) {
-            addOrdinaryMove(moves, from, oneStep);
+            addPawnMove(moves, from, oneStep);
 
             // Reaching this branch also establishes a clear intermediate square.
             if (from.rank() == startingRank) {
@@ -78,7 +80,7 @@ public final class PawnMoveGenerator
                 );
 
                 if (position.board().pieceAt(twoSteps).isEmpty()) {
-                    addOrdinaryMove(moves, from, twoSteps);
+                    addPawnMove(moves, from, twoSteps);
                 }
             }
         }
@@ -110,22 +112,30 @@ public final class PawnMoveGenerator
 
             if (occupant.color() != pawn.color()
                     && occupant.type() != PieceType.KING) {
-                addOrdinaryMove(moves, from, to);
+                addPawnMove(moves, from, to);
             }
         }
 
         return Set.copyOf(moves);
     }
 
-    private void addOrdinaryMove(
+    private void addPawnMove(
             Set<Move> moves,
             Square from,
             Square to
     ) {
         if (to.rank() == 0 || to.rank() == 7) {
-            throw new UnsupportedOperationException(
-                    "Promotion move generation is not supported yet"
-            );
+            // Each choice is a separate candidate, including underpromotions.
+            for (var type : new PieceType[] {
+                    PieceType.QUEEN,
+                    PieceType.ROOK,
+                    PieceType.BISHOP,
+                    PieceType.KNIGHT
+            }) {
+                moves.add(new Move(from, to, Optional.of(type)));
+            }
+
+            return;
         }
 
         moves.add(new Move(from, to));

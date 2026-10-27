@@ -32,7 +32,30 @@ public final class Board {
      */
     public Board movePiece(Square from, Square to) {
         Objects.requireNonNull(from, "Source square is required");
+
+        var movingPiece = pieceAt(from)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Source square must contain a piece"
+                ));
+
+        return movePiece(from, to, movingPiece);
+    }
+
+    /**
+     * Relocates a source piece using the supplied destination piece.
+     * The caller owns movement and replacement-rule validation.
+     */
+    public Board movePiece(
+            Square from,
+            Square to,
+            Piece destinationPiece
+    ) {
+        Objects.requireNonNull(from, "Source square is required");
         Objects.requireNonNull(to, "Destination square is required");
+        Objects.requireNonNull(
+                destinationPiece,
+                "Destination piece is required"
+        );
 
         if (from.equals(to)) {
             throw new IllegalArgumentException(
@@ -40,16 +63,17 @@ public final class Board {
             );
         }
 
-        var movingPiece = pieceAt(from)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Source square must contain a piece"
-                ));
+        if (pieceAt(from).isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Source square must contain a piece"
+            );
+        }
 
         var updatedPieces = new HashMap<>(pieces);
         updatedPieces.remove(from);
 
-        // Replacing an existing destination entry represents a capture.
-        updatedPieces.put(to, movingPiece);
+        // Replacing an occupied destination also removes the captured piece.
+        updatedPieces.put(to, destinationPiece);
 
         return new Board(updatedPieces);
     }
