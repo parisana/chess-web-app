@@ -1,6 +1,8 @@
 # Architecture
 
-Reviewed on 26 October 2026 against `chess-web-app-day11-end.zip`. Source inspection confirms the Day 11 ordinary-pawn strategy, shared metadata updates, registration and associated tests. No blocking defect was found in the reviewed changes. The user reports all tests green. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+Reviewed on 27 October 2026 against `chess-web-app-day12-end.zip`. Source inspection confirms explicit promotion choices, candidate generation, immutable replacement, shared metadata handling, renderer updates and associated tests. No blocking defect was found in the reviewed Day 12 changes. The user reports all tests green. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+
+Historical Day 6–11 sections describe those earlier checkpoints. The Day 12 completed-checkpoint section defines the current promotion behavior.
 
 ## Style and ownership
 
@@ -13,7 +15,7 @@ A single Spring Boot application, organized as a modular monolith with feature p
 | `security` | HTTP authentication, password encoding, JWT machinery | Implemented |
 | `common` | Shared timestamps and request validation error handling | Implemented |
 | `matchmaking` | Persistent queue, eligibility, and transactional pairing | Implemented |
-| `game` | Initial state, active-player reservations, participant-protected retrieval and pure Java rules | Persistence/access implemented; guided Day 11 pipeline adds ordinary pawn movement to knight/rook/bishop/queen/ordinary-king support |
+| `game` | Initial state, active-player reservations, participant-protected retrieval and pure Java rules | Persistence/access implemented; Day 12 pipeline supports knight/rook/bishop/queen/ordinary-king/ordinary-pawn moves and explicit promotions |
 | `notification` | Authorized outbound updates | Planned |
 
 Controllers handle transport and delegate. Services coordinate use cases and transaction boundaries. Repositories remain within their owning feature. Cross-feature calls use service operations and DTOs. Concrete services are sufficient; interfaces and mapper frameworks are introduced only when needed.
@@ -171,7 +173,7 @@ JWT subject. GameService permits either participant to read the game,
 returns 404 for a missing game, and rejects nonparticipants with 403.
 The response contains player IDs rather than opponent profile details.
 
-## Day 6 rules foundation
+## Day 6 rules foundation — historical
 
 The source contains pure Java `game.rules` and `game.rules.model` code: `PieceColor`, `PieceType`, immutable `Piece` and `Square` records, an immutable `Board`, `CastlingRights`, and `ChessPosition`. Coordinates run from a1=(0,0) to h8=(7,7). Board owns placement and defensively copies its map with `Map.copyOf`; Piece holds color and type only.
 
@@ -213,7 +215,7 @@ No new migration, endpoint, frontend behavior, move history or persisted gamepla
 | `game.rules.attack` | SquareAttackDetector |
 | `game.config` | Spring bean wiring; outside the pure rules subsystem |
 
-Only initial-position/FEN components are wired into the application. Movement components are constructed directly in unit tests. The guided Day 11 pipeline supports ordinary pawn movement in addition to the five existing piece strategies. LegalMoveGenerator locates the moving side’s king on each resulting board, including when the king relocates. Keep candidate application and king-safety filtering shared.
+Only initial-position/FEN components are wired into the application. Movement components are constructed directly in unit tests. The Day 12 pipeline supports all six piece strategies, including ordinary pawn movement and explicit promotions. LegalMoveGenerator locates the moving side’s king on each resulting board, including when the king relocates. Keep candidate application and king-safety filtering shared.
 
 ## Rules ownership and extension boundary
 
@@ -237,7 +239,7 @@ The Angular frontend has no game API service, game route, or chessboard. It disc
 
 Queue operations acquire the queue advisory lock before queue access, including read-only status requests. This is a deliberate small-system serialization tradeoff. The lock is cooperative; database constraints remain necessary for game-creation callers outside matchmaking.
 
-## Day 8 rook movement and Strategy dispatch
+## Day 8 rook movement and Strategy dispatch — historical
 
 This section supersedes the knight-only limitations in the historical Day 7 section. The described Day 8 implementation is present in the reviewed end checkpoint.
 
@@ -283,9 +285,9 @@ Current boundary: the movement pipeline supports five piece types, including ord
 
 `ChessRules` still exposes only `initialPosition()`. `GameService` creates initial FEN through that boundary and `FenSerializer`; movement is not connected to services or HTTP. No endpoint, migration, frontend behavior, move history or persisted-game behavior changes were introduced in Day 10. Transactions, authorization, persistence and gameplay concurrency remain service responsibilities. FEN validation is structural, Board uses identity equality, repetition needs history, AI is outside the MVP, and map-versus-array evaluation remains deferred.
 
-## Day 11 completed checkpoint — 26 October 2026
+## Day 11 completed checkpoint — historical, 26 October 2026
 
-This section records the changes confirmed in the final Day 11 source and supersedes earlier current-state descriptions that omit pawn support. Historical session sections retain their original scope.
+This historical section records Day 11. The Day 12 section below supersedes its promotion limitations.
 
 - `PawnMoveGenerator` implements `PiecePseudoLegalMoveGenerator` for White and Black. Ordinary candidates include a one-square advance into an empty square, a two-square advance from the starting rank with both squares empty, and captures of opposing non-king pieces on forward diagonals. Empty/opposing sources return no moves; non-pawn sources are rejected. Results are immutable.
 - Available advances or captures reaching a terminal rank throw `UnsupportedOperationException` because promotion is not represented. A pawn already on rank 1 or 8 is rejected with `IllegalArgumentException` when generating for the moving side.
@@ -298,3 +300,27 @@ This section records the changes confirmed in the final Day 11 source and supers
 Verification: the user reports all guided tests green. Source inspection of the final Day 11 archive confirms these changes, with no blocking defect found in the reviewed changes. This does not establish an independently reproduced test run.
 
 The pipeline generates moves for one source and still supports only bounded movement subsets. Promotion, en passant capture execution and castling execution remain unsupported. No complete legal-move enumeration, checkmate/stalemate, history, move endpoint, migration or frontend implementation is added. `ChessRules` exposes only `initialPosition()`; stored games retain their initial FEN. Authorization, transactions, persistence and gameplay concurrency remain service responsibilities. Attack detection includes pinned attackers and attacks on king squares; candidates exclude king captures. FEN parsing remains structural, Board uses identity equality, repetition needs history and AI is outside the MVP.
+
+## Day 12 completed checkpoint — 27 October 2026
+
+Promotion is implemented for both colors, for quiet advances and captures, with explicit queen, rook, bishop and knight choices. Ordinary moves retain the two-argument constructor. No choice defaults to queen.
+
+`Move` validates replacement-type shape. Position-dependent validity is established by exact pseudo-legal candidate membership, including the choice. `MoveApplier` preserves the pawn's color and applies the replacement through an immutable Board operation; `LegalMoveGenerator` checks the moving side's king on the resulting board.
+
+Pawn halfmove resets, Black fullmove increments, turn changes, en passant expiry and captured-corner-rook castling-right removal remain shared. A promoted corner rook never grants castling rights. The test renderer lists promotion choices distinctly.
+
+The user reports all tests green for the final Day 12 archive. Review was by source inspection; no independent tests or builds were run.
+
+Movement remains internal pure Java code. `ChessRules` exposes only `initialPosition()`; `GameService` still stores the initial FEN and does not apply moves. Day 12 changes no HTTP contract, DTO, migration or frontend implementation. En passant capture execution, castling execution, complete legal-move enumeration, outcomes, history and gameplay integration remain pending. A source-specific result cannot establish checkmate or stalemate.
+
+### Promotion responsibilities and failure behavior
+
+- `Move(from, to, Optional<PieceType> promotion)` requires nonnull, distinct squares and a nonnull Optional. Only queen, rook, bishop and knight are accepted as replacement choices. The two-argument constructor uses `Optional.empty()`. Record equality includes the choice.
+- The move value does not inspect a board or prove legality. A missing choice on an available promotion, or a choice attached to an ordinary move, fails `MoveApplier` membership validation with `IllegalArgumentException` when generation completes normally.
+- `PawnMoveGenerator` expands each available terminal-rank advance/capture into four immutable candidates. Blockers, friendly destinations and king-capture exclusions remain enforced before expansion. Moving-side pawns already on rank 1 or 8 remain invalid.
+- `Board.movePiece(from, to, destinationPiece)` copies placement, removes the source and replaces the destination. It requires an occupied source, distinct squares and nonnull inputs. It intentionally does not enforce piece color, pawn movement, promotion ranks or king safety; callers own those rules.
+- `MoveApplier` uses the original pawn for metadata and the chosen replacement for destination placement. Castling-right removal inspects the original position, including any captured rook. Rights are never added.
+- `LegalMoveGenerator` remains shared and unchanged. It requires one king per color and checks the moving side's king against attacks after each candidate is applied. Candidate generation excludes king captures; attack detection includes king-square attacks and pinned attackers.
+- An empty forward diagonal matching the en passant target still throws `UnsupportedOperationException` for the entire source, even if ordinary candidates exist. This is a conservative metadata guard, not captured-pawn validation or proof of legal en passant. Application and filtering propagate it.
+
+FEN parsing remains structural, not proof of legality/reachability. Board equality remains identity-based. Repetition requires history. Authorization, transactions, persistence and gameplay concurrency remain service responsibilities. AI and map-versus-array evaluation remain deferred.

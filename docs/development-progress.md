@@ -1,6 +1,8 @@
 # Development Progress
 
-Reviewed on 26 October 2026 against `chess-web-app-day11-end.zip`. Source inspection confirms the Day 11 ordinary-pawn strategy, shared metadata updates, registration and associated tests. No blocking defect was found in the reviewed changes. The user reports all tests green. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+Reviewed on 27 October 2026 against `chess-web-app-day12-end.zip`. Source inspection confirms explicit promotion choices, candidate generation, immutable replacement, shared metadata handling, renderer updates and associated tests. No blocking defect was found in the reviewed Day 12 changes. The user reports all tests green. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+
+Historical Day 6–11 sections describe those earlier checkpoints. The Day 12 completed-checkpoint section defines the current promotion behavior.
 
 Day numbers identify working sessions and differ from the original 30-working-day schedule. See [roadmap.md](roadmap.md) for planning and [api-contracts.md](api-contracts.md) for endpoint behavior.
 
@@ -23,7 +25,7 @@ Day numbers identify working sessions and differ from the original 30-working-da
 | Discovery | `MATCHED` queue status with game ID; manual Angular status refresh |
 | Game access | Participant-protected `GET /api/v1/games/{gameId}` |
 | Rules foundation | Pure Java immutable representation, separate FEN parser/serializer, initial-position rules boundary |
-| Movement | Knight/rook/bishop/queen/ordinary-king/ordinary-pawn strategies (Day 11 guided changes), shared traversal/application/filtering, resulting-square king safety, irreversible rook/king castling-right removal, centralized test fixtures; all-piece attack detection |
+| Movement | Knight/rook/bishop/queen/ordinary-king/ordinary-pawn strategies and explicit promotions (Day 12), shared traversal/application/filtering, resulting-square king safety, irreversible rook/king castling-right removal, centralized test fixtures; all-piece attack detection |
 
 ## Schema
 
@@ -52,7 +54,7 @@ Backend coverage includes:
 
 The five focused Angular tests in `auth-flow.spec.ts` cover protected bearer attachment, exclusion of external requests, protected 401 cleanup/redirect, profile-load failure cleanup and logout. There is no `app.spec.ts` in this ZIP. No broad frontend component or end-to-end suite is introduced.
 
-Test presence describes coverage. The user reports all tests green for the Day 9 final archive; this review ran no tests.
+Test presence describes coverage. The user reports all tests green for the Day 12 final archive; this review ran no tests.
 
 ## Day 5 username-update increment
 
@@ -71,7 +73,7 @@ Implementation present in the reviewed checkpoint:
 
 These changes are present in the reviewed source. See verification provenance below.
 
-## Day 6 rules foundation
+## Day 6 rules foundation — historical
 
 The source contains pure Java `game.rules` and `game.rules.model` code: `PieceColor`, `PieceType`, immutable `Piece` and `Square` records, an immutable `Board`, `CastlingRights`, and `ChessPosition`. Coordinates run from a1=(0,0) to h8=(7,7). Board owns placement and defensively copies its map with `Map.copyOf`; Piece holds color and type only.
 
@@ -124,9 +126,9 @@ The actual focused test package is `com.chessapp.game.rules.movement`:
 
 ## Verification provenance
 
-Reviewed on 26 October 2026 against `chess-web-app-day11-end.zip`. Source inspection confirms the Day 11 ordinary-pawn strategy, shared metadata updates, registration and associated tests. No blocking defect was found in the reviewed changes. The user reports all tests green. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+Reviewed on 27 October 2026 against `chess-web-app-day12-end.zip`. Source inspection confirms explicit promotion choices, candidate generation, immutable replacement, shared metadata handling, renderer updates and associated tests. No blocking defect was found in the reviewed Day 12 changes. The user reports all tests green. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
 
-The final Day 9 source includes the corrected return-to-corner fixture. The user now reports all tests green for this archive. No separate frontend build/manual outcomes were supplied.
+The Day 12 archive retains earlier regression tests, including the corrected return-to-corner fixture. The current green result is user-reported; no detailed test log or separate frontend build/manual outcomes were supplied.
 
 ### Local verification
 
@@ -168,7 +170,7 @@ Manual smoke checks:
 - No queue expiry or automatic leave on logout.
 - Games begin immediately in `IN_PROGRESS`; no acceptance stage.
 - No cancellation, completion, results or active-reservation release. Matched players therefore remain unavailable for another game through the current APIs.
-- Guided Day 11 adds ordinary pawn moves to the existing five piece strategies; promotion, en passant capture/castling execution, complete legal-move enumeration, outcomes, move endpoint/history, chessboard UI, game page and clocks remain pending.
+- Day 12 supports all six piece strategies and promotions; en passant capture/castling execution, complete legal-move enumeration, outcomes, move endpoint/history, chessboard UI, game page and clocks remain pending.
 - Username updates are supported; email/password changes are not implemented.
 - Concurrent username edits use last-write-wins behavior; no player optimistic locking.
 - Sessions are in memory; browser reload requires login. No refresh tokens, revocation or server-side logout.
@@ -184,7 +186,7 @@ Keep the focus on backend engineering and explain decisions incrementally. Inclu
 
 Evaluate a 64-entry array against map storage after the MVP, or earlier for demonstrated benefits. Preserve Board API. Board identity equality remains a known representation characteristic. Repetition detection needs history beyond FEN.
 
-## Day 8 rook movement and Strategy dispatch
+## Day 8 rook movement and Strategy dispatch — historical
 
 This section supersedes the knight-only limitations in the historical Day 7 section. The described Day 8 implementation is present in the reviewed end checkpoint.
 
@@ -230,9 +232,9 @@ Current boundary: the movement pipeline supports five piece types, including ord
 
 `ChessRules` still exposes only `initialPosition()`. `GameService` creates initial FEN through that boundary and `FenSerializer`; movement is not connected to services or HTTP. No endpoint, migration, frontend behavior, move history or persisted-game behavior changes were introduced in Day 10. Transactions, authorization, persistence and gameplay concurrency remain service responsibilities. FEN validation is structural, Board uses identity equality, repetition needs history, AI is outside the MVP, and map-versus-array evaluation remains deferred.
 
-## Day 11 completed checkpoint — 26 October 2026
+## Day 11 completed checkpoint — historical, 26 October 2026
 
-This section records the changes confirmed in the final Day 11 source and supersedes earlier current-state descriptions that omit pawn support. Historical session sections retain their original scope.
+This historical section records Day 11. The Day 12 section below supersedes its promotion limitations.
 
 - `PawnMoveGenerator` implements `PiecePseudoLegalMoveGenerator` for White and Black. Ordinary candidates include a one-square advance into an empty square, a two-square advance from the starting rank with both squares empty, and captures of opposing non-king pieces on forward diagonals. Empty/opposing sources return no moves; non-pawn sources are rejected. Results are immutable.
 - Available advances or captures reaching a terminal rank throw `UnsupportedOperationException` because promotion is not represented. A pawn already on rank 1 or 8 is rejected with `IllegalArgumentException` when generating for the moving side.
@@ -245,3 +247,31 @@ This section records the changes confirmed in the final Day 11 source and supers
 Verification: the user reports all guided tests green. Source inspection of the final Day 11 archive confirms these changes, with no blocking defect found in the reviewed changes. This does not establish an independently reproduced test run.
 
 The pipeline generates moves for one source and still supports only bounded movement subsets. Promotion, en passant capture execution and castling execution remain unsupported. No complete legal-move enumeration, checkmate/stalemate, history, move endpoint, migration or frontend implementation is added. `ChessRules` exposes only `initialPosition()`; stored games retain their initial FEN. Authorization, transactions, persistence and gameplay concurrency remain service responsibilities. Attack detection includes pinned attackers and attacks on king squares; candidates exclude king captures. FEN parsing remains structural, Board uses identity equality, repetition needs history and AI is outside the MVP.
+
+## Day 12 completed checkpoint — 27 October 2026
+
+Promotion is implemented for both colors, for quiet advances and captures, with explicit queen, rook, bishop and knight choices. Ordinary moves retain the two-argument constructor. No choice defaults to queen.
+
+`Move` validates replacement-type shape. Position-dependent validity is established by exact pseudo-legal candidate membership, including the choice. `MoveApplier` preserves the pawn's color and applies the replacement through an immutable Board operation; `LegalMoveGenerator` checks the moving side's king on the resulting board.
+
+Pawn halfmove resets, Black fullmove increments, turn changes, en passant expiry and captured-corner-rook castling-right removal remain shared. A promoted corner rook never grants castling rights. The test renderer lists promotion choices distinctly.
+
+The user reports all tests green for the final Day 12 archive. Review was by source inspection; no independent tests or builds were run.
+
+Movement remains internal pure Java code. `ChessRules` exposes only `initialPosition()`; `GameService` still stores the initial FEN and does not apply moves. Day 12 changes no HTTP contract, DTO, migration or frontend implementation. En passant capture execution, castling execution, complete legal-move enumeration, outcomes, history and gameplay integration remain pending. A source-specific result cannot establish checkmate or stalemate.
+
+### Day 12 source-confirmed coverage
+
+- `model/MoveTest`: ordinary constructor compatibility, all four allowed choices, pawn/king choice rejection, choice-sensitive set membership, null components and equal-square rejection.
+- `movement/PromotionTest`: both colors, quiet/capture candidates, both capture diagonals, blocked advances, exact four-choice sets and immutable results; all choices applied for both colors and both quiet/capture kinds; missing choices and choices on ordinary pawn/knight moves rejected.
+- FEN assertions cover replacement color/type, source removal, captured-piece replacement, counters, turn changes, en passant expiry, captured-corner-rook rights and absent rights remaining absent after corner-rook promotion. Original positions remain unchanged.
+- King-safety coverage checks safe promotions, rank pins, capture of checking rooks and blocking rook checks for both colors. Selected tests render candidate sets and filtered moves with distinct promotion suffixes.
+- Existing pawn strategy/application/legal-filter tests retain en passant rejection/propagation; obsolete promotion-rejection rows are removed.
+
+Coverage statements describe inspected source, not independently reproduced execution. No detailed test report was supplied. Boundary cases such as missing choices specifically on promotion captures and every invalid Board-overload input are not separately demonstrated by these new tests; they use shared validation paths.
+
+Focused local verification from `backend/` (no database required):
+
+```bash
+./gradlew test --tests 'com.chessapp.game.rules.*'
+```
