@@ -1,6 +1,6 @@
 # Chess Frontend
 
-Reviewed on 27 October 2026 against `chess-web-app-day14-end.zip`. Source inspection confirms standard castling for both colors and both sides, immutable king/rook relocation, castling-specific king-safety filtering and associated tests. No blocking defect was found in the reviewed Day 14 changes. The user reported green tests through the king-safety increment. The final additional boundary tests are present in this archive, but no subsequent passing result was explicitly reported. No independent tests or builds were run.
+Reviewed on 27 October 2026 against `chess-web-app-day15-end.zip`. Source inspection confirms position-wide legal-move enumeration and `NORMAL` / `CHECK` / `CHECKMATE` / `STALEMATE` assessment for the side to move. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after the final guided regressions. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
 
 Angular 21 standalone application with Angular Material, reactive forms and in-memory authentication. Backend calls use relative `/api/v1` URLs.
 
@@ -24,7 +24,11 @@ npm run build
 
 Five focused tests in `src/app/auth/services/auth-flow.spec.ts` cover bearer attachment, external URL exclusion, protected 401 cleanup/redirect, cleanup after profile loading fails, and logout. There is no `app.spec.ts` in this checkpoint. No end-to-end runner is configured.
 
-Green tests were reported through the Day 14 king-safety increment; final additional boundary tests have no subsequent explicit passing report. No independent tests/builds or separate frontend build/manual-check results are recorded.
+The user reports all tests green after the final Day 15 rules regressions. No independent tests/builds or separate frontend build/manual-check results are recorded.
+
+## Day 15 current boundary
+
+Backend rules now support complete legal-move enumeration and normal/check/checkmate/stalemate assessment internally. No frontend implementation, endpoint or response shape changed. There is still no game route, chessboard, move submission or real-time subscription. Persisted games remain at their initial FEN in IN_PROGRESS.
 
 ## Authentication behavior
 
@@ -66,7 +70,7 @@ The user reports all tests green for the final Day 13 archive. Review was by sou
 
 Movement remains internal pure Java code. `ChessRules` exposes only `initialPosition()`; `GameService` still stores the initial FEN and does not apply moves. Day 13 changes no HTTP contract, DTO, migration or frontend implementation. Castling execution, complete legal-move enumeration, outcomes, move history and gameplay integration remain pending. Generation handles a single source; an empty result cannot establish checkmate or stalemate. FEN parsing is structural, not proof of legality or reachability; the implementation does not reconstruct the preceding move from history. Board equality is identity-based, repetition requires history, and authorization, transactions, persistence and gameplay concurrency remain service responsibilities. AI and map-versus-array evaluation remain deferred.
 
-## Day 14 current boundary — 27 October 2026
+## Day 14 boundary — historical, 27 October 2026
 
 Standard castling for both colors and both sides is implemented internally. Candidate generation checks rights and placement; application relocates both pieces; legal filtering checks starting, transit and destination safety. See [architecture.md](../docs/architecture.md) for responsibilities and verification provenance. Day 14 changes no endpoint, DTO, migration or frontend implementation.
 

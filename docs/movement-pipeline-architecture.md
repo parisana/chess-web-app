@@ -1,6 +1,6 @@
-# Movement pipeline architecture — Day 14
+# Movement pipeline architecture — Day 15
 
-This companion to `docs/architecture.md` explains the implementation inspected in `chess-web-app-day14-end.zip` on 27 October 2026. It describes existing code, not a proposed rewrite. Save it as `docs/movement-pipeline-architecture.md` if you want it alongside the main architecture document. No tests or builds were run to produce this explanation.
+This companion to `docs/architecture.md` describes the implementation inspected in `chess-web-app-day15-end.zip` on 27 October 2026. The user reports all tests green after final Day 15 regressions. No tests or builds were run independently for this review.
 
 ## The central idea
 
@@ -15,7 +15,8 @@ These stages are in-process Java calls inside `game.rules`. They are not HTTP re
 | Component | Responsibility | Result |
 | --- | --- | --- |
 | `FenParser` | Convert structural FEN into immutable board and metadata | `ChessPosition` |
-| `LegalMoveGenerator` | Orchestrate single-source generation, require one king per color, enforce own-king safety and castling path safety | Immutable `Set<Move>` |
+| `LegalMoveGenerator` | Generate from one source or across every moving-side piece; validate kings and enforce shared king/castling safety | Immutable `Set<Move>` |
+| `PositionEvaluator` | Combine complete legal replies with current moving-king attack state | `PositionStatus` |
 | `PseudoLegalMoveGenerator` | Select the registered strategy for the source piece type | Strategy-generated `Set<Move>` |
 | `PawnMoveGenerator` | Enumerate pawn movement using geometry, occupancy, side to move and special-move metadata | Pseudo-legal candidates |
 | `MoveApplier` | Validate exact candidate membership and construct the resulting placement and metadata | New `ChessPosition` |
@@ -95,7 +96,7 @@ var moves = legalGenerator.generate(
 );
 ```
 
-`MovementTestFixtures` is a package-private test helper, not a production service or Spring bean. The pure movement components currently run through direct construction in tests.
+`MovementTestFixtures` is a public test-only helper with public factories so movement and evaluation tests can share construction; it is not a production service or Spring bean. The pure movement components currently run through direct construction in tests.
 
 `LegalMoveGenerator` checks that both colors have exactly one king before generating candidates. This prevents incomplete or ambiguous king placement from being accepted for legal filtering; it does not prove full position legality or reachability.
 
@@ -214,11 +215,21 @@ Ordinary king safety on the completed board cannot establish whether the king st
 
 Pinned attackers still count in attack detection. The queenside b-file must be empty, but it is not a king transit square. An attacked rook does not itself forbid castling.
 
+## Position-wide enumeration and assessment
+
+`generate(position)` validates one king per color, scans all 64 squares and combines `generateForSource(position, from)` results for moving-side pieces. The source-specific public overload uses the same private body. Every trial starts from the original position; the input is never advanced during enumeration. Both public results are immutable sets.
+
+`PositionEvaluator.evaluate(position)` obtains the complete reply set before assessing the current board. It locates the validated moving king and asks SquareAttackDetector whether the opponent attacks that square. Available replies mean NORMAL or CHECK; no replies mean STALEMATE or CHECKMATE, depending on current check. Generation failures propagate rather than becoming an empty reply set.
+
+Example: `7k/8/8/8/8/8/PP3N2/K6r w - - 0 20` has White in check from h1. The king on a1 cannot move, but Nf2-d1 blocks and Nf2-h1 captures. These are exactly the two legal replies, so the assessment is CHECK. A king-only or knight-only subset cannot generally establish a terminal position.
+
+NORMAL means safe with at least one legal reply within the implemented assessment. It does not rule out repetition, move-count draws or dead positions. PositionStatus is separate from persisted GameStatus.
+
 ## Current boundaries
 
-- This pipeline generates moves for one source. Empty results cannot establish checkmate or stalemate; position-wide enumeration is proposed Day 15 work.
+- Both single-source and position-wide generation are available. Only the complete reply set combined with current check establishes checkmate or stalemate; other draw rules remain outside assessment.
 - `ChessRules` currently exposes only `initialPosition()`. `GameService` does not call movement, and games still store their initial FEN. There is no move-submission endpoint in this checkpoint.
 - Future gameplay services must own authorization, transactions, persistence and concurrency. A caller must enforce legal-move membership before accepting a gameplay move; direct `MoveApplier.apply()` is insufficient.
 - `FenParser` validates structure, not historical reachability. FEN alone cannot establish repetition.
 - `Board` has identity equality. Compare square contents or canonical FEN for content assertions.
-- No code or test behavior was changed for this explanation.
+- This document describes inspected Day 15 behavior; updating the explanation changes no production or test sources.

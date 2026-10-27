@@ -1,8 +1,29 @@
 # Architecture
 
-Reviewed on 27 October 2026 against `chess-web-app-day14-end.zip`. Source inspection confirms standard castling for both colors and both sides, immutable king/rook relocation, castling-specific king-safety filtering and associated tests. No blocking defect was found in the reviewed Day 14 changes. The user reported green tests through the king-safety increment. The final additional boundary tests are present in this archive, but no subsequent passing result was explicitly reported. No independent tests or builds were run.
+Reviewed on 27 October 2026 against `chess-web-app-day15-end.zip`. Source inspection confirms position-wide legal-move enumeration and `NORMAL` / `CHECK` / `CHECKMATE` / `STALEMATE` assessment for the side to move. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after the final guided regressions. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
 
-Historical Day 6–13 sections describe earlier checkpoints. The Day 14 section defines current castling behavior; Day 13 defines en passant behavior and supersedes earlier unsupported-en-passant descriptions.
+Historical Day 6–14 sections describe earlier checkpoints. The Day 15 section defines current enumeration and assessment behavior. Day 14 remains authoritative for castling and Day 13 for en passant; historical statements that enumeration or assessment are pending are superseded.
+
+## Day 15 implementation — current checkpoint
+
+`LegalMoveGenerator` now has two public operations: `generate(position, from)` for one source and `generate(position)` for every piece belonging to the side to move. Both require exactly one king per color before generation. The position-wide operation scans all 64 squares, evaluates each moving-side source against the same original position, and returns an immutable `Set<Move>`. It preserves promotion choices through Move equality.
+
+Both entry points use private `generateForSource()`. Input king-count validation runs once per public call; the existing resulting-board king lookup/check remains per candidate. Castling still checks the original starting square, king-only transit board and completed destination board. Candidate generation, exact pseudo-legal application and all-piece attack detection retain their previous responsibilities.
+
+`game.rules.evaluation.PositionEvaluator` first obtains the complete legal set. Generation failures propagate; an invalid position or an unsupported own-piece type must not become a terminal assessment. After king-count validation succeeds, the evaluator locates the moving king and checks attacks on the current board through `SquareAttackDetector`. It does not apply a reply to decide whether the input is check.
+
+| Moving king attacked? | Legal replies available? | PositionStatus |
+| --- | --- | --- |
+| No | Yes | NORMAL |
+| Yes | Yes | CHECK |
+| Yes | No | CHECKMATE |
+| No | No | STALEMATE |
+
+`findMovingKing()` relies on the preceding generator validation. Its `IllegalStateException` represents a broken internal assumption, rather than the normal invalid-input path. The evaluator assumes an otherwise valid standard-chess position; it does not establish reachability. `NORMAL` does not establish the absence of other draw conditions.
+
+The public test-only `MovementTestFixtures` and its two factory methods now support reuse from the evaluation test package. No production Spring wiring was added.
+
+Position-wide enumeration and position assessment are implemented internally. `generate(position, from)` remains source-specific; its empty result alone cannot determine an outcome. `generate(position)` collects all moving-side legal moves, and `PositionEvaluator` combines reply availability with current-board attack detection. `PositionStatus` is a rules assessment, separate from persisted `GameStatus`. `ChessRules` still exposes only `initialPosition()`; `GameService` still stores the initial FEN and does not apply moves. There is no move-submission endpoint, move history, terminal persisted lifecycle or active-reservation release. Repetition, move-count draws, dead-position detection, clocks, resignation and agreement are not evaluated. Authorization, transactions, persistence and gameplay concurrency remain service responsibilities. FEN parsing is structural, Board equality is identity-based, and repetition requires history. AI and map-versus-array evaluation remain deferred.
 
 ## Style and ownership
 
@@ -15,7 +36,7 @@ A single Spring Boot application, organized as a modular monolith with feature p
 | `security` | HTTP authentication, password encoding, JWT machinery | Implemented |
 | `common` | Shared timestamps and request validation error handling | Implemented |
 | `matchmaking` | Persistent queue, eligibility, and transactional pairing | Implemented |
-| `game` | Initial state, active-player reservations, participant-protected retrieval and pure Java rules | Persistence/access implemented; Day 14 pipeline supports all six strategies, explicit promotions, en passant and standard castling |
+| `game` | Initial state, active-player reservations, participant-protected retrieval and pure Java rules | Persistence/access implemented; all six strategies, promotion, en passant, castling, complete legal-move enumeration and position assessment; gameplay integration pending |
 | `notification` | Authorized outbound updates | Planned |
 
 Controllers handle transport and delegate. Services coordinate use cases and transaction boundaries. Repositories remain within their owning feature. Cross-feature calls use service operations and DTOs. Concrete services are sufficient; interfaces and mapper frameworks are introduced only when needed.
@@ -213,9 +234,10 @@ No new migration, endpoint, frontend behavior, move history or persisted gamepla
 | `game.rules.fen` | FenParser and FenSerializer |
 | `game.rules.movement` | PiecePseudoLegalMoveGenerator strategies for knight/rook/bishop/queen/king/pawn, SlidingRayTraversal, PseudoLegalMoveGenerator dispatcher, shared MoveApplier and LegalMoveGenerator |
 | `game.rules.attack` | SquareAttackDetector |
+| `game.rules.evaluation` | PositionEvaluator and PositionStatus for the side to move |
 | `game.config` | Spring bean wiring; outside the pure rules subsystem |
 
-Only initial-position/FEN components are wired into the application. Movement components are constructed directly in unit tests. The Day 14 pipeline supports all six piece strategies, including pawn movement, explicit promotions, en passant and standard castling. LegalMoveGenerator locates the moving side’s king on each resulting board, including when the king relocates. Keep candidate application and king-safety filtering shared.
+Only initial-position/FEN components are wired into the application. Movement and evaluation components are constructed directly in unit tests. The Day 14 pipeline supports all six piece strategies, including pawn movement, explicit promotions, en passant and standard castling. LegalMoveGenerator locates the moving side’s king on each resulting board, including when the king relocates. Keep candidate application and king-safety filtering shared.
 
 ## Rules ownership and extension boundary
 
@@ -356,7 +378,7 @@ White may capture `e5` to `d6`, removing the Black pawn from `d5`, provided its 
 
 The target is metadata, not proof of a valid capture. Generation checks the local geometry and placement listed above, while legal filtering checks resulting-board king safety. It does not prove historical reachability or validate the preceding pawn's starting square or the halfmove clock as a complete position-consistency policy. Parser structural checks, including permitted target ranks, remain unchanged.
 
-## Day 14 completed implementation — 27 October 2026
+## Day 14 implementation — historical, 27 October 2026
 
 Standard castling is implemented for both colors and both sides. Candidates require the matching castling right, the king on e1/e8, a same-color rook on its original corner, and an empty intervening path. Inconsistent rights/placement omit the affected candidate while ordinary moves remain available. Rights are historical metadata; local placement checks do not reconstruct move history or distinguish a promoted rook from an original rook.
 

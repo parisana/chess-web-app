@@ -2,7 +2,7 @@
 
 A portfolio project built as a modular monolith: package-by-feature with conventional layers, keeping `Player` terminology. Cross-feature interactions use services. This project implements its own pure Java chess rules; AI is outside the MVP.
 
-Reviewed on 27 October 2026 against `chess-web-app-day14-end.zip`. Source inspection confirms standard castling for both colors and both sides, immutable king/rook relocation, castling-specific king-safety filtering and associated tests. No blocking defect was found in the reviewed Day 14 changes. The user reported green tests through the king-safety increment. The final additional boundary tests are present in this archive, but no subsequent passing result was explicitly reported. No independent tests or builds were run.
+Reviewed on 27 October 2026 against `chess-web-app-day15-end.zip`. Source inspection confirms position-wide legal-move enumeration and `NORMAL` / `CHECK` / `CHECKMATE` / `STALEMATE` assessment for the side to move. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after the final guided regressions. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
 
 ## Stack
 
@@ -16,6 +16,7 @@ Reviewed on 27 October 2026 against `chess-web-app-day14-end.zip`. Source inspec
 - Persistent matchmaking queue, transactional pairing, active-player reservations, manual matched-game discovery and participant-protected game retrieval.
 - Immutable chess representation, separate FEN parser/serializer and a `ChessRules.initialPosition()` boundary used by game creation.
 - Strategy-based knight, rook, bishop, queen, king (including standard castling), pawn, explicit promotion and en passant candidates; shared sliding traversal, candidate application and king-safety filtering.
+- Position-wide legal-move enumeration and current-side normal/check/checkmate/stalemate assessment.
 - Attack detection for all six piece types, including pinned attackers. Resulting-board king safety handles relocation and captures. Moving kings and moving/captured corner rooks remove affected castling rights permanently.
 
 ## Run locally
@@ -60,11 +61,11 @@ npm test -- --watch=false
 npm run build
 ```
 
-These are local commands, not independently executed verification. Green tests were reported through the Day 14 king-safety increment; the final additional boundary tests have been inspected but have no subsequent explicit passing report. No separate frontend build result is recorded.
+These are local commands, not independently executed verification. The user reports all tests green after the final Day 15 regressions. No detailed test log or separate frontend build result was supplied.
 
 ## Current boundaries
 
-Movement is internal pure Java code and is not connected to `GameService` or HTTP. Games still store their initial FEN. Complete legal-move enumeration, outcomes, move history, gameplay concurrency handling, clocks, real-time delivery and chessboard UI remain pending. Generation handles a single source and cannot establish checkmate or stalemate.
+Position-wide enumeration and position assessment are implemented internally. `generate(position, from)` remains source-specific; its empty result alone cannot determine an outcome. `generate(position)` collects all moving-side legal moves, and `PositionEvaluator` combines reply availability with current-board attack detection. `PositionStatus` is a rules assessment, separate from persisted `GameStatus`. `ChessRules` still exposes only `initialPosition()`; `GameService` still stores the initial FEN and does not apply moves. There is no move-submission endpoint, move history, terminal persisted lifecycle or active-reservation release. Repetition, move-count draws, dead-position detection, clocks, resignation and agreement are not evaluated. Authorization, transactions, persistence and gameplay concurrency remain service responsibilities. FEN parsing is structural, Board equality is identity-based, and repetition requires history. AI and map-versus-array evaluation remain deferred.
 
 The parser validates structure, not full legality/reachability. Board uses identity equality; compare contents explicitly. Repetition requires history beyond FEN. Authorization, transactions, persistence and concurrency belong to services. Evaluating a 64-entry array while preserving the Board API remains deferred.
 
@@ -77,6 +78,8 @@ Queue pairing runs on join; the frontend refreshes manually. Games begin immedia
 - [Roadmap](docs/roadmap.md)
 - [API contracts](docs/api-contracts.md)
 - [Frontend setup and behavior](frontend/README.md)
+- [Movement pipeline walkthrough](docs/movement-pipeline-architecture.md)
+- [Day 16 handoff](docs/day16-handoff.md)
 
 ## Day 13 completed checkpoint — historical, 27 October 2026
 
@@ -92,7 +95,7 @@ The user reports all tests green for the final Day 13 archive. Review was by sou
 
 Movement remains internal pure Java code. `ChessRules` exposes only `initialPosition()`; `GameService` still stores the initial FEN and does not apply moves. Day 13 changes no HTTP contract, DTO, migration or frontend implementation. Castling execution, complete legal-move enumeration, outcomes, move history and gameplay integration remain pending. Generation handles a single source; an empty result cannot establish checkmate or stalemate. FEN parsing is structural, not proof of legality or reachability; the implementation does not reconstruct the preceding move from history. Board equality is identity-based, repetition requires history, and authorization, transactions, persistence and gameplay concurrency remain service responsibilities. AI and map-versus-array evaluation remain deferred.
 
-## Day 14 completed implementation — 27 October 2026
+## Day 14 implementation — historical, 27 October 2026
 
 Standard castling is implemented for both colors and both sides. Candidates require the matching castling right, the king on e1/e8, a same-color rook on its original corner, and an empty intervening path. Inconsistent rights/placement omit the affected candidate while ordinary moves remain available. Rights are historical metadata; local placement checks do not reconstruct move history or distinguish a promoted rook from an original rook.
 
@@ -105,3 +108,9 @@ Source-confirmed coverage includes all four relocations and resulting FENs, ordi
 Verification: the user reported green tests through the king-safety increment. Final additional boundary tests are present, with no subsequent explicit passing report. No independent tests or builds were run.
 
 Movement remains internal pure Java code. `ChessRules` exposes only `initialPosition()`; `GameService` creates and stores the initial FEN and does not apply moves. Complete legal-move enumeration, outcomes, move history and gameplay integration remain pending. Single-source generation cannot establish checkmate or stalemate. FEN parsing remains structural, Board equality remains identity-based, and repetition requires history. Authorization, transactions, persistence and gameplay concurrency remain service responsibilities. AI and map-versus-array evaluation remain deferred.
+
+## Day 15 completed checkpoint — 27 October 2026
+
+Reviewed on 27 October 2026 against `chess-web-app-day15-end.zip`. Source inspection confirms position-wide legal-move enumeration and `NORMAL` / `CHECK` / `CHECKMATE` / `STALEMATE` assessment for the side to move. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after the final guided regressions. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+
+Position-wide enumeration reuses the existing single-source filtering body. Position assessment examines the current king and the complete reply set; the persisted game lifecycle is unchanged. See the architecture and development-progress documents for responsibilities and inspected coverage.

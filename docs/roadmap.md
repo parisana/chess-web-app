@@ -1,10 +1,10 @@
 # Roadmap
 
-Reviewed on 27 October 2026 against `chess-web-app-day14-end.zip`. Source inspection confirms standard castling for both colors and both sides, immutable king/rook relocation, castling-specific king-safety filtering and associated tests. No blocking defect was found in the reviewed Day 14 changes. The user reported green tests through the king-safety increment. The final additional boundary tests are present in this archive, but no subsequent passing result was explicitly reported. No independent tests or builds were run.
+Reviewed on 27 October 2026 against `chess-web-app-day15-end.zip`. Source inspection confirms position-wide legal-move enumeration and `NORMAL` / `CHECK` / `CHECKMATE` / `STALEMATE` assessment for the side to move. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after the final guided regressions. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
 
 ## Working-session numbering
 
-Working Days 1–14 identify actual development sessions and differ from the original 30-working-day estimate. Earlier work completed some planned later capabilities early. This page records implemented sessions and remaining capabilities; it does not establish a new complete 30-day schedule.
+Working Days 1–15 identify actual development sessions and differ from the original 30-working-day estimate. Earlier work completed some planned later capabilities early. This page records implemented sessions and remaining capabilities; it does not establish a new complete 30-day schedule.
 
 ## Completed working sessions
 
@@ -22,8 +22,9 @@ Working Days 1–14 identify actual development sessions and differ from the ori
 | Day 12 | Explicit promotion choices, quiet/capture generation, immutable replacement, shared king safety/metadata and renderer/test updates; source reviewed; user reports green tests |
 | Day 13 | En passant generation, immutable off-destination capture, defensive metadata handling, expiry and king-safety tests; source reviewed; user reports green tests |
 | Day 14 | Standard castling for both colors/sides, immutable two-piece application, staged king safety and boundary tests; final source reviewed; green tests reported through king-safety increment |
+| Day 15 | Complete legal-move enumeration, shared filtering, current-side position assessment, cross-package test fixtures and both-color special-move/check-escape regressions; source reviewed; user reports all tests green |
 
-The Day 14 source completes standard castling alongside promotion and en passant. Source review found no blocking defect in the reviewed changes. Green tests were reported through the king-safety increment; final additional boundary tests have no subsequent explicit passing report. Tests/builds were not run independently.
+The Day 15 source adds complete enumeration and check/checkmate/stalemate assessment on top of the Day 14 movement pipeline. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after final regressions. No tests/builds were run independently.
 
 ## Original-plan reconciliation
 
@@ -33,23 +34,23 @@ Earlier planning placed security around original Day 5, connected login/profile/
 
 King movement is one square in all eight directions. Shared filtering examines the moving side's king on each resulting board. A king move removes both rights for that color; returning never restores them. Tests cover both colors, attacks after vacating the source, king adjacency, captures, pinned attackers, pawn/knight attack directions, metadata and existing-piece regressions.
 
-Castling execution, pawn movement, outcomes and service/HTTP integration were excluded from Day 10. Pawn movement and promotion subsequently arrived in Days 11–12, en passant in Day 13 and standard castling in Day 14. Outcomes and service/HTTP integration remain pending.
+Castling execution, pawn movement, outcomes and service/HTTP integration were excluded from Day 10. Pawn movement and promotion subsequently arrived in Days 11–12, en passant in Day 13 and standard castling in Day 14. Position assessment arrived in Day 15; persisted outcomes and service/HTTP integration remain pending.
 
-## Proposed next increment — Day 15
+## Proposed next increment — Day 16
 
-Complete legal-move enumeration and position status are the proposed next bounded milestone. Review the Day 14 source and documentation first.
+Expose a legality-enforcing pure rules boundary before service/HTTP integration. Review the current source before finalizing operation names and return types.
 
-- Add a position-wide operation that aggregates legal moves from every piece belonging to the side to move, reusing the existing pipeline.
-- Determine whether that side is in check using the existing attack detector.
-- Distinguish available legal moves, checkmate (in check with no legal moves) and stalemate (not in check with no legal moves).
-- Cover both colors, ordinary and special moves in aggregation, check escapes, checkmate and stalemate with coherent FEN fixtures.
-- Keep the current single-source API usable; choose names and validation responsibilities after source review.
+- Extend the application-owned ChessRules interface and StandardChessRules implementation with complete legal-move lookup, legal move application and position assessment as appropriate to the immediate use case.
+- Accept a move only when its exact value, including promotion choice, belongs to the legal set. Direct MoveApplier membership is pseudo-legal and does not establish king safety.
+- Reuse the existing generators, applier and evaluator; wire their construction behind the rules boundary without duplicating movement algorithms.
+- Add focused facade tests for ordinary and special moves, rejected unsafe/promotion proposals, metadata and original-position preservation. Preserve existing initial-position construction and game creation.
+- Keep HTTP, persistence/history, concurrent gameplay updates and reservation release for a later bounded milestone.
 
-This is planning, not implemented behavior. Repetition, move-count draw rules, dead-position detection, resignation, agreement, clocks and persisted game completion require separate scope decisions. Service/HTTP integration and reservation release remain later work.
+This is proposed scope, not implemented behavior. See [day16-handoff.md](day16-handoff.md).
 
 ## Remaining capabilities to schedule
 
-- Complete legal-move enumeration and game outcomes.
+- Legality-enforcing application rules boundary and any selected remaining draw rules.
 - Server-authoritative gameplay commands, persistence/history and concurrent-update handling.
 - Game lifecycle/results and safe active-reservation release.
 - Chessboard/game UI and clocks, where selected for the MVP.
@@ -77,7 +78,7 @@ The user reports all tests green for the final Day 13 archive. Review was by sou
 
 Movement remains internal pure Java code. `ChessRules` exposes only `initialPosition()`; `GameService` still stores the initial FEN and does not apply moves. Day 13 changes no HTTP contract, DTO, migration or frontend implementation. Castling execution, complete legal-move enumeration, outcomes, move history and gameplay integration remain pending. Generation handles a single source; an empty result cannot establish checkmate or stalemate. FEN parsing is structural, not proof of legality or reachability; the implementation does not reconstruct the preceding move from history. Board equality is identity-based, repetition requires history, and authorization, transactions, persistence and gameplay concurrency remain service responsibilities. AI and map-versus-array evaluation remain deferred.
 
-## Day 14 current boundary — 27 October 2026
+## Day 14 boundary — historical, 27 October 2026
 
 Standard castling for both colors and both sides is implemented internally. Candidate generation checks rights and placement; application relocates both pieces; legal filtering checks starting, transit and destination safety. See [architecture.md](architecture.md) for responsibilities and verification provenance. Day 14 changes no endpoint, DTO, migration or frontend implementation.
 
