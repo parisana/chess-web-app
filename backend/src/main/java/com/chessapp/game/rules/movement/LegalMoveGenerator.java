@@ -36,14 +36,16 @@ public final class LegalMoveGenerator {
     }
 
     /**
-     * Filters movement candidates using king safety.
-     * Currently, generates moves for a single supported piece source square;
-     * an empty result does not establish checkmate or stalemate.
-     * The algorithm is:
-     1. Generate candidates.
-     2. Apply each candidate.
-     3. Reject candidates that leave the moving side’s king attacked.
-     * */
+     * Generates legal moves for one supported source square.
+     * An empty result does not establish checkmate or stalemate.
+
+     * Algorithm:
+     * 1. Require exactly one king per color.
+     * 2. Generate pseudo-legal candidates.
+     * 3. For castling, reject attacked starting or transit squares.
+     * 4. Apply each remaining candidate.
+     * 5. Reject candidates whose resulting board leaves the moving king attacked.
+     */
     public Set<Move> generate(ChessPosition position, Square from) {
         Objects.requireNonNull(position, "Position is required");
         Objects.requireNonNull(from, "Source square is required");
@@ -60,6 +62,10 @@ public final class LegalMoveGenerator {
         Set<Move> legalMoves = new HashSet<>();
 
         for (var move : moveGenerator.generate(position, from)) {
+            if (isCastlingMove(position, move)
+                    && !isCastlingPathSafe(position, move, opposingColor)) {
+                continue;
+            }
             var candidate = moveApplier.apply(position, move);
 
             // King moves change its square; other moves preserve its location.
@@ -79,6 +85,58 @@ public final class LegalMoveGenerator {
         }
 
         return Set.copyOf(legalMoves);
+    }
+
+    /**
+     * Identifies castling among already validated pseudo-legal candidates.
+     */
+    private boolean isCastlingMove(ChessPosition position, Move move) {
+        var movingPiece = position.board()
+                .pieceAt(move.from())
+                .orElseThrow();
+
+        return movingPiece.type() == PieceType.KING
+                && Math.abs(move.to().file() - move.from().file()) == 2;
+    }
+
+    /**
+     * Checks the starting and transit squares of a castling candidate.
+     * Called only for castling; destination safety uses the shared final-board check.
+     */
+    private boolean isCastlingPathSafe(
+            ChessPosition position,
+            Move move,
+            PieceColor opposingColor
+    ) {
+        // Castling cannot be used to escape check.
+        if (attackDetector.isAttacked(
+                position.board(),
+                move.from(),
+                opposingColor
+        )) {
+            return false;
+        }
+
+        int direction = Integer.signum(
+                move.to().file() - move.from().file()
+        );
+
+        var transitSquare = new Square(
+                move.from().file() + direction,
+                move.from().rank()
+        );
+
+        // Check transit with the king's source vacated and the rook unmoved.
+        var transitBoard = position.board().movePiece(
+                move.from(),
+                transitSquare
+        );
+
+        return !attackDetector.isAttacked(
+                transitBoard,
+                transitSquare,
+                opposingColor
+        );
     }
 
     /**

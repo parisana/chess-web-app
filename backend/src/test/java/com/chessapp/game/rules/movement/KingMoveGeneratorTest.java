@@ -125,12 +125,21 @@ class KingMoveGeneratorTest {
     }
 
     @Test
-    void doesNotGenerateCastlingEvenWhenRightsExist() {
-        assertEquals(
-                Set.of("d1", "f1", "d2", "e2", "f2"),
-                destinations(
-                        "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 20",
-                        "e1"
+    void generatesBothCastlingSidesAlongsideOrdinaryKingMoves() {
+        assertAll(
+                () -> assertEquals(
+                        Set.of("c1", "d1", "f1", "g1", "d2", "e2", "f2"),
+                        destinations(
+                                "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 20",
+                                "e1"
+                        )
+                ),
+                () -> assertEquals(
+                        Set.of("c8", "d8", "f8", "g8", "d7", "e7", "f7"),
+                        destinations(
+                                "r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 20",
+                                "e8"
+                        )
                 )
         );
     }

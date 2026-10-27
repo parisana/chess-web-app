@@ -21,7 +21,7 @@ public final class MoveApplier {
     /**
      * Applies supported pseudo-legal candidates without checking king safety.
      * Updates placement, turns, counters, en passant metadata and castling rights.
-     * Unsupported special moves remain the registered strategies' responsibility.
+     * Castling relocates both pieces; its attack restrictions belong to legal filtering.
      */
     public ChessPosition apply(ChessPosition position, Move move) {
         Objects.requireNonNull(position, "Position is required");
@@ -84,6 +84,22 @@ public final class MoveApplier {
             );
 
             nextBoard = nextBoard.removePiece(capturedSquare);
+        }
+
+        // Membership has established a standard castling candidate:
+        // the king starts on e1/e8, the path is empty and the rook exists.
+        boolean isCastling = movingPiece.type() == PieceType.KING
+                && Math.abs(move.to().file() - move.from().file()) == 2;
+
+        if (isCastling) {
+            boolean kingSide = move.to().file() > move.from().file();
+            int rank = move.from().rank();
+
+            var rookFrom = new Square(kingSide ? 7 : 0, rank);
+            var rookTo = new Square(kingSide ? 5 : 3, rank);
+
+            // king-movement is already handled above
+            nextBoard = nextBoard.movePiece(rookFrom, rookTo);
         }
 
         return new ChessPosition(
