@@ -1,10 +1,10 @@
 # Day 16 closing checks
 
-These are newly proposed after the user's green-test report for increments 1–2. Their presence and passing status have not yet been confirmed. No tests or builds were run independently. Add the tests locally, then run the commands below. This file adds no production scope.
+Both checks below are present in chess-web-app-day16-end.zip, inspected on 28 October 2026. The user's green-test report predates their addition; no later explicit passing report is recorded. No tests or builds were run independently. The code below is retained as implementation reference; do not add duplicate tests. This file adds no production scope.
 
 ## 1. Facade propagation of king-count validation
 
-Add to the existing `backend/src/test/java/com/chessapp/game/rules/StandardChessRulesTest.java`. The parameterized imports and two-argument move helper already exist from the guided increments.
+Present in `backend/src/test/java/com/chessapp/game/rules/StandardChessRulesTest.java`. The parameterized imports and two-argument move helper already exist from the guided increments.
 
 ```java
 @ParameterizedTest
@@ -41,7 +41,7 @@ The knight proposal is ordinary in shape. Each operation must propagate king-cou
 
 ## 2. Exercise production construction without PostgreSQL
 
-Create `backend/src/test/java/com/chessapp/game/config/GameRulesConfigTest.java`:
+Present in `backend/src/test/java/com/chessapp/game/config/GameRulesConfigTest.java`:
 
 ```java
 package com.chessapp.game.config;
@@ -133,4 +133,4 @@ With the configured PostgreSQL test database available, preserve the existing ga
 ./gradlew test --tests 'com.chessapp.game.GameCreationIntegrationTest'
 ```
 
-Apply the seven accompanying document replacements at their project-relative paths. The handoff is `docs/day17-handoff.md`. Final Day 16 source review still requires the updated source archive; do not infer inspected source or passing closing checks from the documentation files alone.
+Apply the seven accompanying document replacements at their project-relative paths. The handoff is `docs/day17-handoff.md`. The final Day 16 archive has now been source-reviewed; the later closing-test passing status remains unreported. Source inspection does not establish test execution.

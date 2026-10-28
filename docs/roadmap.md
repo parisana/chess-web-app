@@ -1,12 +1,12 @@
 # Roadmap
 
-Updated 28 October 2026 for the guided Day 16 implementation. The user reports all tests green after increments 1–2, including facade special-move and assessment regressions. The available source archive is the Day 15 checkpoint; the final Day 16 source has not yet been supplied for inspection. No tests or builds were run independently, and no detailed test log or separate frontend build result was supplied. The closing validation/wiring checks in [day16-closing-checks.md](day16-closing-checks.md) are newly proposed and have no passing report yet.
+Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
 
-The Day 16 section describes the guided implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
+The Day 16 section describes the inspected implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
 
-## Day 16 guided milestone
+## Day 16 source-reviewed milestone
 
-The legality-enforcing pure rules facade has been guided through implementation and special-move/assessment regressions. The user reports all tests green through increments 1–2. Final source inspection and newly proposed closing checks remain outstanding.
+The legality-enforcing pure rules facade, special-move/assessment regressions and both closing checks are present in the reviewed Day 16 source. No blocking defect was found in these changes. The user reports all tests green through increments 1–2; a later passing report for the closing checks is not yet recorded.
 
 `ChessRules` exposes `initialPosition()`, `legalMoves(position)`, `applyMove(position, move)` and `evaluate(position)`. Lookup returns the complete immutable legal set. Application requires exact membership in that set, including the promotion choice, before delegating to `MoveApplier`. Assessment returns `PositionStatus` for the side to move. The existing pipeline remains shared; no per-piece application services or duplicate movement algorithms are introduced.
 
@@ -14,7 +14,7 @@ The legality-enforcing pure rules facade has been guided through implementation 
 
 ## Next milestone decision
 
-Select the next integration milestone separately after reviewing the final Day 16 source. Server-authoritative gameplay will require an explicit service/HTTP contract, authorization and turn ownership, persistence/history policy, concurrent-command handling, and a decision about terminal lifecycle/reservation release. This document does not authorize or implement that integration or assign it automatically to Day 17.
+Select the next integration milestone separately, using the reviewed Day 16 source as the baseline. Server-authoritative gameplay will require an explicit service/HTTP contract, authorization and turn ownership, persistence/history policy, concurrent-command handling, and a decision about terminal lifecycle/reservation release. This document does not authorize or implement that integration or assign it automatically to Day 17.
 
 Remaining work also includes any explicitly selected draw rules, game UI, real-time delivery and queue lifecycle improvements. No additional draw rules are silently included with the facade.
 
@@ -22,7 +22,7 @@ Historical Day 15 source-review provenance: reviewed on 27 October 2026 against 
 
 ## Working-session numbering
 
-Working Days 1–15 identify actual development sessions and differ from the original 30-working-day estimate. Earlier work completed some planned later capabilities early. This page records implemented sessions and remaining capabilities; it does not establish a new complete 30-day schedule.
+Working Days 1–16 identify actual development sessions and differ from the original 30-working-day estimate. Earlier work completed some planned later capabilities early. This page records implemented sessions and remaining capabilities; it does not establish a new complete 30-day schedule.
 
 ## Completed working sessions
 
@@ -41,6 +41,7 @@ Working Days 1–15 identify actual development sessions and differ from the ori
 | Day 13 | En passant generation, immutable off-destination capture, defensive metadata handling, expiry and king-safety tests; source reviewed; user reports green tests |
 | Day 14 | Standard castling for both colors/sides, immutable two-piece application, staged king safety and boundary tests; final source reviewed; green tests reported through king-safety increment |
 | Day 15 | Complete legal-move enumeration, shared filtering, current-side position assessment, cross-package test fixtures and both-color special-move/check-escape regressions; source reviewed; user reports all tests green |
+| Day 16 | Legality-enforcing rules facade, production wiring, facade special-move/assessment regressions and closing validation/configuration tests; source reviewed; green tests reported through increment 2, closing-test run not explicitly reported |
 
 The Day 15 source adds complete enumeration and check/checkmate/stalemate assessment on top of the Day 14 movement pipeline. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after final regressions. No tests/builds were run independently.
 
@@ -56,7 +57,7 @@ Castling execution, pawn movement, outcomes and service/HTTP integration were ex
 
 ## Remaining capabilities to schedule
 
-- Final source review of the guided rules facade; any remaining draw rules require a separate scope decision.
+- Any remaining draw rules require a separate scope decision; the Day 16 rules facade is source-reviewed.
 - Server-authoritative gameplay commands, persistence/history and concurrent-update handling.
 - Game lifecycle/results and safe active-reservation release.
 - Chessboard/game UI and clocks, where selected for the MVP.

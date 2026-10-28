@@ -1,8 +1,8 @@
 # API Contracts
 
-Updated 28 October 2026 for the guided Day 16 implementation. The user reports all tests green after increments 1–2, including facade special-move and assessment regressions. The available source archive is the Day 15 checkpoint; the final Day 16 source has not yet been supplied for inspection. No tests or builds were run independently, and no detailed test log or separate frontend build result was supplied. The closing validation/wiring checks in [day16-closing-checks.md](day16-closing-checks.md) are newly proposed and have no passing report yet.
+Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
 
-The Day 16 section describes the guided implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
+The Day 16 section describes the inspected implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
 
 ## Day 16 current boundary
 
