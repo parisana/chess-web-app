@@ -89,6 +89,7 @@ Repetition, move-count draws, dead-position detection, clocks, resignation and a
 - [Movement pipeline walkthrough](docs/movement-pipeline-architecture.md)
 - [Day 17 handoff](docs/day17-handoff.md)
 - [Day 16 closing checks](docs/day16-closing-checks.md)
+- [Post-Day-16 source review and proposed integration scope](docs/post-day16-integration-proposal.md) — proposal only; gameplay implementation awaits a separate scope decision.
 
 ## Day 13 completed checkpoint — historical, 27 October 2026
 

@@ -6,6 +6,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+import java.util.Objects;
+
 /**
  * @author pari on 10/22/26
  */
@@ -31,6 +34,17 @@ public class Game extends BaseEntity {
 
     @Column(name = "current_fen", nullable = false, columnDefinition = "text")
     private String currentFen;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private GameResult result;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "termination_reason", length = 30)
+    private GameTerminationReason terminationReason;
+
+    @Column(name = "finished_at")
+    private Instant finishedAt;
 
     @Version
     @Column(nullable = false)
@@ -62,11 +76,79 @@ public class Game extends BaseEntity {
         this.currentFen = initialFen;
     }
 
+    /**
+     * Updates placement and metadata already validated by the rules boundary.
+     */
+    public void updatePosition(String fen) {
+        requireInProgress();
+
+        if (fen == null || fen.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Current FEN must not be blank"
+            );
+        }
+
+        currentFen = fen;
+    }
+
+    /**
+     * Records a supported completion without evaluating chess rules here.
+     */
+    public void finish(
+            GameResult result,
+            GameTerminationReason reason,
+            Instant finishedAt
+    ) {
+        requireInProgress();
+
+        Objects.requireNonNull(result, "Game result is required");
+        Objects.requireNonNull(reason, "Termination reason is required");
+        Objects.requireNonNull(finishedAt, "Finish time is required");
+
+        validateResult(result, reason);
+
+        // Validate everything before changing any completion field.
+        this.result = result;
+        this.terminationReason = reason;
+        this.finishedAt = finishedAt;
+        this.status = GameStatus.FINISHED;
+    }
+
+    private void requireInProgress() {
+        if (status != GameStatus.IN_PROGRESS) {
+            throw new IllegalStateException(
+                    "Finished games cannot change"
+            );
+        }
+    }
+
     private static void requireValidPlayerId(Long playerId) {
         if (playerId == null || playerId <= 0) {
             throw new IllegalArgumentException(
                     "Player ID must be positive"
             );
+        }
+    }
+
+    private static void validateResult(
+            GameResult result,
+            GameTerminationReason reason
+    ) {
+        switch (reason) {
+            case CHECKMATE -> {
+                if (result == GameResult.DRAW) {
+                    throw new IllegalArgumentException(
+                            "Checkmate requires a winner"
+                    );
+                }
+            }
+            case STALEMATE -> {
+                if (result != GameResult.DRAW) {
+                    throw new IllegalArgumentException(
+                            "Stalemate requires a draw"
+                    );
+                }
+            }
         }
     }
 }

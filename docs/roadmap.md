@@ -14,6 +14,8 @@ The legality-enforcing pure rules facade, special-move/assessment regressions an
 
 ## Next milestone decision
 
+The [post-Day-16 source review and integration proposal](post-day16-integration-proposal.md) recommends service move application with concurrency protection first, terminal lifecycle and reservation release together next, then HTTP. Move history is a separate milestone. This is a recommendation awaiting the user's scope decision, not an implemented or authorized Day 17 milestone.
+
 Select the next integration milestone separately, using the reviewed Day 16 source as the baseline. Server-authoritative gameplay will require an explicit service/HTTP contract, authorization and turn ownership, persistence/history policy, concurrent-command handling, and a decision about terminal lifecycle/reservation release. This document does not authorize or implement that integration or assign it automatically to Day 17.
 
 Remaining work also includes any explicitly selected draw rules, game UI, real-time delivery and queue lifecycle improvements. No additional draw rules are silently included with the facade.

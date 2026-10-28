@@ -35,6 +35,14 @@ public class ActiveGamePlayerRepository {
         );
     }
 
+    public int releasePlayers(Long gameId) {
+        // Scope by game so an old command cannot release a later game's players.
+        return jdbcTemplate.update(
+                "DELETE FROM active_game_players WHERE game_id = ?",
+                gameId
+        );
+    }
+
     public Optional<Long> findGameIdByPlayerId(Long playerId) {
         return jdbcTemplate.query("""
                 SELECT game_id
