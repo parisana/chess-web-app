@@ -1,6 +1,14 @@
 # Chess Frontend
 
-Reviewed on 27 October 2026 against `chess-web-app-day15-end.zip`. Source inspection confirms position-wide legal-move enumeration and `NORMAL` / `CHECK` / `CHECKMATE` / `STALEMATE` assessment for the side to move. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after the final guided regressions. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+Updated 28 October 2026 for the guided Day 16 implementation. The user reports all tests green after increments 1–2, including facade special-move and assessment regressions. The available source archive is the Day 15 checkpoint; the final Day 16 source has not yet been supplied for inspection. No tests or builds were run independently, and no detailed test log or separate frontend build result was supplied. The closing validation/wiring checks in [day16-closing-checks.md](../docs/day16-closing-checks.md) are newly proposed and have no passing report yet.
+
+The Day 16 section describes the guided implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
+
+## Day 16 current boundary
+
+Backend rules are now exposed through a legality-enforcing pure Java facade as guided in this session. There is no frontend implementation or HTTP contract change. Games still persist only their initial FEN in IN_PROGRESS. No game route, chessboard, move submission or real-time subscription is added. Existing frontend verification remains unchanged; no separate frontend build result is claimed.
+
+Historical Day 15 source-review provenance: reviewed on 27 October 2026 against `chess-web-app-day15-end.zip`. Source inspection confirms position-wide legal-move enumeration and `NORMAL` / `CHECK` / `CHECKMATE` / `STALEMATE` assessment for the side to move. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after the final guided regressions. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
 
 Angular 21 standalone application with Angular Material, reactive forms and in-memory authentication. Backend calls use relative `/api/v1` URLs.
 
@@ -26,7 +34,7 @@ Five focused tests in `src/app/auth/services/auth-flow.spec.ts` cover bearer att
 
 The user reports all tests green after the final Day 15 rules regressions. No independent tests/builds or separate frontend build/manual-check results are recorded.
 
-## Day 15 current boundary
+## Day 15 boundary — historical
 
 Backend rules now support complete legal-move enumeration and normal/check/checkmate/stalemate assessment internally. No frontend implementation, endpoint or response shape changed. There is still no game route, chessboard, move submission or real-time subscription. Persisted games remain at their initial FEN in IN_PROGRESS.
 

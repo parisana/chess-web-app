@@ -1,6 +1,24 @@
 # Roadmap
 
-Reviewed on 27 October 2026 against `chess-web-app-day15-end.zip`. Source inspection confirms position-wide legal-move enumeration and `NORMAL` / `CHECK` / `CHECKMATE` / `STALEMATE` assessment for the side to move. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after the final guided regressions. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+Updated 28 October 2026 for the guided Day 16 implementation. The user reports all tests green after increments 1–2, including facade special-move and assessment regressions. The available source archive is the Day 15 checkpoint; the final Day 16 source has not yet been supplied for inspection. No tests or builds were run independently, and no detailed test log or separate frontend build result was supplied. The closing validation/wiring checks in [day16-closing-checks.md](day16-closing-checks.md) are newly proposed and have no passing report yet.
+
+The Day 16 section describes the guided implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
+
+## Day 16 guided milestone
+
+The legality-enforcing pure rules facade has been guided through implementation and special-move/assessment regressions. The user reports all tests green through increments 1–2. Final source inspection and newly proposed closing checks remain outstanding.
+
+`ChessRules` exposes `initialPosition()`, `legalMoves(position)`, `applyMove(position, move)` and `evaluate(position)`. Lookup returns the complete immutable legal set. Application requires exact membership in that set, including the promotion choice, before delegating to `MoveApplier`. Assessment returns `PositionStatus` for the side to move. The existing pipeline remains shared; no per-piece application services or duplicate movement algorithms are introduced.
+
+`GameService` still calls only `initialPosition()` and serializes it for creation. Games remain at their initial FEN in `IN_PROGRESS`. Move submission, persistence/history, gameplay concurrency, terminal lifecycle and active-reservation release remain pending. No endpoint, DTO, migration or frontend implementation changes in Day 16. Authorization, transactions, persistence and concurrency remain service responsibilities.
+
+## Next milestone decision
+
+Select the next integration milestone separately after reviewing the final Day 16 source. Server-authoritative gameplay will require an explicit service/HTTP contract, authorization and turn ownership, persistence/history policy, concurrent-command handling, and a decision about terminal lifecycle/reservation release. This document does not authorize or implement that integration or assign it automatically to Day 17.
+
+Remaining work also includes any explicitly selected draw rules, game UI, real-time delivery and queue lifecycle improvements. No additional draw rules are silently included with the facade.
+
+Historical Day 15 source-review provenance: reviewed on 27 October 2026 against `chess-web-app-day15-end.zip`. Source inspection confirms position-wide legal-move enumeration and `NORMAL` / `CHECK` / `CHECKMATE` / `STALEMATE` assessment for the side to move. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after the final guided regressions. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
 
 ## Working-session numbering
 
@@ -36,21 +54,9 @@ King movement is one square in all eight directions. Shared filtering examines t
 
 Castling execution, pawn movement, outcomes and service/HTTP integration were excluded from Day 10. Pawn movement and promotion subsequently arrived in Days 11–12, en passant in Day 13 and standard castling in Day 14. Position assessment arrived in Day 15; persisted outcomes and service/HTTP integration remain pending.
 
-## Proposed next increment — Day 16
-
-Expose a legality-enforcing pure rules boundary before service/HTTP integration. Review the current source before finalizing operation names and return types.
-
-- Extend the application-owned ChessRules interface and StandardChessRules implementation with complete legal-move lookup, legal move application and position assessment as appropriate to the immediate use case.
-- Accept a move only when its exact value, including promotion choice, belongs to the legal set. Direct MoveApplier membership is pseudo-legal and does not establish king safety.
-- Reuse the existing generators, applier and evaluator; wire their construction behind the rules boundary without duplicating movement algorithms.
-- Add focused facade tests for ordinary and special moves, rejected unsafe/promotion proposals, metadata and original-position preservation. Preserve existing initial-position construction and game creation.
-- Keep HTTP, persistence/history, concurrent gameplay updates and reservation release for a later bounded milestone.
-
-This is proposed scope, not implemented behavior. See [day16-handoff.md](day16-handoff.md).
-
 ## Remaining capabilities to schedule
 
-- Legality-enforcing application rules boundary and any selected remaining draw rules.
+- Final source review of the guided rules facade; any remaining draw rules require a separate scope decision.
 - Server-authoritative gameplay commands, persistence/history and concurrent-update handling.
 - Game lifecycle/results and safe active-reservation release.
 - Chessboard/game UI and clocks, where selected for the MVP.
@@ -62,7 +68,7 @@ Acceptance, cancellation, rating filters and expiry require an explicit scope de
 
 ## Engineering constraints
 
-Keep the modular monolith, Player terminology and cross-feature service boundaries. The rules package remains free of Spring/JPA/HTTP concerns. `ChessRules` still exposes only `initialPosition()`; no service applies moves. Single-source generation cannot determine checkmate/stalemate. Candidate generation excludes king captures; attack detection includes pinned attackers. FEN is structural state, not proof of reachability or repetition history. Preserve useful comments, coherent FEN fixtures, selected board renderings, minimal frontend testing and user-managed secrets/configuration.
+Keep the modular monolith, Player terminology and cross-feature service boundaries. The rules package remains free of Spring/JPA/HTTP concerns. `ChessRules` now exposes the four guided facade operations; no application service applies moves. Single-source generation cannot determine checkmate/stalemate. Candidate generation excludes king captures; attack detection includes pinned attackers. FEN is structural state, not proof of reachability or repetition history. Preserve useful comments, coherent FEN fixtures, selected board renderings, minimal frontend testing and user-managed secrets/configuration.
 
 ## Day 13 completed checkpoint — historical, 27 October 2026
 

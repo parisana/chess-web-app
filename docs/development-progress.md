@@ -1,8 +1,42 @@
 # Development Progress
 
-Reviewed on 27 October 2026 against `chess-web-app-day15-end.zip`. Source inspection confirms position-wide legal-move enumeration and `NORMAL` / `CHECK` / `CHECKMATE` / `STALEMATE` assessment for the side to move. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after the final guided regressions. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+Updated 28 October 2026 for the guided Day 16 implementation. The user reports all tests green after increments 1–2, including facade special-move and assessment regressions. The available source archive is the Day 15 checkpoint; the final Day 16 source has not yet been supplied for inspection. No tests or builds were run independently, and no detailed test log or separate frontend build result was supplied. The closing validation/wiring checks in [day16-closing-checks.md](day16-closing-checks.md) are newly proposed and have no passing report yet.
 
-Historical Day 6–14 sections describe earlier checkpoints. The Day 15 sections define current enumeration and assessment. Earlier pending/unsupported descriptions apply only to their historical checkpoints.
+The Day 16 section describes the guided implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
+
+## Day 16 guided implementation and verification
+
+`ChessRules` exposes `initialPosition()`, `legalMoves(position)`, `applyMove(position, move)` and `evaluate(position)`. Lookup returns the complete immutable legal set. Application requires exact membership in that set, including the promotion choice, before delegating to `MoveApplier`. Assessment returns `PositionStatus` for the side to move. The existing pipeline remains shared; no per-piece application services or duplicate movement algorithms are introduced.
+
+`GameService` still calls only `initialPosition()` and serializes it for creation. Games remain at their initial FEN in `IN_PROGRESS`. Move submission, persistence/history, gameplay concurrency, terminal lifecycle and active-reservation release remain pending. No endpoint, DTO, migration or frontend implementation changes in Day 16. Authorization, transactions, persistence and concurrency remain service responsibilities.
+
+Production guidance changes ChessRules, StandardChessRules and GameRulesConfig. Existing StandardChessRulesTest retains its starting-placement and metadata tests, updates facade construction through MovementTestFixtures, and exercises the new public operations.
+
+Coverage guided through increment 2, for which the user reports all tests green:
+
+- Complete immutable opening lookup, NORMAL assessment, ordinary e2-e4 application and original FEN preservation.
+- A pinned knight proposal that is pseudo-legal but rejected by legal lookup and facade application.
+- All four castling relocations with complete resulting FENs; en passant for both colors; quiet/capture promotions with all four replacement types represented across selected cases.
+- Castling rejected while in check, through check and into check; unsafe en passant rejected for both colors after rank blockers disappear.
+- Missing promotion choices for quiet/capture cases in both colors; extra choices on ordinary pawn moves, en passant and castling.
+- All four assessments for both colors and original-position preservation. Selected pinned-knight moves are rendered by BoardTestRenderer.
+
+The facade tests do not independently exercise every replacement type for every promotion geometry; lower-level existing promotion tests provide that broader matrix. Coverage statements above describe the guidance plus the user's passing report, not inspection of the final Day 16 files or an independent run.
+
+Closing checks proposed separately: facade propagation of missing-king validation at lookup/application/evaluation, and a database-free GameRulesConfigTest constructing the production bean graph. Their presence and passing status await the next source checkpoint/report. See [day16-closing-checks.md](day16-closing-checks.md).
+
+Focused local commands from backend/:
+
+```bash
+./gradlew test --tests 'com.chessapp.game.rules.*'
+./gradlew test --tests 'com.chessapp.game.config.GameRulesConfigTest'
+```
+
+The second command is separate because game.config is outside the rules test package. With the configured PostgreSQL test database, existing GameCreationIntegrationTest verifies initial game persistence through the wired boundary. No independent database run or separate Day 16 integration result is claimed.
+
+Historical Day 15 source-review provenance: reviewed on 27 October 2026 against `chess-web-app-day15-end.zip`. Source inspection confirms position-wide legal-move enumeration and `NORMAL` / `CHECK` / `CHECKMATE` / `STALEMATE` assessment for the side to move. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after the final guided regressions. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+
+Historical Day 6–15 sections describe earlier checkpoints. Day 16 defines the guided facade and Day 15 records its enumeration/assessment foundation. Earlier pending/unsupported descriptions apply only to their historical checkpoints.
 
 Day numbers identify working sessions and differ from the original 30-working-day schedule. See [roadmap.md](roadmap.md) for planning and [api-contracts.md](api-contracts.md) for endpoint behavior.
 
@@ -24,11 +58,11 @@ Day numbers identify working sessions and differ from the original 30-working-da
 | Atomicity | Game creation, both reservations and removal of paired queue entries commit or roll back together |
 | Discovery | `MATCHED` queue status with game ID; manual Angular status refresh |
 | Game access | Participant-protected `GET /api/v1/games/{gameId}` |
-| Rules foundation | Pure Java immutable representation, separate FEN parser/serializer, initial-position rules boundary |
+| Rules foundation | Pure Java immutable representation, separate FEN parser/serializer, initial-position/legal-lookup/legal-application/assessment rules facade (guided Day 16) |
 | Movement | Knight/rook/bishop/queen/king/pawn strategies, explicit promotions, en passant and standard castling (Day 14), shared traversal/application/filtering, resulting-square king safety, irreversible rook/king castling-right removal, centralized test fixtures; all-piece attack detection |
 | Position assessment | Complete moving-side enumeration; NORMAL, CHECK, CHECKMATE and STALEMATE; no persisted lifecycle change |
 
-## Day 15 implementation — current checkpoint
+## Day 15 implementation — historical foundation
 
 `LegalMoveGenerator` now has two public operations: `generate(position, from)` for one source and `generate(position)` for every piece belonging to the side to move. Both require exactly one king per color before generation. The position-wide operation scans all 64 squares, evaluates each moving-side source against the same original position, and returns an immutable `Set<Move>`. It preserves promotion choices through Move equality.
 
@@ -200,7 +234,7 @@ Manual smoke checks:
 - No queue expiry or automatic leave on logout.
 - Games begin immediately in `IN_PROGRESS`; no acceptance stage.
 - No cancellation, completion, results or active-reservation release. Matched players therefore remain unavailable for another game through the current APIs.
-- Rules support all six strategies, promotions, en passant, castling, complete legal-move enumeration and current-side assessment. A legality-enforcing application facade, move endpoint/history, persisted terminal lifecycle, chessboard UI, game page and clocks remain pending.
+- Rules support all six strategies, promotions, en passant, castling, complete legal-move enumeration and current-side assessment. The facade has been guided in Day 16; move endpoint/history, persisted terminal lifecycle, chessboard UI, game page and clocks remain pending.
 - Repetition, move-count draws, dead-position detection, resignation and agreement are not evaluated.
 - Username updates are supported; email/password changes are not implemented.
 - Concurrent username edits use last-write-wins behavior; no player optimistic locking.

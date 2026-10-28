@@ -1,10 +1,35 @@
 # Architecture
 
-Reviewed on 27 October 2026 against `chess-web-app-day15-end.zip`. Source inspection confirms position-wide legal-move enumeration and `NORMAL` / `CHECK` / `CHECKMATE` / `STALEMATE` assessment for the side to move. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after the final guided regressions. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+Updated 28 October 2026 for the guided Day 16 implementation. The user reports all tests green after increments 1–2, including facade special-move and assessment regressions. The available source archive is the Day 15 checkpoint; the final Day 16 source has not yet been supplied for inspection. No tests or builds were run independently, and no detailed test log or separate frontend build result was supplied. The closing validation/wiring checks in [day16-closing-checks.md](day16-closing-checks.md) are newly proposed and have no passing report yet.
 
-Historical Day 6–14 sections describe earlier checkpoints. The Day 15 section defines current enumeration and assessment behavior. Day 14 remains authoritative for castling and Day 13 for en passant; historical statements that enumeration or assessment are pending are superseded.
+The Day 16 section describes the guided implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
 
-## Day 15 implementation — current checkpoint
+## Day 16 rules facade
+
+`ChessRules` exposes `initialPosition()`, `legalMoves(position)`, `applyMove(position, move)` and `evaluate(position)`. Lookup returns the complete immutable legal set. Application requires exact membership in that set, including the promotion choice, before delegating to `MoveApplier`. Assessment returns `PositionStatus` for the side to move. The existing pipeline remains shared; no per-piece application services or duplicate movement algorithms are introduced.
+
+`GameService` still calls only `initialPosition()` and serializes it for creation. Games remain at their initial FEN in `IN_PROGRESS`. Move submission, persistence/history, gameplay concurrency, terminal lifecycle and active-reservation release remain pending. No endpoint, DTO, migration or frontend implementation changes in Day 16. Authorization, transactions, persistence and concurrency remain service responsibilities.
+
+| ChessRules operation | Delegate | Contract |
+| --- | --- | --- |
+| initialPosition() | FenParser with the existing initial FEN | Preserve standard initial placement and metadata |
+| legalMoves(position) | LegalMoveGenerator.generate(position) | Complete immutable Set<Move> for the side to move |
+| applyMove(position, move) | Legal membership, then MoveApplier.apply | Reject unsafe proposals; return a new ChessPosition |
+| evaluate(position) | PositionEvaluator.evaluate(position) | NORMAL, CHECK, CHECKMATE or STALEMATE |
+
+`StandardChessRules` uses Lombok `@RequiredArgsConstructor` and `@NonNull` for its parser, legal generator, applier and evaluator dependencies. `GameRulesConfig.chessRules()` creates one dispatcher registering all six piece strategies, one applier and attack detector, then the legal generator and evaluator. It passes these collaborators into the facade. Internal movement/evaluation objects do not require individual Spring beans. FenParser and FenSerializer remain beans; Spring configuration stays in game.config.
+
+Application algorithm: require nonnull position/move; enumerate the complete legal set from the original input; reject a proposal absent from that set with IllegalArgumentException; delegate to the existing applier. Move record equality includes the promotion choice. Legal generation supplies king safety and staged castling safety; direct pseudo-legal application alone is insufficient. Validation/generation failures propagate without becoming empty reply sets or outcomes.
+
+Accepted application repeats candidate work already performed during legal enumeration. This preserves existing validation contracts. No caching, validation-skipping application path or combined result DTO is introduced. Evaluation remains a separate operation; it is not automatically performed after application.
+
+Rules calls assume an otherwise valid standard-chess position. King-count validation and structural FEN parsing do not prove historical reachability. Board equality is identity-based; compare content or FEN. PositionStatus is separate from persisted GameStatus; NORMAL does not exclude other draw conditions. Repetition, move-count draws, dead positions, clocks, resignation, agreement, AI and board-storage evaluation remain outside this increment.
+
+Historical Day 15 source-review provenance: reviewed on 27 October 2026 against `chess-web-app-day15-end.zip`. Source inspection confirms position-wide legal-move enumeration and `NORMAL` / `CHECK` / `CHECKMATE` / `STALEMATE` assessment for the side to move. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after the final guided regressions. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+
+Historical Day 6–15 sections describe earlier checkpoints. The Day 16 section defines the current guided facade; Day 15 describes its enumeration and assessment foundation. Day 14 remains authoritative for castling and Day 13 for en passant; historical statements that enumeration or assessment are pending are superseded.
+
+## Day 15 implementation — historical foundation
 
 `LegalMoveGenerator` now has two public operations: `generate(position, from)` for one source and `generate(position)` for every piece belonging to the side to move. Both require exactly one king per color before generation. The position-wide operation scans all 64 squares, evaluates each moving-side source against the same original position, and returns an immutable `Set<Move>`. It preserves promotion choices through Move equality.
 
@@ -237,7 +262,7 @@ No new migration, endpoint, frontend behavior, move history or persisted gamepla
 | `game.rules.evaluation` | PositionEvaluator and PositionStatus for the side to move |
 | `game.config` | Spring bean wiring; outside the pure rules subsystem |
 
-Only initial-position/FEN components are wired into the application. Movement and evaluation components are constructed directly in unit tests. The Day 14 pipeline supports all six piece strategies, including pawn movement, explicit promotions, en passant and standard castling. LegalMoveGenerator locates the moving side’s king on each resulting board, including when the king relocates. Keep candidate application and king-safety filtering shared.
+GameRulesConfig now constructs movement/evaluation collaborators behind ChessRules. Focused unit tests also construct them directly. The Day 14 pipeline supports all six piece strategies, including pawn movement, explicit promotions, en passant and standard castling. LegalMoveGenerator locates the moving side’s king on each resulting board, including when the king relocates. Keep candidate application and king-safety filtering shared.
 
 ## Rules ownership and extension boundary
 

@@ -1,4 +1,27 @@
-# Movement pipeline architecture — Day 15
+# Movement pipeline architecture — Day 16
+
+Updated 28 October 2026 for the guided Day 16 implementation. The user reports all tests green after increments 1–2, including facade special-move and assessment regressions. The available source archive is the Day 15 checkpoint; the final Day 16 source has not yet been supplied for inspection. No tests or builds were run independently, and no detailed test log or separate frontend build result was supplied. The closing validation/wiring checks in [day16-closing-checks.md](day16-closing-checks.md) are newly proposed and have no passing report yet.
+
+The Day 16 section describes the guided implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
+
+## Day 16 application entry point
+
+`ChessRules` exposes `initialPosition()`, `legalMoves(position)`, `applyMove(position, move)` and `evaluate(position)`. Lookup returns the complete immutable legal set. Application requires exact membership in that set, including the promotion choice, before delegating to `MoveApplier`. Assessment returns `PositionStatus` for the side to move. The existing pipeline remains shared; no per-piece application services or duplicate movement algorithms are introduced.
+
+`GameService` still calls only `initialPosition()` and serializes it for creation. Games remain at their initial FEN in `IN_PROGRESS`. Move submission, persistence/history, gameplay concurrency, terminal lifecycle and active-reservation release remain pending. No endpoint, DTO, migration or frontend implementation changes in Day 16. Authorization, transactions, persistence and concurrency remain service responsibilities.
+
+The original walkthrough below explains the lower-level pipeline inspected in Day 15. Day 16 adds a facade around it:
+
+1. A caller supplies the original ChessPosition and a proposed Move to ChessRules.applyMove().
+2. StandardChessRules asks LegalMoveGenerator for the complete legal set. Candidate application and attack filtering still run as described below.
+3. Exact set membership checks source, destination and optional promotion choice. A missing choice is not replaced with queen.
+4. Only an accepted proposal is delegated to MoveApplier for the returned position. Both successful and rejected operations preserve the input.
+
+StandardChessRules.legalMoves() delegates complete enumeration, and evaluate() delegates current-side assessment. Application does not automatically evaluate its result or persist it. Current application services still use initialPosition() only.
+
+GameRulesConfig assembles the six-strategy dispatcher, shared applier/detector, legal generator and evaluator behind the facade. MovementTestFixtures remains public test-only infrastructure, reused for facade tests as well as movement/evaluation tests. Internal classes remain usable directly for focused unit tests; future gameplay callers must enter through the legality-enforcing boundary.
+
+The accepted proposal is applied again after legal enumeration. This preserves the applier's direct-caller validation contract. The facade adds no alternative movement or metadata algorithm.
 
 This companion to `docs/architecture.md` describes the implementation inspected in `chess-web-app-day15-end.zip` on 27 October 2026. The user reports all tests green after final Day 15 regressions. No tests or builds were run independently for this review.
 
@@ -96,7 +119,7 @@ var moves = legalGenerator.generate(
 );
 ```
 
-`MovementTestFixtures` is a public test-only helper with public factories so movement and evaluation tests can share construction; it is not a production service or Spring bean. The pure movement components currently run through direct construction in tests.
+`MovementTestFixtures` is a public test-only helper with public factories so movement and evaluation tests can share construction; it is not a production service or Spring bean. Tests construct the movement components directly; Day 16 production construction is described above.
 
 `LegalMoveGenerator` checks that both colors have exactly one king before generating candidates. This prevents incomplete or ambiguous king placement from being accepted for legal filtering; it does not prove full position legality or reachability.
 
@@ -228,8 +251,8 @@ NORMAL means safe with at least one legal reply within the implemented assessmen
 ## Current boundaries
 
 - Both single-source and position-wide generation are available. Only the complete reply set combined with current check establishes checkmate or stalemate; other draw rules remain outside assessment.
-- `ChessRules` currently exposes only `initialPosition()`. `GameService` does not call movement, and games still store their initial FEN. There is no move-submission endpoint in this checkpoint.
-- Future gameplay services must own authorization, transactions, persistence and concurrency. A caller must enforce legal-move membership before accepting a gameplay move; direct `MoveApplier.apply()` is insufficient.
+- `ChessRules` now exposes initial position, legal lookup/application and assessment. `GameService` still calls only initialPosition(), and games still store their initial FEN. There is no move-submission endpoint.
+- Future gameplay services must own authorization, transactions, persistence and concurrency. Gameplay callers should use ChessRules.applyMove(), which enforces legal membership; direct MoveApplier.apply() is insufficient.
 - `FenParser` validates structure, not historical reachability. FEN alone cannot establish repetition.
 - `Board` has identity equality. Compare square contents or canonical FEN for content assertions.
 - This document describes inspected Day 15 behavior; updating the explanation changes no production or test sources.
