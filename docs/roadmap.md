@@ -1,5 +1,28 @@
 # Roadmap
 
+## Day 18 current checkpoint — HTTP gameplay
+
+Authenticated POST /api/v1/games/{gameId}/moves now delegates to the existing
+GameService command using JWT-derived Player identity. SubmitMoveRequest
+validates request shape before conversion into Move. Specific gameplay
+rejections have game-owned HTTP status/code mappings.
+
+GameResponse.from(game) maps participant-protected reads, now including
+version, result, terminationReason and finishedAt. Successful move commands
+return the existing GameMoveResult.
+
+The HTTP tests cover committed commands, POST/GET agreement, authentication,
+validation, failure precedence, special moves and terminal results/release.
+Tests are treated as green under the user's standing instruction; no
+independent tests/builds or final Day 18 archive review are claimed.
+
+No migration, runtime configuration, rules implementation or frontend
+implementation changes are included. History, frontend gameplay, real-time
+delivery, clocks and disconnect policy remain pending.
+
+See [Day 18 HTTP gameplay](day18-http-gameplay.md) for the contract and coverage.
+Earlier checkpoint sections describe historical boundaries.
+
 ## Day 17 current checkpoint — source-reviewed, 28 October 2026
 
 Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` against `chess-web-app-day16-end.zip`. No blocking defect was found in the reviewed Day 17 production/test changes. Tests are treated as green under the user's standing instruction to report failures; this is user-provided verification context, not an independent run or a detailed per-command log. No tests, builds or migrations were run by the assistant, and no separate frontend build result is claimed.
@@ -26,13 +49,11 @@ The legality-enforcing pure rules facade, special-move/assessment regressions an
 
 ## Next milestone decision
 
-The user selected the larger service option from the [post-Day-16 proposal](post-day16-integration-proposal.md): move application, concurrency, terminal lifecycle and reservation release together. The actual Day 17 implementation has now been source-reviewed; tests are treated as green under the user's standing instruction, with no independent run.
+HTTP gameplay is implemented. The backend now supports reading current
+state, submitting a versioned move and observing completion over HTTP.
 
-A candidate next larger milestone is authenticated HTTP move submission plus coherent game reads exposing version/results, validation/error contracts and relevant HTTP tests. Select that scope separately. History is separate unless explicitly selected; HTTP/history changes are not authorized by this documentation update.
-
-Remaining work also includes any explicitly selected draw rules, game UI, real-time delivery and queue lifecycle improvements. No additional draw rules are silently included with the facade.
-
-Historical Day 15 source-review provenance: reviewed on 27 October 2026 against `chess-web-app-day15-end.zip`. Source inspection confirms position-wide legal-move enumeration and `NORMAL` / `CHECK` / `CHECKMATE` / `STALEMATE` assessment for the side to move. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after the final guided regressions. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
+Select the next milestone separately. Candidates include a minimal frontend
+gameplay workflow, move history, or authenticated real-time delivery.
 
 ## Working-session numbering
 
@@ -57,6 +78,7 @@ Working Days 1–17 identify actual development sessions and differ from the ori
 | Day 15 | Complete legal-move enumeration, shared filtering, current-side position assessment, cross-package test fixtures and both-color special-move/check-escape regressions; source reviewed; user reports all tests green |
 | Day 16 | Legality-enforcing rules facade, production wiring, facade special-move/assessment regressions and closing tests; source reviewed; historical passing evidence described above |
 | Day 17 | GameService move commands, exact legal application, version protection, checkmate/stalemate results, atomic reservation release, V6 and entity/unit/PostgreSQL test sources; source-reviewed, green status per standing user instruction |
+| Day 18 | JWT-derived HTTP move submission, validated requests, version/result-bearing reads, game-owned error contracts and HTTP integration coverage |
 
 The Day 15 source adds complete enumeration and check/checkmate/stalemate assessment on top of the Day 14 movement pipeline. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after final regressions. No tests/builds were run independently.
 

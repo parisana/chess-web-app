@@ -57,7 +57,7 @@ public class GameService {
             throw new GameAccessDeniedException();
         }
 
-        return toResponse(game);
+        return GameResponse.from(game);
     }
 
     @Transactional
@@ -91,7 +91,7 @@ public class GameService {
             throw new PlayerAlreadyInGameException();
         }
 
-        return toResponse(savedGame);
+        return GameResponse.from(savedGame);
     }
 
     @Transactional(readOnly = true)
@@ -214,17 +214,5 @@ public class GameService {
         // Flush is not commit. An enclosing transaction can still roll back
         // the game update and reservation deletion together.
         return GameMoveResult.from(game, assessment);
-    }
-
-
-    private static GameResponse toResponse(Game game) {
-        return new GameResponse(
-                game.getId(),
-                game.getWhitePlayerId(),
-                game.getBlackPlayerId(),
-                game.getStatus(),
-                game.getCurrentFen(),
-                game.getCreatedAt()
-        );
     }
 }

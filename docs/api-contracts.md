@@ -1,5 +1,28 @@
 # API Contracts
 
+## Day 18 current checkpoint — HTTP gameplay
+
+Authenticated POST /api/v1/games/{gameId}/moves now delegates to the existing
+GameService command using JWT-derived Player identity. SubmitMoveRequest
+validates request shape before conversion into Move. Specific gameplay
+rejections have game-owned HTTP status/code mappings.
+
+GameResponse.from(game) maps participant-protected reads, now including
+version, result, terminationReason and finishedAt. Successful move commands
+return the existing GameMoveResult.
+
+The HTTP tests cover committed commands, POST/GET agreement, authentication,
+validation, failure precedence, special moves and terminal results/release.
+Tests are treated as green under the user's standing instruction; no
+independent tests/builds or final Day 18 archive review are claimed.
+
+No migration, runtime configuration, rules implementation or frontend
+implementation changes are included. History, frontend gameplay, real-time
+delivery, clocks and disconnect policy remain pending.
+
+See [Day 18 HTTP gameplay](day18-http-gameplay.md) for the contract and coverage.
+Earlier checkpoint sections describe historical boundaries.
+
 ## Day 17 current checkpoint — source-reviewed, 28 October 2026
 
 Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` against `chess-web-app-day16-end.zip`. No blocking defect was found in the reviewed Day 17 production/test changes. Tests are treated as green under the user's standing instruction to report failures; this is user-provided verification context, not an independent run or a detailed per-command log. No tests, builds or migrations were run by the assistant, and no separate frontend build result is claimed.
@@ -57,6 +80,7 @@ Day 15 adds no endpoint, DTO, migration, application error code or frontend beha
 | GET | `/api/v1/matchmaking/queue/me` | Bearer JWT | 200; queue status |
 | DELETE | `/api/v1/matchmaking/queue/me` | Bearer JWT | 204; no body |
 | GET | `/api/v1/games/{gameId}` | Participant bearer JWT | 200; game state |
+| POST | `/api/v1/games/{gameId}/moves` | Participant Bearer JWT | 200; GameMoveResult |
 
 There is no public game-creation or move-submission endpoint in the current implementation. Pairing invokes game creation internally. Movement classes are pure Java internal components; their exceptions are not HTTP application error contracts. Creation starts at the initial position; internal GameService moves can advance the FEN and complete the game. There is still no HTTP move-submission route.
 
@@ -166,7 +190,7 @@ An ordinary repeated join by an already matched player returns 200 `MATCHED`; it
 
 ## Read game — GET `/api/v1/games/{gameId}`
 
-No request body. Success returns `id`, `whitePlayerId`, `blackPlayerId`, `status`, `currentFen` and `createdAt`. Either participant can read. Opponent email is not returned. New games start in IN_PROGRESS at the initial FEN. After internal service commands, currentFen contains the latest position and status may be FINISHED. The response field list remains unchanged: version, result, terminationReason and finishedAt are not exposed. Their HTTP contracts remain deferred.
+No request body. Success returns `id`, `whitePlayerId`, `blackPlayerId`, `status`, `currentFen`, `createdAt`, `version`, `result`, `terminationReason` and `finishedAt`. Either participant can read. Opponent email is not returned. New games start in IN_PROGRESS at the initial FEN. After internal service commands, currentFen contains the latest position and status may be FINISHED. The response field list remains unchanged: version, result, terminationReason and finishedAt are not exposed. Their HTTP contracts remain deferred.
 
 | Failure | Status | Application code |
 | --- | --- | --- |
