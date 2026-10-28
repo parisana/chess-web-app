@@ -1,10 +1,22 @@
 # Chess Web App
 
+## Day 17 current checkpoint — source-reviewed, 28 October 2026
+
+Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` against `chess-web-app-day16-end.zip`. No blocking defect was found in the reviewed Day 17 production/test changes. Tests are treated as green under the user's standing instruction to report failures; this is user-provided verification context, not an independent run or a detailed per-command log. No tests, builds or migrations were run by the assistant, and no separate frontend build result is claimed.
+
+`GameService.submitMove(gameId, requestingPlayerId, expectedVersion, move)` now coordinates participant/turn checks, exact legal application, resulting-position assessment, current-FEN persistence, stale/concurrent-command rejection and atomic checkmate/stalemate completion with reservation release. `GameMoveResult.from(game, assessment)` owns mechanical result mapping; `Game.finish()` calls its extracted switch-based `validateResult()`. There is no separate production GameMoveService.
+
+V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](docs/day17-gameplay-service.md).
+
+Day 16 and earlier milestone sections below retain historical behavior/evidence. Their initial-only and pending-gameplay descriptions do not override this checkpoint. The earlier closing-test passing-status uncertainty is retained as historical provenance; current test status follows the user's later standing instruction.
+
+### Historical Day 16 review provenance
+
 Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](docs/day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
 
 The Day 16 section describes the inspected implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
 
-## Day 16 current boundary
+## Day 16 boundary — historical
 
 `ChessRules` exposes `initialPosition()`, `legalMoves(position)`, `applyMove(position, move)` and `evaluate(position)`. Lookup returns the complete immutable legal set. Application requires exact membership in that set, including the promotion choice, before delegating to `MoveApplier`. Assessment returns `PositionStatus` for the side to move. The existing pipeline remains shared; no per-piece application services or duplicate movement algorithms are introduced.
 
@@ -29,11 +41,12 @@ Historical Day 15 source-review provenance: reviewed on 27 October 2026 against 
 - Immutable chess representation, separate FEN parser/serializer and a rules facade for initial position, legal lookup/application and assessment; game creation uses its initial-position operation.
 - Strategy-based knight, rook, bishop, queen, king (including standard castling), pawn, explicit promotion and en passant candidates; shared sliding traversal, candidate application and king-safety filtering.
 - Position-wide legal-move enumeration and current-side normal/check/checkmate/stalemate assessment.
+- GameService move commands with participant/turn checks, version protection, persisted current FEN, checkmate/stalemate results and atomic release of both active reservations.
 - Attack detection for all six piece types, including pinned attackers. Resulting-board king safety handles relocation and captures. Moving kings and moving/captured corner rooks remove affected castling rights permanently.
 
 ## Run locally
 
-Use Java 21 and the checked-in Gradle wrapper. Review `backend/src/main/resources/application.yaml` for the configured PostgreSQL connection and JWT settings. Database/secret configuration remains user-managed. Flyway applies V1–V5; Hibernate validates the schema.
+Use Java 21 and the checked-in Gradle wrapper. Review `backend/src/main/resources/application.yaml` for the configured PostgreSQL connection and JWT settings. Database/secret configuration remains user-managed. Flyway applies V1–V6; Hibernate validates the schema.
 
 From `backend/`:
 
@@ -52,10 +65,10 @@ Open `http://localhost:4200`. The npm start script enables the proxy forwarding 
 
 ## Local verification
 
-From `backend/`, focused rules tests require no database:
+From `backend/`, focused rules/configuration/entity/service tests require no database:
 
 ```bash
-./gradlew test --tests 'com.chessapp.game.rules.*'
+./gradlew test --tests 'com.chessapp.game.rules.*' --tests 'com.chessapp.game.config.GameRulesConfigTest' --tests 'com.chessapp.game.entity.GameTest' --tests 'com.chessapp.game.service.GameMoveServiceTest'
 ```
 
 With the configured PostgreSQL test database available:
@@ -73,9 +86,11 @@ npm test -- --watch=false
 npm run build
 ```
 
-These are local commands, not independently executed verification. The user reports all tests green after the final Day 15 regressions. No detailed test log or separate frontend build result was supplied.
+These commands were not executed by the assistant. Under the user's standing instruction, tests are treated as green unless a failure is reported. No detailed per-command log or separate frontend build result was supplied. The focused PostgreSQL command is in docs/day17-gameplay-service.md.
 
 ## Current limits
+
+Move submission is service-only. HTTP move commands, version/result-bearing HTTP reads, move history and frontend gameplay remain pending. Disconnects do not finish games or release reservations; a timeout/abandonment policy is deferred.
 
 Repetition, move-count draws, dead-position detection, clocks, resignation and agreement are outside assessment. FEN is structural state; Board equality is identity-based. AI and map-versus-array evaluation remain deferred. Pairing runs on join with manual frontend refresh; sessions remain in memory. Logout does not leave the queue.
 
@@ -87,9 +102,11 @@ Repetition, move-count draws, dead-position detection, clocks, resignation and a
 - [API contracts](docs/api-contracts.md)
 - [Frontend setup and behavior](frontend/README.md)
 - [Movement pipeline walkthrough](docs/movement-pipeline-architecture.md)
-- [Day 17 handoff](docs/day17-handoff.md)
+- [Day 17 implementation and review](docs/day17-gameplay-service.md)
+- [After Day 17 handoff](docs/day18-handoff.md)
+- [After Day 16 handoff — historical](docs/day17-handoff.md)
 - [Day 16 closing checks](docs/day16-closing-checks.md)
-- [Post-Day-16 source review and proposed integration scope](docs/post-day16-integration-proposal.md) — proposal only; gameplay implementation awaits a separate scope decision.
+- [Post-Day-16 source review and proposed integration scope](docs/post-day16-integration-proposal.md) — historical proposal; its larger service option was selected and implemented.
 
 ## Day 13 completed checkpoint — historical, 27 October 2026
 

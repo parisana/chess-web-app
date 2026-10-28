@@ -1,10 +1,22 @@
 # API Contracts
 
+## Day 17 current checkpoint — source-reviewed, 28 October 2026
+
+Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` against `chess-web-app-day16-end.zip`. No blocking defect was found in the reviewed Day 17 production/test changes. Tests are treated as green under the user's standing instruction to report failures; this is user-provided verification context, not an independent run or a detailed per-command log. No tests, builds or migrations were run by the assistant, and no separate frontend build result is claimed.
+
+`GameService.submitMove(gameId, requestingPlayerId, expectedVersion, move)` now coordinates participant/turn checks, exact legal application, resulting-position assessment, current-FEN persistence, stale/concurrent-command rejection and atomic checkmate/stalemate completion with reservation release. `GameMoveResult.from(game, assessment)` owns mechanical result mapping; `Game.finish()` calls its extracted switch-based `validateResult()`. There is no separate production GameMoveService.
+
+V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](day17-gameplay-service.md).
+
+Day 16 and earlier milestone sections below retain historical behavior/evidence. Their initial-only and pending-gameplay descriptions do not override this checkpoint. The earlier closing-test passing-status uncertainty is retained as historical provenance; current test status follows the user's later standing instruction.
+
+### Historical Day 16 review provenance
+
 Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
 
 The Day 16 section describes the inspected implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
 
-## Day 16 current boundary
+## Day 16 boundary — historical
 
 `ChessRules` exposes `initialPosition()`, `legalMoves(position)`, `applyMove(position, move)` and `evaluate(position)`. Lookup returns the complete immutable legal set. Application requires exact membership in that set, including the promotion choice, before delegating to `MoveApplier`. Assessment returns `PositionStatus` for the side to move. The existing pipeline remains shared; no per-piece application services or duplicate movement algorithms are introduced.
 
@@ -46,7 +58,7 @@ Day 15 adds no endpoint, DTO, migration, application error code or frontend beha
 | DELETE | `/api/v1/matchmaking/queue/me` | Bearer JWT | 204; no body |
 | GET | `/api/v1/games/{gameId}` | Participant bearer JWT | 200; game state |
 
-There is no public game-creation or move-submission endpoint in the current implementation. Pairing invokes game creation internally. Movement classes are pure Java internal components; their exceptions are not HTTP application error contracts. Stored game state still remains at the initial position.
+There is no public game-creation or move-submission endpoint in the current implementation. Pairing invokes game creation internally. Movement classes are pure Java internal components; their exceptions are not HTTP application error contracts. Creation starts at the initial position; internal GameService moves can advance the FEN and complete the game. There is still no HTTP move-submission route.
 
 ## Register — POST `/api/v1/auth/register`
 
@@ -154,7 +166,7 @@ An ordinary repeated join by an already matched player returns 200 `MATCHED`; it
 
 ## Read game — GET `/api/v1/games/{gameId}`
 
-No request body. Success returns `id`, `whitePlayerId`, `blackPlayerId`, `status`, `currentFen` and `createdAt`. Either participant can read. Opponent email is not returned. Current games contain only `IN_PROGRESS` and the initial FEN.
+No request body. Success returns `id`, `whitePlayerId`, `blackPlayerId`, `status`, `currentFen` and `createdAt`. Either participant can read. Opponent email is not returned. New games start in IN_PROGRESS at the initial FEN. After internal service commands, currentFen contains the latest position and status may be FINISHED. The response field list remains unchanged: version, result, terminationReason and finishedAt are not exposed. Their HTTP contracts remain deferred.
 
 | Failure | Status | Application code |
 | --- | --- | --- |

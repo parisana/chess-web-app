@@ -1,10 +1,22 @@
 # Chess Frontend
 
+## Day 17 current checkpoint — source-reviewed, 28 October 2026
+
+Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` against `chess-web-app-day16-end.zip`. No blocking defect was found in the reviewed Day 17 production/test changes. Tests are treated as green under the user's standing instruction to report failures; this is user-provided verification context, not an independent run or a detailed per-command log. No tests, builds or migrations were run by the assistant, and no separate frontend build result is claimed.
+
+`GameService.submitMove(gameId, requestingPlayerId, expectedVersion, move)` now coordinates participant/turn checks, exact legal application, resulting-position assessment, current-FEN persistence, stale/concurrent-command rejection and atomic checkmate/stalemate completion with reservation release. `GameMoveResult.from(game, assessment)` owns mechanical result mapping; `Game.finish()` calls its extracted switch-based `validateResult()`. There is no separate production GameMoveService.
+
+V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](../docs/day17-gameplay-service.md).
+
+Day 16 and earlier milestone sections below retain historical behavior/evidence. Their initial-only and pending-gameplay descriptions do not override this checkpoint. The earlier closing-test passing-status uncertainty is retained as historical provenance; current test status follows the user's later standing instruction.
+
+### Historical Day 16 review provenance
+
 Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](../docs/day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
 
 The Day 16 section describes the inspected implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
 
-## Day 16 current boundary
+## Day 16 boundary — historical
 
 Backend rules are exposed through the legality-enforcing pure Java facade confirmed in the reviewed Day 16 source. There is no frontend implementation or HTTP contract change. Games still persist only their initial FEN in IN_PROGRESS. No game route, chessboard, move submission or real-time subscription is added. Existing frontend verification remains unchanged; no separate frontend build result is claimed.
 
@@ -32,7 +44,7 @@ npm run build
 
 Five focused tests in `src/app/auth/services/auth-flow.spec.ts` cover bearer attachment, external URL exclusion, protected 401 cleanup/redirect, cleanup after profile loading fails, and logout. There is no `app.spec.ts` in this checkpoint. No end-to-end runner is configured.
 
-The user reports all tests green after the final Day 15 rules regressions. No independent tests/builds or separate frontend build/manual-check results are recorded.
+Current tests are treated as green under the user's standing instruction. Frontend implementation/tests are byte-for-byte unchanged from Day 16; no independent tests/builds or separate frontend build/manual-check results are recorded.
 
 ## Day 15 boundary — historical
 

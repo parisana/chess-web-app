@@ -1,10 +1,22 @@
 # Roadmap
 
+## Day 17 current checkpoint — source-reviewed, 28 October 2026
+
+Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` against `chess-web-app-day16-end.zip`. No blocking defect was found in the reviewed Day 17 production/test changes. Tests are treated as green under the user's standing instruction to report failures; this is user-provided verification context, not an independent run or a detailed per-command log. No tests, builds or migrations were run by the assistant, and no separate frontend build result is claimed.
+
+`GameService.submitMove(gameId, requestingPlayerId, expectedVersion, move)` now coordinates participant/turn checks, exact legal application, resulting-position assessment, current-FEN persistence, stale/concurrent-command rejection and atomic checkmate/stalemate completion with reservation release. `GameMoveResult.from(game, assessment)` owns mechanical result mapping; `Game.finish()` calls its extracted switch-based `validateResult()`. There is no separate production GameMoveService.
+
+V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](day17-gameplay-service.md).
+
+Day 16 and earlier milestone sections below retain historical behavior/evidence. Their initial-only and pending-gameplay descriptions do not override this checkpoint. The earlier closing-test passing-status uncertainty is retained as historical provenance; current test status follows the user's later standing instruction.
+
+### Historical Day 16 review provenance
+
 Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
 
 The Day 16 section describes the inspected implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
 
-## Day 16 source-reviewed milestone
+## Day 16 source-reviewed milestone — historical
 
 The legality-enforcing pure rules facade, special-move/assessment regressions and both closing checks are present in the reviewed Day 16 source. No blocking defect was found in these changes. The user reports all tests green through increments 1–2; a later passing report for the closing checks is not yet recorded.
 
@@ -14,9 +26,9 @@ The legality-enforcing pure rules facade, special-move/assessment regressions an
 
 ## Next milestone decision
 
-The [post-Day-16 source review and integration proposal](post-day16-integration-proposal.md) recommends service move application with concurrency protection first, terminal lifecycle and reservation release together next, then HTTP. Move history is a separate milestone. This is a recommendation awaiting the user's scope decision, not an implemented or authorized Day 17 milestone.
+The user selected the larger service option from the [post-Day-16 proposal](post-day16-integration-proposal.md): move application, concurrency, terminal lifecycle and reservation release together. The actual Day 17 implementation has now been source-reviewed; tests are treated as green under the user's standing instruction, with no independent run.
 
-Select the next integration milestone separately, using the reviewed Day 16 source as the baseline. Server-authoritative gameplay will require an explicit service/HTTP contract, authorization and turn ownership, persistence/history policy, concurrent-command handling, and a decision about terminal lifecycle/reservation release. This document does not authorize or implement that integration or assign it automatically to Day 17.
+A candidate next larger milestone is authenticated HTTP move submission plus coherent game reads exposing version/results, validation/error contracts and relevant HTTP tests. Select that scope separately. History is separate unless explicitly selected; HTTP/history changes are not authorized by this documentation update.
 
 Remaining work also includes any explicitly selected draw rules, game UI, real-time delivery and queue lifecycle improvements. No additional draw rules are silently included with the facade.
 
@@ -24,7 +36,7 @@ Historical Day 15 source-review provenance: reviewed on 27 October 2026 against 
 
 ## Working-session numbering
 
-Working Days 1–16 identify actual development sessions and differ from the original 30-working-day estimate. Earlier work completed some planned later capabilities early. This page records implemented sessions and remaining capabilities; it does not establish a new complete 30-day schedule.
+Working Days 1–17 identify actual development sessions and differ from the original 30-working-day estimate. Earlier work completed some planned later capabilities early. This page records implemented sessions and remaining capabilities; it does not establish a new complete 30-day schedule.
 
 ## Completed working sessions
 
@@ -43,7 +55,8 @@ Working Days 1–16 identify actual development sessions and differ from the ori
 | Day 13 | En passant generation, immutable off-destination capture, defensive metadata handling, expiry and king-safety tests; source reviewed; user reports green tests |
 | Day 14 | Standard castling for both colors/sides, immutable two-piece application, staged king safety and boundary tests; final source reviewed; green tests reported through king-safety increment |
 | Day 15 | Complete legal-move enumeration, shared filtering, current-side position assessment, cross-package test fixtures and both-color special-move/check-escape regressions; source reviewed; user reports all tests green |
-| Day 16 | Legality-enforcing rules facade, production wiring, facade special-move/assessment regressions and closing validation/configuration tests; source reviewed; green tests reported through increment 2, closing-test run not explicitly reported |
+| Day 16 | Legality-enforcing rules facade, production wiring, facade special-move/assessment regressions and closing tests; source reviewed; historical passing evidence described above |
+| Day 17 | GameService move commands, exact legal application, version protection, checkmate/stalemate results, atomic reservation release, V6 and entity/unit/PostgreSQL test sources; source-reviewed, green status per standing user instruction |
 
 The Day 15 source adds complete enumeration and check/checkmate/stalemate assessment on top of the Day 14 movement pipeline. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after final regressions. No tests/builds were run independently.
 
@@ -60,8 +73,8 @@ Castling execution, pawn movement, outcomes and service/HTTP integration were ex
 ## Remaining capabilities to schedule
 
 - Any remaining draw rules require a separate scope decision; the Day 16 rules facade is source-reviewed.
-- Server-authoritative gameplay commands, persistence/history and concurrent-update handling.
-- Game lifecycle/results and safe active-reservation release.
+- HTTP gameplay commands and version/result-bearing HTTP reads; service commands, current-FEN persistence, concurrency and terminal release are implemented.
+- Move history and separately selected lifecycle extensions, including any disconnect/abandonment policy.
 - Chessboard/game UI and clocks, where selected for the MVP.
 - Internal events and authenticated, authorized real-time delivery; WebSocket/STOMP remains a candidate.
 - Queue lifecycle improvements such as expiry and any selected acceptance/cancellation/rating behavior.
@@ -71,7 +84,7 @@ Acceptance, cancellation, rating filters and expiry require an explicit scope de
 
 ## Engineering constraints
 
-Keep the modular monolith, Player terminology and cross-feature service boundaries. The rules package remains free of Spring/JPA/HTTP concerns. `ChessRules` now exposes the four guided facade operations; no application service applies moves. Single-source generation cannot determine checkmate/stalemate. Candidate generation excludes king captures; attack detection includes pinned attackers. FEN is structural state, not proof of reachability or repetition history. Preserve useful comments, coherent FEN fixtures, selected board renderings, minimal frontend testing and user-managed secrets/configuration.
+Keep the modular monolith, Player terminology and cross-feature service boundaries. The rules package remains free of Spring/JPA/HTTP concerns. `ChessRules` retains its four pure facade operations; GameService now owns persisted move application and completion. Single-source generation cannot determine checkmate/stalemate. Candidate generation excludes king captures; attack detection includes pinned attackers. FEN is structural state, not proof of reachability or repetition history. Preserve useful comments, coherent FEN fixtures, selected board renderings, minimal frontend testing and user-managed secrets/configuration.
 
 ## Day 13 completed checkpoint — historical, 27 October 2026
 

@@ -1,10 +1,22 @@
 # Development Progress
 
+## Day 17 current checkpoint — source-reviewed, 28 October 2026
+
+Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` against `chess-web-app-day16-end.zip`. No blocking defect was found in the reviewed Day 17 production/test changes. Tests are treated as green under the user's standing instruction to report failures; this is user-provided verification context, not an independent run or a detailed per-command log. No tests, builds or migrations were run by the assistant, and no separate frontend build result is claimed.
+
+`GameService.submitMove(gameId, requestingPlayerId, expectedVersion, move)` now coordinates participant/turn checks, exact legal application, resulting-position assessment, current-FEN persistence, stale/concurrent-command rejection and atomic checkmate/stalemate completion with reservation release. `GameMoveResult.from(game, assessment)` owns mechanical result mapping; `Game.finish()` calls its extracted switch-based `validateResult()`. There is no separate production GameMoveService.
+
+V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](day17-gameplay-service.md).
+
+Day 16 and earlier milestone sections below retain historical behavior/evidence. Their initial-only and pending-gameplay descriptions do not override this checkpoint. The earlier closing-test passing-status uncertainty is retained as historical provenance; current test status follows the user's later standing instruction.
+
+### Historical Day 16 review provenance
+
 Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
 
 The Day 16 section describes the inspected implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
 
-## Day 16 inspected implementation and verification
+## Day 16 inspected implementation and verification — historical
 
 `ChessRules` exposes `initialPosition()`, `legalMoves(position)`, `applyMove(position, move)` and `evaluate(position)`. Lookup returns the complete immutable legal set. Application requires exact membership in that set, including the promotion choice, before delegating to `MoveApplier`. Assessment returns `PositionStatus` for the side to move. The existing pipeline remains shared; no per-piece application services or duplicate movement algorithms are introduced.
 
@@ -54,13 +66,13 @@ Day numbers identify working sessions and differ from the original 30-working-da
 | Frontend authentication | Registration/login, in-memory session, interceptor, guard, logout and protected-request 401 handling |
 | Queue | Persistent join/leave/status, repeated-join timestamp preservation, authenticated endpoints |
 | Pairing | Oldest-first eligible pairing on join, random colors, transaction-level queue advisory lock |
-| Games | Initial FEN and `IN_PROGRESS` persistence; one-active-game-per-player reservations |
-| Atomicity | Game creation, both reservations and removal of paired queue entries commit or roll back together |
+| Games | Initial creation and service-owned legal FEN updates; expected-version/JPA optimistic protection; FINISHED results and atomic reservation release |
+| Atomicity | Creation/pairing remain atomic; terminal FEN/result/version and deletion of both active reservations also commit or roll back together |
 | Discovery | `MATCHED` queue status with game ID; manual Angular status refresh |
 | Game access | Participant-protected `GET /api/v1/games/{gameId}` |
 | Rules foundation | Pure Java immutable representation, separate FEN parser/serializer, initial-position/legal-lookup/legal-application/assessment rules facade (source-reviewed Day 16) |
 | Movement | Knight/rook/bishop/queen/king/pawn strategies, explicit promotions, en passant and standard castling (Day 14), shared traversal/application/filtering, resulting-square king safety, irreversible rook/king castling-right removal, centralized test fixtures; all-piece attack detection |
-| Position assessment | Complete moving-side enumeration; NORMAL, CHECK, CHECKMATE and STALEMATE; no persisted lifecycle change |
+| Position assessment | Pure NORMAL/CHECK/CHECKMATE/STALEMATE assessment; GameService maps resulting mate/stalemate into persisted completion |
 
 ## Day 15 implementation — historical foundation
 
@@ -100,6 +112,7 @@ The new tests do not prove exhaustive correctness of the rules engine. Null/dupl
 | V3 | Matchmaking queue and ordering index |
 | V4 | Initial game state, participants, timestamps and optimistic-lock version |
 | V5 | Active-player reservations and backfill from existing in-progress games |
+| V6 | Completion result/reason/time and lifecycle consistency constraints |
 
 Applied migrations remain immutable. Future schema changes use new Flyway SQL migrations. Hibernate validates the schema rather than generating it.
 
@@ -233,8 +246,8 @@ Manual smoke checks:
 - Manual status refresh; no application-event notifications or WebSocket/STOMP delivery.
 - No queue expiry or automatic leave on logout.
 - Games begin immediately in `IN_PROGRESS`; no acceptance stage.
-- No cancellation, completion, results or active-reservation release. Matched players therefore remain unavailable for another game through the current APIs.
-- Rules support all six strategies, promotions, en passant, castling, complete legal-move enumeration and current-side assessment. The facade is source-reviewed in Day 16; move endpoint/history, persisted terminal lifecycle, chessboard UI, game page and clocks remain pending.
+- Checkmate/stalemate completion and reservation release are implemented at the service boundary. The current frontend has no way to submit a move. Cancellation, disconnect expiry and abandonment remain pending.
+- Rules support all six strategies, promotions, en passant, castling, complete legal-move enumeration and current-side assessment. The facade is source-reviewed in Day 16; move endpoint/history, chessboard UI, game page and clocks remain pending; persisted terminal lifecycle is implemented in Day 17.
 - Repetition, move-count draws, dead-position detection, resignation and agreement are not evaluated.
 - Username updates are supported; email/password changes are not implemented.
 - Concurrent username edits use last-write-wins behavior; no player optimistic locking.
@@ -245,7 +258,7 @@ Manual smoke checks:
 
 ## Working preferences
 
-Keep the focus on backend engineering and explain decisions incrementally. Include concise algorithm walkthroughs and selected test-board renderings. Prefer complete FEN fixtures with coherent metadata/turns unless invalidity is deliberate and explained. Use Lombok where appropriate, avoiding `@Data` on JPA entities. Add concise comments for non-obvious behavior. Keep frontend tests minimal. Provide verification commands without waiting for routine test-pass confirmation. Preserve passwords after failed form submissions.
+Keep the focus on backend engineering and explain decisions incrementally. The user implements solutions provided inline step by step; do not silently substitute a generated full implementation archive. Prefer larger coherent milestones that fit comfortably in one chat, divided into a few increments. Treat tests as green under the user's standing instruction unless failures are reported, while clearly separating that from independent execution. Do not pause for routine pass confirmations. Include concise algorithm walkthroughs and selected test-board renderings. Prefer complete FEN fixtures with coherent metadata/turns unless invalidity is deliberate and explained. Use Lombok where appropriate, avoiding `@Data` on JPA entities. Add concise comments for non-obvious behavior. Keep frontend tests minimal. Provide verification commands without waiting for routine test-pass confirmation. Preserve passwords after failed form submissions.
 
 ## Deferred representation evaluation
 

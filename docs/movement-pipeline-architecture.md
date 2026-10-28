@@ -1,10 +1,22 @@
-# Movement pipeline architecture — Day 16
+# Movement pipeline architecture — Day 17
+
+## Day 17 current checkpoint — source-reviewed, 28 October 2026
+
+Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` against `chess-web-app-day16-end.zip`. No blocking defect was found in the reviewed Day 17 production/test changes. Tests are treated as green under the user's standing instruction to report failures; this is user-provided verification context, not an independent run or a detailed per-command log. No tests, builds or migrations were run by the assistant, and no separate frontend build result is claimed.
+
+`GameService.submitMove(gameId, requestingPlayerId, expectedVersion, move)` now coordinates participant/turn checks, exact legal application, resulting-position assessment, current-FEN persistence, stale/concurrent-command rejection and atomic checkmate/stalemate completion with reservation release. `GameMoveResult.from(game, assessment)` owns mechanical result mapping; `Game.finish()` calls its extracted switch-based `validateResult()`. There is no separate production GameMoveService.
+
+V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](day17-gameplay-service.md).
+
+Day 16 and earlier milestone sections below retain historical behavior/evidence. Their initial-only and pending-gameplay descriptions do not override this checkpoint. The earlier closing-test passing-status uncertainty is retained as historical provenance; current test status follows the user's later standing instruction.
+
+### Historical Day 16 review provenance
 
 Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
 
 The Day 16 section describes the inspected implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
 
-## Day 16 application entry point
+## Day 16 application entry point — historical
 
 `ChessRules` exposes `initialPosition()`, `legalMoves(position)`, `applyMove(position, move)` and `evaluate(position)`. Lookup returns the complete immutable legal set. Application requires exact membership in that set, including the promotion choice, before delegating to `MoveApplier`. Assessment returns `PositionStatus` for the side to move. The existing pipeline remains shared; no per-piece application services or duplicate movement algorithms are introduced.
 
@@ -251,8 +263,8 @@ NORMAL means safe with at least one legal reply within the implemented assessmen
 ## Current boundaries
 
 - Both single-source and position-wide generation are available. Only the complete reply set combined with current check establishes checkmate or stalemate; other draw rules remain outside assessment.
-- `ChessRules` now exposes initial position, legal lookup/application and assessment. `GameService` still calls only initialPosition(), and games still store their initial FEN. There is no move-submission endpoint.
-- Future gameplay services must own authorization, transactions, persistence and concurrency. Gameplay callers should use ChessRules.applyMove(), which enforces legal membership; direct MoveApplier.apply() is insufficient.
+- ChessRules retains initial position, legal lookup/application and assessment. GameService now coordinates persisted move application, separate resulting-position evaluation, completion and reservation release. There is no HTTP move-submission endpoint.
+- GameService owns authorization, transactions, persistence and concurrency. It prechecks exact legal membership for a distinct application rejection, still applies through ChessRules.applyMove(), then evaluates the result. Direct MoveApplier.apply() remains insufficient.
 - `FenParser` validates structure, not historical reachability. FEN alone cannot establish repetition.
 - `Board` has identity equality. Compare square contents or canonical FEN for content assertions.
-- This document describes inspected Day 15 behavior; updating the explanation changes no production or test sources.
+- The lower-level walkthrough preserves inspected Day 15/16 rules behavior, unchanged in Day 17. The current service integration is described above and in day17-gameplay-service.md; this documentation update changes no production or test source.

@@ -1,5 +1,7 @@
 # Post-Day-16 source review and integration proposal
 
+Historical proposal: the user subsequently selected the larger service option (move application, concurrency, completion and reservation release together), implemented it through inline guided increments, and uploaded the actual Day 17 source for review. The selected implementation uses GameService and GameMoveResult.from; see [Day 17 review](day17-gameplay-service.md). The original proposal below is preserved as historical planning.
+
 28 October 2026. Baseline: `chess-web-app-day16-end.zip`. This document records source inspection and a proposed scope. No gameplay implementation is authorized by this proposal.
 
 ## Reviewed baseline and evidence
