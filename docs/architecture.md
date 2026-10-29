@@ -1,6 +1,20 @@
 # Architecture
 
-## Day 18 current checkpoint — HTTP gameplay
+## Day 19 current checkpoint — source-reviewed, 29 October 2026
+
+Reviewed the actual user archive `chess-web-app-day19-end.zip` against `chess-web-app-day18-end.zip`. No blocking defect was found in the reviewed Day 19 changes. Two small follow-ups are supplied inline and recorded in [the review](day19-frontend-gameplay.md): add a submission guard to Game.refresh() and clear obsolete move feedback after a successful GET. They are not applied to production source by this documentation package.
+
+The Angular frontend now supports guarded matched-game navigation, participant-protected game reads, a custom Player-oriented click-to-move board, explicit promotion including cancellation, versioned move submission, manual refresh, stale-state reload without command retry, uncertain-outcome blocking and completion feedback. Game and ChessBoard use separate TypeScript, HTML and CSS files.
+
+The backend tree is byte-for-byte unchanged from the Day 18 archive. No new endpoint, migration or backend runtime configuration is introduced. The cm-chessboard dependency, declarations and asset/style additions are absent. package.json is unchanged; package-lock.json contains 15 package-version changes, and angular.json differs only in formatting. Those user changes are preserved.
+
+Tests are treated as green under the standing instruction to report failures. The assistant ran no application tests, builds, migrations or browser acceptance checks, and claims no separately verified frontend build/manual result. Source inspection is the evidence for this review.
+
+See [frontend gameplay flow](frontend-gameplay-flow.md) for the lifecycle and Angular coordination, [Day 19 review](day19-frontend-gameplay.md) for findings and [next-session handoff](day19-handoff.md) for continuation. Earlier Day sections retain historical boundaries and do not override this checkpoint.
+
+History, real-time delivery, clocks, additional draw rules, acceptance and disconnect/abandonment policy remain separate scope decisions. A board library is optional post-MVP polish, not an MVP requirement.
+
+## Day 18 checkpoint — historical HTTP gameplay
 
 Authenticated POST /api/v1/games/{gameId}/moves now delegates to the existing
 GameService command using JWT-derived Player identity. SubmitMoveRequest
@@ -23,7 +37,7 @@ delivery, clocks and disconnect policy remain pending.
 See [Day 18 HTTP gameplay](day18-http-gameplay.md) for the contract and coverage.
 Earlier checkpoint sections describe historical boundaries.
 
-## Day 17 current checkpoint — source-reviewed, 28 October 2026
+## Day 17 checkpoint — historical source review, 28 October 2026
 
 Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` against `chess-web-app-day16-end.zip`. No blocking defect was found in the reviewed Day 17 production/test changes. Tests are treated as green under the user's standing instruction to report failures; this is user-provided verification context, not an independent run or a detailed per-command log. No tests, builds or migrations were run by the assistant, and no separate frontend build result is claimed.
 
@@ -96,7 +110,7 @@ A single Spring Boot application, organized as a modular monolith with feature p
 | `security` | HTTP authentication, password encoding, JWT machinery | Implemented |
 | `common` | Shared timestamps and request validation error handling | Implemented |
 | `matchmaking` | Persistent queue, eligibility, and transactional pairing | Implemented |
-| `game` | Game creation/read/move use cases, active reservations, completion and pure Java rules | Service gameplay, concurrency and checkmate/stalemate completion implemented; HTTP moves/history/UI pending |
+| `game` | Game creation/read/move use cases, active reservations, completion and pure Java rules | Service and HTTP gameplay, concurrency, checkmate/stalemate completion and custom Angular board implemented; history deferred |
 | `notification` | Authorized outbound updates | Planned |
 
 Controllers handle transport and delegate. Services coordinate use cases and transaction boundaries. Repositories remain within their owning feature. Cross-feature calls use service operations and DTOs. Concrete services are sufficient; interfaces and mapper frameworks are introduced only when needed.
@@ -319,7 +333,9 @@ GameService owns creation, authorized reads and transactional move submission. I
 
 JPA @Version is flushed before any terminal release. Concurrent losers become StaleGameVersionException with the original cause; commands are not retried automatically. Game.finish uses its extracted validateResult switch. Completion stores result/reason/time and deletes exactly two active reservations by game ID in the same transaction. Release failures or later enclosing failures roll back both JPA and JDBC writes. V6 enforces supported in-progress/completed combinations. See day17-gameplay-service.md for failure precedence, precise test locations and evidence limits.
 
-The Angular frontend has no game API service, game route, or chessboard. It discovers `gameId` through manual queue-status refresh. Spring application events and WebSocket/STOMP delivery remain planned; no notification feature is implemented.
+The Angular frontend discovers gameId through queue status and exposes an Open game link to guarded games/:gameId. GameApiService owns GET/POST transport. Game owns snapshots, pending promotion, submission and recovery; ChessBoard owns display projection, orientation and square selection. Inputs carry FEN/orientation/enabled downward, and moveProposed carries coordinates upward. The board clears selection before emitting, so promotion cancellation cannot retain the old source. Templates/styles are separate files.
+
+Accepted POST results replace position/version/completion fields while retaining participant metadata. Manual reads clear and recreate the board; stale reads use switchMap, and POST handlers ignore replaced snapshot references. Uncertain move outcomes block further proposals until a successful read. No commands are replayed automatically. Spring application events and WebSocket/STOMP remain planned; no notification feature is implemented. See frontend-gameplay-flow.md for the full trace.
 
 Queue operations acquire the queue advisory lock before queue access, including read-only status requests. This is a deliberate small-system serialization tradeoff. The lock is cooperative; database constraints remain necessary for game-creation callers outside matchmaking.
 

@@ -1,6 +1,20 @@
 # Roadmap
 
-## Day 18 current checkpoint — HTTP gameplay
+## Day 19 current checkpoint — source-reviewed, 29 October 2026
+
+Reviewed the actual user archive `chess-web-app-day19-end.zip` against `chess-web-app-day18-end.zip`. No blocking defect was found in the reviewed Day 19 changes. Two small follow-ups are supplied inline and recorded in [the review](day19-frontend-gameplay.md): add a submission guard to Game.refresh() and clear obsolete move feedback after a successful GET. They are not applied to production source by this documentation package.
+
+The Angular frontend now supports guarded matched-game navigation, participant-protected game reads, a custom Player-oriented click-to-move board, explicit promotion including cancellation, versioned move submission, manual refresh, stale-state reload without command retry, uncertain-outcome blocking and completion feedback. Game and ChessBoard use separate TypeScript, HTML and CSS files.
+
+The backend tree is byte-for-byte unchanged from the Day 18 archive. No new endpoint, migration or backend runtime configuration is introduced. The cm-chessboard dependency, declarations and asset/style additions are absent. package.json is unchanged; package-lock.json contains 15 package-version changes, and angular.json differs only in formatting. Those user changes are preserved.
+
+Tests are treated as green under the standing instruction to report failures. The assistant ran no application tests, builds, migrations or browser acceptance checks, and claims no separately verified frontend build/manual result. Source inspection is the evidence for this review.
+
+See [frontend gameplay flow](frontend-gameplay-flow.md) for the lifecycle and Angular coordination, [Day 19 review](day19-frontend-gameplay.md) for findings and [next-session handoff](day19-handoff.md) for continuation. Earlier Day sections retain historical boundaries and do not override this checkpoint.
+
+History, real-time delivery, clocks, additional draw rules, acceptance and disconnect/abandonment policy remain separate scope decisions. A board library is optional post-MVP polish, not an MVP requirement.
+
+## Day 18 checkpoint — historical HTTP gameplay
 
 Authenticated POST /api/v1/games/{gameId}/moves now delegates to the existing
 GameService command using JWT-derived Player identity. SubmitMoveRequest
@@ -23,7 +37,7 @@ delivery, clocks and disconnect policy remain pending.
 See [Day 18 HTTP gameplay](day18-http-gameplay.md) for the contract and coverage.
 Earlier checkpoint sections describe historical boundaries.
 
-## Day 17 current checkpoint — source-reviewed, 28 October 2026
+## Day 17 checkpoint — historical source review, 28 October 2026
 
 Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` against `chess-web-app-day16-end.zip`. No blocking defect was found in the reviewed Day 17 production/test changes. Tests are treated as green under the user's standing instruction to report failures; this is user-provided verification context, not an independent run or a detailed per-command log. No tests, builds or migrations were run by the assistant, and no separate frontend build result is claimed.
 
@@ -49,15 +63,15 @@ The legality-enforcing pure rules facade, special-move/assessment regressions an
 
 ## Next milestone decision
 
-HTTP gameplay is implemented. The backend now supports reading current
-state, submitting a versioned move and observing completion over HTTP.
+Minimal frontend gameplay is implemented and source-reviewed. Apply the two small inline guard/message follow-ups if not already done; no new application feature is selected by this review.
 
-Select the next milestone separately. Candidates include a minimal frontend
-gameplay workflow, move history, or authenticated real-time delivery.
+Discuss the next coherent milestone in a new chat. Candidates include persisted move history or authenticated, authorized real-time updates. Clocks, additional draw rules and disconnect/abandonment policy remain distinct decisions.
+
+A board library is optional post-MVP polish. The custom board is the current implementation; do not reintroduce library integration as an MVP prerequisite.
 
 ## Working-session numbering
 
-Working Days 1–17 identify actual development sessions and differ from the original 30-working-day estimate. Earlier work completed some planned later capabilities early. This page records implemented sessions and remaining capabilities; it does not establish a new complete 30-day schedule.
+Working Days 1–19 identify actual development sessions and differ from the original 30-working-day estimate. Earlier work completed some planned later capabilities early. This page records implemented sessions and remaining capabilities; it does not establish a new complete 30-day schedule.
 
 ## Completed working sessions
 
@@ -79,6 +93,7 @@ Working Days 1–17 identify actual development sessions and differ from the ori
 | Day 16 | Legality-enforcing rules facade, production wiring, facade special-move/assessment regressions and closing tests; source reviewed; historical passing evidence described above |
 | Day 17 | GameService move commands, exact legal application, version protection, checkmate/stalemate results, atomic reservation release, V6 and entity/unit/PostgreSQL test sources; source-reviewed, green status per standing user instruction |
 | Day 18 | JWT-derived HTTP move submission, validated requests, version/result-bearing reads, game-owned error contracts and HTTP integration coverage |
+| Day 19 | Custom Angular gameplay: guarded navigation, board display, explicit promotion, versioned moves, manual refresh, recovery, completion feedback, separate component HTML/CSS and lifecycle guide; source-reviewed with two minor follow-ups |
 
 The Day 15 source adds complete enumeration and check/checkmate/stalemate assessment on top of the Day 14 movement pipeline. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after final regressions. No tests/builds were run independently.
 
@@ -94,15 +109,15 @@ Castling execution, pawn movement, outcomes and service/HTTP integration were ex
 
 ## Remaining capabilities to schedule
 
-- Any remaining draw rules require a separate scope decision; the Day 16 rules facade is source-reviewed.
-- HTTP gameplay commands and version/result-bearing HTTP reads; service commands, current-FEN persistence, concurrency and terminal release are implemented.
-- Move history and separately selected lifecycle extensions, including any disconnect/abandonment policy.
-- Chessboard/game UI and clocks, where selected for the MVP.
-- Internal events and authenticated, authorized real-time delivery; WebSocket/STOMP remains a candidate.
-- Queue lifecycle improvements such as expiry and any selected acceptance/cancellation/rating behavior.
-- Account email/password changes if selected.
+- Move history and a separately selected history/replay interface.
+- Authenticated, authorized real-time delivery and appropriate internal events.
+- Clocks and any separately selected timeout/disconnect/abandonment policy.
+- Additional draw rules, resignation or draw agreement if selected.
+- Queue expiry, acceptance/cancellation and rating behavior if selected.
+- Player profile statistics/ELO and account email/password changes if selected.
+- Optional board polish or a board-library replacement after a concrete need is established.
 
-Acceptance, cancellation, rating filters and expiry require an explicit scope decision. Redis/Kafka, spectators, tournaments, chat, engine analysis and distributed scaling remain outside initial scope. AI is outside the MVP. Map-versus-array storage evaluation stays deferred unless demonstrated benefits justify it, preserving the Board API.
+HTTP gameplay and the minimal custom-board frontend are implemented. Acceptance, cancellation, rating filters and expiry require explicit scope decisions. Redis/Kafka, spectators, tournaments, chat, engine analysis and distributed scaling remain outside initial scope. AI is outside the MVP. Map-versus-array evaluation remains deferred unless demonstrated benefits justify it, preserving the Board API.
 
 ## Engineering constraints
 

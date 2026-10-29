@@ -1,6 +1,20 @@
 # Chess Web App
 
-## Day 17 current checkpoint — source-reviewed, 28 October 2026
+## Day 19 current checkpoint — source-reviewed, 29 October 2026
+
+Reviewed the actual user archive `chess-web-app-day19-end.zip` against `chess-web-app-day18-end.zip`. No blocking defect was found in the reviewed Day 19 changes. Two small follow-ups are supplied inline and recorded in [the review](docs/day19-frontend-gameplay.md): add a submission guard to Game.refresh() and clear obsolete move feedback after a successful GET. They are not applied to production source by this documentation package.
+
+The Angular frontend now supports guarded matched-game navigation, participant-protected game reads, a custom Player-oriented click-to-move board, explicit promotion including cancellation, versioned move submission, manual refresh, stale-state reload without command retry, uncertain-outcome blocking and completion feedback. Game and ChessBoard use separate TypeScript, HTML and CSS files.
+
+The backend tree is byte-for-byte unchanged from the Day 18 archive. No new endpoint, migration or backend runtime configuration is introduced. The cm-chessboard dependency, declarations and asset/style additions are absent. package.json is unchanged; package-lock.json contains 15 package-version changes, and angular.json differs only in formatting. Those user changes are preserved.
+
+Tests are treated as green under the standing instruction to report failures. The assistant ran no application tests, builds, migrations or browser acceptance checks, and claims no separately verified frontend build/manual result. Source inspection is the evidence for this review.
+
+See [frontend gameplay flow](docs/frontend-gameplay-flow.md) for the lifecycle and Angular coordination, [Day 19 review](docs/day19-frontend-gameplay.md) for findings and [next-session handoff](docs/day19-handoff.md) for continuation. Earlier Day sections retain historical boundaries and do not override this checkpoint.
+
+History, real-time delivery, clocks, additional draw rules, acceptance and disconnect/abandonment policy remain separate scope decisions. A board library is optional post-MVP polish, not an MVP requirement.
+
+## Day 17 checkpoint — historical source review, 28 October 2026
 
 Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` against `chess-web-app-day16-end.zip`. No blocking defect was found in the reviewed Day 17 production/test changes. Tests are treated as green under the user's standing instruction to report failures; this is user-provided verification context, not an independent run or a detailed per-command log. No tests, builds or migrations were run by the assistant, and no separate frontend build result is claimed.
 
@@ -42,6 +56,8 @@ Historical Day 15 source-review provenance: reviewed on 27 October 2026 against 
 - Strategy-based knight, rook, bishop, queen, king (including standard castling), pawn, explicit promotion and en passant candidates; shared sliding traversal, candidate application and king-safety filtering.
 - Position-wide legal-move enumeration and current-side normal/check/checkmate/stalemate assessment.
 - GameService move commands with participant/turn checks, version protection, persisted current FEN, checkmate/stalemate results and atomic release of both active reservations.
+- Authenticated HTTP move submission and version/result-bearing game reads.
+- Angular game navigation, custom board, explicit promotion, manual refresh and recovery/completion feedback.
 - Attack detection for all six piece types, including pinned attackers. Resulting-board king safety handles relocation and captures. Moving kings and moving/captured corner rooks remove affected castling rights permanently.
 
 ## Run locally
@@ -90,11 +106,19 @@ These commands were not executed by the assistant. Under the user's standing ins
 
 ## Current limits
 
-Move submission is service-only. HTTP move commands, version/result-bearing HTTP reads, move history and frontend gameplay remain pending. Disconnects do not finish games or release reservations; a timeout/abandonment policy is deferred.
+Gameplay uses manual refresh for match discovery and opponent moves. There is no move-history listing, real-time delivery or chess clock. The frontend displays the server-accepted FEN and does not duplicate move legality or retain a check indicator from POST after GET.
 
-Repetition, move-count draws, dead-position detection, clocks, resignation and agreement are outside assessment. FEN is structural state; Board equality is identity-based. AI and map-versus-array evaluation remain deferred. Pairing runs on join with manual frontend refresh; sessions remain in memory. Logout does not leave the queue.
+Checkmate/stalemate finish games and release reservations transactionally. Disconnecting, closing the page or leaving the queue does not finish a game; timeout/abandonment policy remains deferred.
+
+Repetition, move-count draws, dead-position detection, resignation and agreement are outside assessment. FEN is structural state, not repetition history. AI and map-versus-array evaluation remain deferred.
+
+Pairing runs on join. Sessions remain in memory, so browser reload requires login; Home can rediscover an active game afterward. Logout does not leave the queue. Secrets and runtime configuration remain user-managed.
 
 ## Documentation
+
+- [Frontend gameplay lifecycle and Angular flow](docs/frontend-gameplay-flow.md)
+- [Day 19 source review](docs/day19-frontend-gameplay.md)
+- [After Day 19 handoff](docs/day19-handoff.md)
 
 - [Architecture](docs/architecture.md)
 - [Development progress and verification](docs/development-progress.md)

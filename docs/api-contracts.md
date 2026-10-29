@@ -1,6 +1,20 @@
 # API Contracts
 
-## Day 18 current checkpoint — HTTP gameplay
+## Day 19 current checkpoint — source-reviewed, 29 October 2026
+
+Reviewed the actual user archive `chess-web-app-day19-end.zip` against `chess-web-app-day18-end.zip`. No blocking defect was found in the reviewed Day 19 changes. Two small follow-ups are supplied inline and recorded in [the review](day19-frontend-gameplay.md): add a submission guard to Game.refresh() and clear obsolete move feedback after a successful GET. They are not applied to production source by this documentation package.
+
+The Angular frontend now supports guarded matched-game navigation, participant-protected game reads, a custom Player-oriented click-to-move board, explicit promotion including cancellation, versioned move submission, manual refresh, stale-state reload without command retry, uncertain-outcome blocking and completion feedback. Game and ChessBoard use separate TypeScript, HTML and CSS files.
+
+The backend tree is byte-for-byte unchanged from the Day 18 archive. No new endpoint, migration or backend runtime configuration is introduced. The cm-chessboard dependency, declarations and asset/style additions are absent. package.json is unchanged; package-lock.json contains 15 package-version changes, and angular.json differs only in formatting. Those user changes are preserved.
+
+Tests are treated as green under the standing instruction to report failures. The assistant ran no application tests, builds, migrations or browser acceptance checks, and claims no separately verified frontend build/manual result. Source inspection is the evidence for this review.
+
+See [frontend gameplay flow](frontend-gameplay-flow.md) for the lifecycle and Angular coordination, [Day 19 review](day19-frontend-gameplay.md) for findings and [next-session handoff](day19-handoff.md) for continuation. Earlier Day sections retain historical boundaries and do not override this checkpoint.
+
+History, real-time delivery, clocks, additional draw rules, acceptance and disconnect/abandonment policy remain separate scope decisions. A board library is optional post-MVP polish, not an MVP requirement.
+
+## Day 18 checkpoint — historical HTTP gameplay
 
 Authenticated POST /api/v1/games/{gameId}/moves now delegates to the existing
 GameService command using JWT-derived Player identity. SubmitMoveRequest
@@ -23,7 +37,7 @@ delivery, clocks and disconnect policy remain pending.
 See [Day 18 HTTP gameplay](day18-http-gameplay.md) for the contract and coverage.
 Earlier checkpoint sections describe historical boundaries.
 
-## Day 17 current checkpoint — source-reviewed, 28 October 2026
+## Day 17 checkpoint — historical source review, 28 October 2026
 
 Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` against `chess-web-app-day16-end.zip`. No blocking defect was found in the reviewed Day 17 production/test changes. Tests are treated as green under the user's standing instruction to report failures; this is user-provided verification context, not an independent run or a detailed per-command log. No tests, builds or migrations were run by the assistant, and no separate frontend build result is claimed.
 
@@ -82,7 +96,7 @@ Day 15 adds no endpoint, DTO, migration, application error code or frontend beha
 | GET | `/api/v1/games/{gameId}` | Participant bearer JWT | 200; game state |
 | POST | `/api/v1/games/{gameId}/moves` | Participant Bearer JWT | 200; GameMoveResult |
 
-There is no public game-creation or move-submission endpoint in the current implementation. Pairing invokes game creation internally. Movement classes are pure Java internal components; their exceptions are not HTTP application error contracts. Creation starts at the initial position; internal GameService moves can advance the FEN and complete the game. There is still no HTTP move-submission route.
+There is no public game-creation endpoint: pairing invokes creation internally. Participant-authenticated POST /api/v1/games/{gameId}/moves delegates to GameService. Pure rules exceptions are not themselves the HTTP contract; game-owned application exceptions map gameplay rejections.
 
 ## Register — POST `/api/v1/auth/register`
 
@@ -190,13 +204,47 @@ An ordinary repeated join by an already matched player returns 200 `MATCHED`; it
 
 ## Read game — GET `/api/v1/games/{gameId}`
 
-No request body. Success returns `id`, `whitePlayerId`, `blackPlayerId`, `status`, `currentFen`, `createdAt`, `version`, `result`, `terminationReason` and `finishedAt`. Either participant can read. Opponent email is not returned. New games start in IN_PROGRESS at the initial FEN. After internal service commands, currentFen contains the latest position and status may be FINISHED. The response field list remains unchanged: version, result, terminationReason and finishedAt are not exposed. Their HTTP contracts remain deferred.
+No request body. Success returns id, whitePlayerId, blackPlayerId, status, currentFen, createdAt, version, result, terminationReason and finishedAt through GameResponse.from(game). Either participant can read; opponent profile/email is not returned. New games start in IN_PROGRESS at the initial FEN. Accepted commands advance FEN/version and may produce FINISHED. Completion fields are null during active play. GET does not reevaluate the position and has no positionStatus.
 
 | Failure | Status | Application code |
 | --- | --- | --- |
 | Missing, invalid or expired token | 401 | Not guaranteed |
 | Game does not exist | 404 | `GAME_NOT_FOUND` |
 | Authenticated requester is not a participant | 403 | `GAME_ACCESS_DENIED` |
+
+## Submit move — POST `/api/v1/games/{gameId}/moves`
+
+Authenticated Player identity comes from the validated JWT subject.
+
+```json
+{
+  "expectedVersion": 0,
+  "from": "e2",
+  "to": "e4",
+  "promotion": null
+}
+```
+
+expectedVersion is required and nonnegative. Coordinates are required lowercase algebraic squares from a1 through h8 and must differ. Promotion is omitted/null or exactly QUEEN, ROOK, BISHOP or KNIGHT; board-dependent validity remains in the rules pipeline. No automatic queen choice is supplied.
+
+Success returns 200 with gameId, currentFen, version, positionStatus, status, result, terminationReason and finishedAt. positionStatus assesses the side to move and is NORMAL, CHECK, CHECKMATE or STALEMATE. Lifecycle is IN_PROGRESS/FINISHED; results are WHITE_WIN/BLACK_WIN/DRAW; implemented termination reasons are CHECKMATE/STALEMATE.
+
+| Failure | Status | Application code |
+| --- | --- | --- |
+| Invalid request fields | 400 | VALIDATION_FAILED |
+| Missing/invalid bearer credentials | 401 | Not guaranteed |
+| Nonparticipant | 403 | GAME_ACCESS_DENIED |
+| Missing game | 404 | GAME_NOT_FOUND |
+| Finished game | 409 | GAME_ALREADY_FINISHED |
+| Stale observed/concurrent version | 409 | STALE_GAME_VERSION |
+| Wrong turn | 409 | NOT_PLAYERS_TURN |
+| Well-formed illegal proposal | 422 | ILLEGAL_GAME_MOVE |
+
+Request validation precedes service lookup. Well-formed command precedence is missing game, membership, lifecycle, version, turn and exact legal membership. Malformed JSON/incompatible types return 400 without promising VALIDATION_FAILED. Unexpected rules/stored-state failures are not broadly reclassified as client illegality.
+
+Clients use the accepted response version for the next command. Reload stale state without automatically replaying a move. An uncertain network failure may follow a commit, so read before proposing another move.
+
+The Angular page preserves GET-only participant metadata when applying a POST response. Both participants can read a finished game. Terminal release permits another queue join; no history-listing endpoint is implemented.
 
 ## Keeping contracts synchronized
 

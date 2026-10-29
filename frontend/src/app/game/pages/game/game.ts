@@ -143,11 +143,16 @@ export class Game implements OnInit {
     ).subscribe(game => {
       this.game.set(game);
       this.needsRefresh.set(false);
+      this.moveMessage.set(null);
     });
   }
 
   refresh(): void {
-    if (this.loading() || !this.validGameId()) {
+    if (
+      this.loading() ||
+      this.submitting() ||
+      !this.validGameId()
+    ) {
       return;
     }
 

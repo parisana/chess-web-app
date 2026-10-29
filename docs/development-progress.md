@@ -1,6 +1,20 @@
 # Development Progress
 
-## Day 18 current checkpoint — HTTP gameplay
+## Day 19 current checkpoint — source-reviewed, 29 October 2026
+
+Reviewed the actual user archive `chess-web-app-day19-end.zip` against `chess-web-app-day18-end.zip`. No blocking defect was found in the reviewed Day 19 changes. Two small follow-ups are supplied inline and recorded in [the review](day19-frontend-gameplay.md): add a submission guard to Game.refresh() and clear obsolete move feedback after a successful GET. They are not applied to production source by this documentation package.
+
+The Angular frontend now supports guarded matched-game navigation, participant-protected game reads, a custom Player-oriented click-to-move board, explicit promotion including cancellation, versioned move submission, manual refresh, stale-state reload without command retry, uncertain-outcome blocking and completion feedback. Game and ChessBoard use separate TypeScript, HTML and CSS files.
+
+The backend tree is byte-for-byte unchanged from the Day 18 archive. No new endpoint, migration or backend runtime configuration is introduced. The cm-chessboard dependency, declarations and asset/style additions are absent. package.json is unchanged; package-lock.json contains 15 package-version changes, and angular.json differs only in formatting. Those user changes are preserved.
+
+Tests are treated as green under the standing instruction to report failures. The assistant ran no application tests, builds, migrations or browser acceptance checks, and claims no separately verified frontend build/manual result. Source inspection is the evidence for this review.
+
+See [frontend gameplay flow](frontend-gameplay-flow.md) for the lifecycle and Angular coordination, [Day 19 review](day19-frontend-gameplay.md) for findings and [next-session handoff](day19-handoff.md) for continuation. Earlier Day sections retain historical boundaries and do not override this checkpoint.
+
+History, real-time delivery, clocks, additional draw rules, acceptance and disconnect/abandonment policy remain separate scope decisions. A board library is optional post-MVP polish, not an MVP requirement.
+
+## Day 18 checkpoint — historical HTTP gameplay
 
 Authenticated POST /api/v1/games/{gameId}/moves now delegates to the existing
 GameService command using JWT-derived Player identity. SubmitMoveRequest
@@ -23,7 +37,7 @@ delivery, clocks and disconnect policy remain pending.
 See [Day 18 HTTP gameplay](day18-http-gameplay.md) for the contract and coverage.
 Earlier checkpoint sections describe historical boundaries.
 
-## Day 17 current checkpoint — source-reviewed, 28 October 2026
+## Day 17 checkpoint — historical source review, 28 October 2026
 
 Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` against `chess-web-app-day16-end.zip`. No blocking defect was found in the reviewed Day 17 production/test changes. Tests are treated as green under the user's standing instruction to report failures; this is user-provided verification context, not an independent run or a detailed per-command log. No tests, builds or migrations were run by the assistant, and no separate frontend build result is claimed.
 
@@ -91,8 +105,9 @@ Day numbers identify working sessions and differ from the original 30-working-da
 | Pairing | Oldest-first eligible pairing on join, random colors, transaction-level queue advisory lock |
 | Games | Initial creation and service-owned legal FEN updates; expected-version/JPA optimistic protection; FINISHED results and atomic reservation release |
 | Atomicity | Creation/pairing remain atomic; terminal FEN/result/version and deletion of both active reservations also commit or roll back together |
-| Discovery | `MATCHED` queue status with game ID; manual Angular status refresh |
-| Game access | Participant-protected `GET /api/v1/games/{gameId}` |
+| Discovery | MATCHED queue status, manual refresh and Open game navigation |
+| Game access | Participant-protected GET with version/result fields and JWT-derived POST moves |
+| Frontend gameplay | Guarded game page, custom oriented board, explicit promotion, versioned moves, refresh/recovery and completion feedback |
 | Rules foundation | Pure Java immutable representation, separate FEN parser/serializer, initial-position/legal-lookup/legal-application/assessment rules facade (source-reviewed Day 16) |
 | Movement | Knight/rook/bishop/queen/king/pawn strategies, explicit promotions, en passant and standard castling (Day 14), shared traversal/application/filtering, resulting-square king safety, irreversible rook/king castling-right removal, centralized test fixtures; all-piece attack detection |
 | Position assessment | Pure NORMAL/CHECK/CHECKMATE/STALEMATE assessment; GameService maps resulting mate/stalemate into persisted completion |
@@ -151,10 +166,12 @@ Backend coverage includes:
 - Active-game conflicts, rollback of partial reservations, and concurrent creation sharing a player.
 - Pairing of two players, removal of paired entries, rollback with the enclosing transaction, and concurrent joins without duplicate games.
 - Game-read HTTP access for both participants, nonparticipants, missing games and missing authentication.
+- Day 18 request validation and committed HTTP move integration sources: real JWTs, POST/GET agreement, failure precedence, special moves and terminal release.
+- Day 17 rules/service/entity/PostgreSQL sources retain broader legality, rollback and optimistic-race coverage.
 
 The five focused Angular tests in `auth-flow.spec.ts` cover protected bearer attachment, exclusion of external requests, protected 401 cleanup/redirect, profile-load failure cleanup and logout. There is no `app.spec.ts` in this ZIP. No broad frontend component or end-to-end suite is introduced.
 
-Test presence describes inspected source. The user reports all tests green after the final Day 15 guided regressions; no detailed test log was supplied. This review ran no tests or builds.
+Test presence describes inspected source. Day 19 adds no frontend tests; the existing authentication tests remain unchanged. Passing status follows the standing user instruction, not an independent run. No tests/builds or browser acceptance checks were executed in this review.
 
 ## Day 5 username-update increment
 
@@ -224,7 +241,7 @@ The actual focused test package is `com.chessapp.game.rules.movement`:
 ./gradlew test --tests 'com.chessapp.game.rules.*'
 ```
 
-## Verification provenance
+## Day 15 verification provenance — historical
 
 Reviewed on 27 October 2026 against `chess-web-app-day15-end.zip`. Source inspection confirms position-wide legal-move enumeration and `NORMAL` / `CHECK` / `CHECKMATE` / `STALEMATE` assessment for the side to move. No blocking defect was found in the reviewed Day 15 changes. The user reports all tests green after the final guided regressions. No independent tests or builds were run; no detailed test log or separate frontend build result was supplied.
 
@@ -261,27 +278,29 @@ Manual smoke checks:
 8. Try another player's username; confirm conflict feedback and preserved input.
 9. Submit invalid values; confirm validation. Navigate away and back to Home and confirm the stored profile is reflected.
 10. Use the existing token to retrieve `/players/me` after renaming; confirm it remains valid.
+11. Open the matched game in both sessions; check opposite orientations and submit/refresh an ordinary move.
+12. Cancel promotion and select a different source; verify no request on cancel.
+13. Exercise stale/uncertain outcome recovery and terminal feedback. See frontend-gameplay-flow.md for the full suggested manual list.
 
 ## Current limitations
 
 - One queue; cooperating queue operations, including status reads, serialize through one advisory lock.
-- Pairing runs on join; no background worker or rating filter.
-- Manual status refresh; no application-event notifications or WebSocket/STOMP delivery.
-- No queue expiry or automatic leave on logout.
-- Games begin immediately in `IN_PROGRESS`; no acceptance stage.
-- Checkmate/stalemate completion and reservation release are implemented at the service boundary. The current frontend has no way to submit a move. Cancellation, disconnect expiry and abandonment remain pending.
-- Rules support all six strategies, promotions, en passant, castling, complete legal-move enumeration and current-side assessment. The facade is source-reviewed in Day 16; move endpoint/history, chessboard UI, game page and clocks remain pending; persisted terminal lifecycle is implemented in Day 17.
-- Repetition, move-count draws, dead-position detection, resignation and agreement are not evaluated.
-- Username updates are supported; email/password changes are not implemented.
-- Concurrent username edits use last-write-wins behavior; no player optimistic locking.
+- Pairing runs on join; no background pairing worker, rating filter, queue expiry or automatic leave on logout.
+- Games start immediately in IN_PROGRESS; no acceptance stage.
+- Manual refresh discovers matches and opponent moves; no real-time delivery.
+- Custom click-to-move board with Unicode pieces; no drag-and-drop, legal-move highlighting or persistent check indicator.
+- Checkmate/stalemate persist completion and release reservations; cancellation, disconnect expiry and abandonment remain deferred.
+- No move history, clocks, repetition/move-count/dead-position draws, resignation or draw agreement.
+- Username updates are supported; email/password changes and profile optimistic locking are not implemented.
 - Sessions are in memory; browser reload requires login. No refresh tokens, revocation or server-side logout.
 - Username/email matching remains exact; no normalization policy.
 - Security filter-chain errors and MVC Problem Details have different body contracts.
-- Secrets and configuration cleanup remain user-managed and outside this documentation update.
+- Two minor review follow-ups remain inline recommendations, not applied production changes; see day19-frontend-gameplay.md.
+- Secrets and runtime configuration remain user-managed.
 
 ## Working preferences
 
-Keep the focus on backend engineering and explain decisions incrementally. The user implements solutions provided inline step by step; do not silently substitute a generated full implementation archive. Prefer larger coherent milestones that fit comfortably in one chat, divided into a few increments. Treat tests as green under the user's standing instruction unless failures are reported, while clearly separating that from independent execution. Do not pause for routine pass confirmations. Include concise algorithm walkthroughs and selected test-board renderings. Prefer complete FEN fixtures with coherent metadata/turns unless invalidity is deliberate and explained. Use Lombok where appropriate, avoiding `@Data` on JPA entities. Add concise comments for non-obvious behavior. Keep frontend tests minimal. Provide verification commands without waiting for routine test-pass confirmation. Preserve passwords after failed form submissions.
+Keep the focus on backend engineering and explain decisions incrementally. The user implements solutions provided inline step by step; do not silently substitute a generated full implementation archive. Prefer larger coherent milestones that fit comfortably in one chat, divided into a few increments. Treat tests as green under the user's standing instruction unless failures are reported, while clearly separating that from independent execution. Do not pause for routine pass confirmations. Include concise algorithm walkthroughs and selected test-board renderings. Prefer complete FEN fixtures with coherent metadata/turns unless invalidity is deliberate and explained. Use Lombok where appropriate, avoiding `@Data` on JPA entities. Add concise comments for non-obvious behavior. Keep frontend tests minimal. New game/board components use separate HTML and CSS files; avoid broad unrelated frontend refactors. Provide verification commands without waiting for routine test-pass confirmation. Preserve passwords after failed form submissions.
 
 ## Deferred representation evaluation
 

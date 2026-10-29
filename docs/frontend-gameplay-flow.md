@@ -4,7 +4,7 @@ This companion explains the minimal frontend gameplay milestone: matched-game na
 
 ## Evidence and scope
 
-Prepared on 29 October 2026 from the reviewed Day 18 backend archive and the frontend increments supplied during the following session. The user's updated frontend archive has not yet been source-reviewed. This document explains that supplied implementation; reconcile it against the final source during milestone closing.
+Source-reviewed on 29 October 2026 against chess-web-app-day19-end.zip, compared with the Day 18 archive. The custom board, promotion cancellation, page/board file separation and library removal are confirmed in actual source. The backend is byte-for-byte unchanged from Day 18. Two small follow-ups are recommendations, not applied production changes; see [Day 19 review](day19-frontend-gameplay.md).
 
 No independent assistant tests or builds were run. Existing tests follow the standing user instruction that failures will be reported; this is not an independently verified frontend build or acceptance result.
 
@@ -72,7 +72,7 @@ Game.ngOnInit() combines:
 
 Each combined event enters switchMap, which subscribes to the newest read operation and unsubscribes from the previous one. This prevents an older read response from replacing a newer snapshot. It is not a guarantee that server-side processing of an old request stops.
 
-defer runs the load setup when that inner operation is subscribed to. The supplied implementation clears game and pending promotion, validates the route ID, sets loading and requests GET /api/v1/games/{gameId}.
+defer runs the load setup when that inner operation is subscribed to. The reviewed implementation clears game and pending promotion, validates the route ID, sets loading and requests GET /api/v1/games/{gameId}.
 
 On success, it sets the game signal and clears needsRefresh. On failure, it presents an error. catchError is inside the request, preserving the outer route/refresh stream for future attempts.
 
@@ -126,7 +126,7 @@ parseFenForDisplay checks six fields, piece-placement shape and the active-color
 
 ### Selection reset effect
 
-The supplied custom board registers:
+The reviewed custom board registers:
 
 ```ts
 effect(() => {
@@ -218,7 +218,7 @@ The identity check this.game() !== current ignores a response whose original sna
 
 ## 7. Recovery and manual refresh
 
-| Situation | Supplied client behavior |
+| Situation | Reviewed client behavior |
 | --- | --- |
 | Illegal move, 422/ILLEGAL_GAME_MOVE | Keep the position and allow another proposal |
 | Invalid request, 400 | Show rejection without applying a position |
@@ -247,7 +247,7 @@ Authentication remains in memory. Browser reload requires login again; Home can 
 
 ## Milestone closing
 
-Review the user's updated source archive before declaring completion or synchronizing all project documents. Confirm that the custom board is restored, component HTML/CSS are separate and the cm-chessboard dependency, declarations and added configuration entries are removed.
+The Day 19 archive has now been source-reviewed. The custom board, separate component files and complete library removal are confirmed. The Refresh button already blocks submissions, but refresh() itself lacks that guard; successful reads also retain old moveMessage text. Apply the two small inline follow-ups from day19-frontend-gameplay.md if desired before the closing commit. No production changes are included in this documentation bundle.
 
 Focused manual scenarios:
 
@@ -268,4 +268,3 @@ History, clocks, real-time delivery, extra draw rules, acceptance workflows and 
 - [Angular effect API](https://angular.dev/api/core/effect)
 - [Angular component outputs](https://angular.dev/guide/components/outputs)
 - [RxJS switchMap](https://rxjs.dev/api/operators/switchMap)
-
