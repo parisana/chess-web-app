@@ -1,0 +1,77 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 32rem;
+  margin: 1rem auto;
+}
+
+.board {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  border: 2px solid #594a3c;
+}
+
+caption {
+  padding-bottom: 0.75rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+td {
+  padding: 0;
+  background: #f0d9b5;
+  color: #211c18;
+}
+
+td.dark {
+  background: #b58863;
+}
+
+.square-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  aspect-ratio: 1;
+  cursor: pointer;
+}
+
+.square-content:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.square-content.selected {
+  box-shadow: inset 0 0 0 4px #245a30;
+}
+
+.square-content:focus-visible {
+  outline: 3px solid #174ea6;
+  outline-offset: -3px;
+}
+
+.coordinate {
+  position: absolute;
+  top: 0.15rem;
+  left: 0.2rem;
+  font-size: clamp(0.5rem, 1.8vw, 0.7rem);
+  line-height: 1;
+}
+
+.piece {
+  font-family: "DejaVu Sans", "Segoe UI Symbol", serif;
+  font-size: clamp(1.5rem, 7vw, 3rem);
+  line-height: 1;
+}
+
+[role="alert"] {
+  color: var(--mat-sys-error);
+}

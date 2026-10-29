@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { finalize, map, Observable, switchMap } from 'rxjs';
 
@@ -26,6 +26,7 @@ import { ProfileEditor } from '../../../player/components/profile-editor/profile
   standalone: true,
   imports: [
     DatePipe,
+    RouterLink,
     MatButtonModule,
     MatCardModule,
     MatProgressBarModule,
@@ -60,6 +61,9 @@ import { ProfileEditor } from '../../../player/components/profile-editor/profile
                 <p role="status">
                   Match found. Your game ID is {{ current.gameId }}.
                 </p>
+                <a mat-flat-button [routerLink]="['/games', current.gameId]" >
+                  Open game
+                </a>
               } @else {
                 <p role="status">You are not in the queue.</p>
               }

@@ -1,0 +1,120 @@
+<main class="game-page">
+  <header>
+    <h1>Game</h1>
+    <a mat-button routerLink="/home">Back to Home</a>
+  </header>
+
+  <mat-card [attr.aria-busy]="loading()">
+    <mat-card-header>
+      <mat-card-title>
+        @if (game(); as current) {
+        Game #{{ current.id }}
+        } @else {
+        Game details
+        }
+        @if (moveMessage(); as message) {
+        <p role="status">{{ message }}</p>
+        }
+      </mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      @if (loading()) {
+      <p role="status">Loading game…</p>
+      }
+
+      @if (errorMessage(); as message) {
+      <p role="alert">{{ message }}</p>
+      }
+
+      @if (game(); as current) {
+      <p>
+        You play
+        <strong>
+          {{
+          current.whitePlayerId === auth.currentPlayer()?.id
+          ? 'White'
+          : 'Black'
+          }}
+        </strong>.
+      </p>
+
+      @if (current.status === 'IN_PROGRESS') {
+      <p role="status">This game is in progress.</p>
+      } @else {
+      <p role="status">
+        {{ resultText(current) }}
+        @if (current.terminationReason === 'CHECKMATE') {
+        — checkmate.
+        } @else if (
+        current.terminationReason === 'STALEMATE'
+        ) {
+        — stalemate.
+        }
+      </p>
+
+      @if (current.finishedAt; as finishedAt) {
+      <p>Finished {{ finishedAt | date:'medium' }}.</p>
+      }
+      }
+
+      <p>Version: {{ current.version }}</p>
+
+      <app-chess-board [fen]="current.currentFen" [orientation]="
+                current.whitePlayerId === auth.currentPlayer()?.id
+                  ? 'WHITE'
+                  : 'BLACK'
+              " [enabled]="canSubmitMove() && pendingPromotion() === null" (moveProposed)="proposeMove($event)" />
+
+      @if (current.status === 'IN_PROGRESS') {
+      @if (submitting()) {
+      <p role="status">Submitting move…</p>
+      } @else if (needsRefresh()) {
+      <p role="status">Refresh the game before moving.</p>
+      } @else if (canSubmitMove() && pendingPromotion() === null) {
+      <p>Select one of your pieces, then its destination.</p>
+      } @else if (pendingPromotion() === null) {
+      <p>Waiting for your opponent. Refresh to check for their move.</p>
+      }
+      }
+
+      @if (pendingPromotion(); as move) {
+      <section aria-label="Choose a promotion piece">
+        <p>
+          Promote the pawn moving from {{ move.from }} to {{ move.to }}:
+        </p>
+
+        <div class="promotion-actions">
+          @for (piece of promotionChoices; track piece) {
+          <button mat-flat-button type="button" [disabled]="!canSubmitMove()" (click)="choosePromotion(piece)">
+            {{ piece }}
+          </button>
+          }
+
+          <button mat-button type="button" (click)="cancelPromotion()">
+            Cancel
+          </button>
+        </div>
+      </section>
+      }
+
+      <details>
+        <summary>Position FEN</summary>
+        <pre>{{ current.currentFen }}</pre>
+      </details>
+
+      <p>Refresh to load the latest position.</p>
+      }
+    </mat-card-content>
+
+    <mat-card-actions>
+      <button mat-button type="button" [disabled]="loading() || submitting() || !validGameId()" (click)="refresh()">
+        Refresh game
+      </button>
+    </mat-card-actions>
+
+    @if (loading()) {
+    <mat-progress-bar mode="indeterminate" aria-label="Loading game" />
+    }
+  </mat-card>
+</main>

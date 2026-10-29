@@ -1,0 +1,37 @@
+@if (position(); as current) {
+<table class="board" aria-label="Current chess position">
+  <caption>
+    {{ current.sideToMove === 'WHITE' ? 'White' : 'Black' }}
+    to move
+  </caption>
+
+  <tbody>
+    @for (row of rows(); track row.rank) {
+    <tr>
+      @for (cell of row.cells; track cell.square) {
+      <td [class.dark]="cell.dark">
+        <button class="square-content" type="button" [disabled]="!enabled()"
+          [class.selected]="selectedSquare() === cell.square" [attr.aria-label]="cell.label"
+          [attr.aria-pressed]="selectedSquare() === cell.square" (click)="selectSquare(cell.square)">
+          <span class="coordinate" aria-hidden="true">
+            {{ cell.square }}
+          </span>
+
+          @if (cell.piece; as piece) {
+          <span class="piece" aria-hidden="true">
+            {{ piece.glyph }}
+          </span>
+          }
+        </button>
+      </td>
+      }
+    </tr>
+    }
+  </tbody>
+</table>
+} @else {
+<p role="alert">
+  The game position could not be displayed.
+  Refresh the game to try again.
+</p>
+}
