@@ -1,5 +1,7 @@
 package com.chessapp.game.service;
 
+import com.chessapp.game.dto.GameHistoryResponse;
+import com.chessapp.game.dto.GameMoveResponse;
 import com.chessapp.game.dto.GameMoveResult;
 import com.chessapp.game.dto.GameResponse;
 import com.chessapp.game.entity.*;
@@ -211,6 +213,44 @@ public class GameService {
         // All writes still belong to this transaction.
         // Notifications are delivered only after its enclosing transaction commits.
         return GameMoveResult.from(game, assessment);
+    }
+
+    @Transactional(readOnly = true)
+    public GameHistoryResponse getHistory(
+            Long gameId,
+            Long requestingPlayerId
+    ) {
+        var game = gameRepository.findById(gameId)
+                .orElseThrow(GameNotFoundException::new);
+
+        // Authorize before querying or exposing history.
+        boolean isParticipant =
+                game.getWhitePlayerId().equals(requestingPlayerId)
+                        || game.getBlackPlayerId().equals(requestingPlayerId);
+
+        if (!isParticipant) {
+            throw new GameAccessDeniedException();
+        }
+
+        // Capture the boundary before querying the append-only move records.
+        long recordedMoveCount = game.getRecordedMoveCount();
+
+        var moves = gameMoveRepository.findHistoryThrough(
+                        game.getId(),
+                        recordedMoveCount
+                )
+                .stream()
+                .map(GameMoveResponse::from)
+                .toList();
+
+        return new GameHistoryResponse(
+                game.getId(),
+                game.getVersion(),
+                game.getHistoryStartFen(),
+                game.isHistoryComplete(),
+                recordedMoveCount,
+                moves
+        );
     }
 
     /**

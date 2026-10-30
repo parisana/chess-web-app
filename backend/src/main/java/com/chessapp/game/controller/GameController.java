@@ -1,5 +1,6 @@
 package com.chessapp.game.controller;
 
+import com.chessapp.game.dto.GameHistoryResponse;
 import com.chessapp.game.dto.GameMoveResult;
 import com.chessapp.game.dto.GameResponse;
 import com.chessapp.game.dto.SubmitMoveRequest;
@@ -32,6 +33,17 @@ public class GameController {
                 Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
 
         return gameService.getGame(gameId, requestingPlayerId);
+    }
+
+    @GetMapping("/{gameId}/moves")
+    public GameHistoryResponse getHistory(
+            @PathVariable("gameId") Long gameId,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        Long requestingPlayerId =
+                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+
+        return gameService.getHistory(gameId, requestingPlayerId);
     }
 
     @PostMapping("/{gameId}/moves")

@@ -427,9 +427,124 @@ class GameMoveHttpIntegrationTest {
         assertCommittedState(
                 body, expectedFen, 1, GameStatus.FINISHED, 0
         );
-
+        for (Long participant : List.of(white(), black())) {
+            readHistory(participant)
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.recordedMoveCount").value(1))
+                    .andExpect(jsonPath("$.moves.length()").value(1))
+                    .andExpect(jsonPath("$.moves[0].resultingFen").value(expectedFen));
+        }
         assertTrue(gameService.findActiveGameId(white()).isEmpty());
         assertTrue(gameService.findActiveGameId(black()).isEmpty());
+    }
+
+    @Test
+    void newGameHasAnEmptyHistoryFromItsInitialPosition() throws Exception {
+        readHistory(white())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.gameId").value(game.id()))
+                .andExpect(jsonPath("$.version").value(0))
+                .andExpect(jsonPath("$.historyStartFen").value(INITIAL))
+                .andExpect(jsonPath("$.historyComplete").value(true))
+                .andExpect(jsonPath("$.recordedMoveCount").value(0))
+                .andExpect(jsonPath("$.moves").isEmpty());
+    }
+
+    @Test
+    void bothParticipantsCanReadOrderedMoveHistory() throws Exception {
+        submit(white(), 0, "e2", "e4", null)
+                .andExpect(status().isOk());
+
+        submit(black(), 1, "e7", "e5", null)
+                .andExpect(status().isOk());
+
+        for (Long participant : List.of(white(), black())) {
+            readHistory(participant)
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.version").value(2))
+                    .andExpect(jsonPath("$.historyStartFen").value(INITIAL))
+                    .andExpect(jsonPath("$.historyComplete").value(true))
+                    .andExpect(jsonPath("$.recordedMoveCount").value(2))
+                    .andExpect(jsonPath("$.moves.length()").value(2))
+
+                    .andExpect(jsonPath("$.moves[0].sequenceNumber").value(1))
+                    .andExpect(jsonPath("$.moves[0].playerId").value(white()))
+                    .andExpect(jsonPath("$.moves[0].from").value("e2"))
+                    .andExpect(jsonPath("$.moves[0].to").value("e4"))
+                    .andExpect(jsonPath("$.moves[0].promotion").value(nullValue()))
+                    .andExpect(jsonPath("$.moves[0].resultingFen").value(AFTER_E4))
+                    .andExpect(jsonPath("$.moves[0].playedAt").isNotEmpty())
+
+                    .andExpect(jsonPath("$.moves[1].sequenceNumber").value(2))
+                    .andExpect(jsonPath("$.moves[1].playerId").value(black()))
+                    .andExpect(jsonPath("$.moves[1].from").value("e7"))
+                    .andExpect(jsonPath("$.moves[1].to").value("e5"))
+                    .andExpect(jsonPath("$.moves[1].resultingFen").value(AFTER_E4_E5));
+        }
+    }
+
+    @Test
+    void historyRequiresAuthentication() throws Exception {
+        mockMvc.perform(
+                        get("/api/v1/games/{gameId}/moves", game.id())
+                )
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(
+                        get("/api/v1/games/{gameId}/moves", game.id())
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Bearer definitely-not-a-jwt"
+                                )
+                )
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void historyRejectsOutsidersAndReportsMissingGames() throws Exception {
+        readHistory(outsider())
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GAME_ACCESS_DENIED"));
+
+        mockMvc.perform(
+                        get("/api/v1/games/{gameId}/moves", -1L)
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        bearerToken(white())
+                                )
+                )
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("GAME_NOT_FOUND"));
+    }
+
+    @Test
+    void legacyHistoryExposesItsBaselineAndIncompleteFlag() throws Exception {
+        jdbc.update("""
+            UPDATE games
+            SET current_fen = ?,
+                history_start_fen = ?,
+                history_complete = FALSE
+            WHERE id = ?
+            """,
+                AFTER_E4,
+                AFTER_E4,
+                game.id()
+        );
+
+        submit(black(), 0, "e7", "e5", null)
+                .andExpect(status().isOk());
+
+        readHistory(white())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.historyStartFen").value(AFTER_E4))
+                .andExpect(jsonPath("$.historyComplete").value(false))
+                .andExpect(jsonPath("$.recordedMoveCount").value(1))
+                .andExpect(jsonPath("$.moves.length()").value(1))
+                .andExpect(jsonPath("$.moves[0].sequenceNumber").value(1))
+                .andExpect(jsonPath("$.moves[0].playerId").value(black()))
+                .andExpect(jsonPath("$.moves[0].from").value("e7"))
+                .andExpect(jsonPath("$.moves[0].to").value("e5"))
+                .andExpect(jsonPath("$.moves[0].resultingFen").value(AFTER_E4_E5));
     }
 
     private ResultActions submit(
@@ -630,6 +745,16 @@ class GameMoveHttpIntegrationTest {
         return playerService.createPlayer(
                 "http_" + suffix,
                 suffix + "@example.com"
+        );
+    }
+
+    private ResultActions readHistory(Long playerId) throws Exception {
+        return mockMvc.perform(
+                get("/api/v1/games/{gameId}/moves", game.id())
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(playerId)
+                        )
         );
     }
 }

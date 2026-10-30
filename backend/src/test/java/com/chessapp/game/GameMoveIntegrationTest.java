@@ -770,6 +770,30 @@ class GameMoveIntegrationTest {
         );
     }
 
+    @Test
+    void boundedHistoryReadExcludesMovesAfterItsCapturedSequence() {
+        var first = submit(white(), 0, "e2", "e4");
+
+        // Simulate capturing the history boundary before a later move commits.
+        long capturedCount = reload().getRecordedMoveCount();
+
+        submit(black(), 1, "e7", "e5");
+
+        var bounded = moveRepository.findHistoryThrough(
+                game.id(),
+                capturedCount
+        );
+
+        assertEquals(1, bounded.size());
+        assertEquals(1L, bounded.getFirst().getSequenceNumber());
+        assertEquals(
+                first.currentFen(),
+                bounded.getFirst().getResultingFen()
+        );
+
+        assertEquals(2, history().size());
+    }
+
     private void race(Move firstMove, Move secondMove)
             throws Exception {
 
