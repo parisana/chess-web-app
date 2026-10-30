@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 
 import { GameResponse } from '../models/game-response';
 import { SubmitMoveRequest, GameMoveResult } from '../models/game-move';
+import { GameHistoryResponse } from '../models/game-history';
 
 @Injectable({
   providedIn: 'root',
@@ -21,6 +22,12 @@ export class GameApiService {
     return this.http.post<GameMoveResult>(
       `${this.baseUrl}/${gameId}/moves`,
       request,
+    );
+  }
+
+  getHistory(gameId: number) {
+    return this.http.get<GameHistoryResponse>(
+      `${this.baseUrl}/${gameId}/moves`,
     );
   }
 }

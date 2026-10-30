@@ -21,8 +21,10 @@ import {
   finalize,
   fromEvent,
   interval,
+  map,
   merge,
   Observable,
+  of,
   startWith,
   Subject,
   switchMap,
@@ -42,6 +44,7 @@ import { parseFenForDisplay } from '../../models/fen-display';
 import { ProposedMove, PromotionPiece } from '../../models/game-move';
 import { REALTIME_CONFIG } from '../../../notification/config/realtime.config';
 import { RealtimeService } from '../../../notification/services/realtime.service';
+import { GameHistoryResponse } from '../../models/game-history';
 
 @Component({
   selector: 'app-game',
@@ -74,6 +77,22 @@ export class Game implements OnInit {
   readonly needsRefresh = signal(false);
   readonly pendingPromotion = signal<ProposedMove | null>(null);
   readonly moveMessage = signal<string | null>(null);
+  readonly history = signal<GameHistoryResponse | null>(null);
+  readonly historyLoading = signal(false);
+  readonly historyError = signal<string | null>(null);
+
+  readonly historyNeedsRefresh = computed(() => {
+    const current = this.game();
+    const history = this.history();
+
+    // identifies missing, outdated or failed history reads
+    return current !== null && (
+      history === null ||
+      history.gameId !== current.id ||
+      history.version !== current.version ||
+      this.historyError() !== null
+    );
+  });
 
   readonly realtimeService = inject(RealtimeService);
 
@@ -136,6 +155,8 @@ export class Game implements OnInit {
         this.readPending = false;
 
         this.game.set(null);
+        this.history.set(null);
+        this.historyError.set(null);
         this.pendingPromotion.set(null);
         this.errorMessage.set(null);
         this.moveMessage.set(null);
@@ -217,7 +238,8 @@ export class Game implements OnInit {
           current !== null &&
           (
             current.status === 'IN_PROGRESS' ||
-            this.needsRefresh()
+            this.needsRefresh() ||
+            this.historyNeedsRefresh()
           );
       }),
       takeUntilDestroyed(this.destroyRef),
@@ -362,6 +384,9 @@ export class Game implements OnInit {
           terminationReason: result.terminationReason,
           finishedAt: result.finishedAt,
         });
+        // Our own notification may already be obsolete after accepting POST.
+        // Explicitly queue a read so our move list also catches up.
+        this.requestSynchronization(false);
       },
       error: (error: unknown) => {
         if (this.game() !== current) {
@@ -426,7 +451,6 @@ export class Game implements OnInit {
       this.errorMessage.set(null);
 
       return this.gameApi.getGame(gameId).pipe(
-        takeUntil(this.cancelReads),
         tap(snapshot => {
           const current = this.game();
 
@@ -457,6 +481,15 @@ export class Game implements OnInit {
             this.moveMessage.set(null);
           }
         }),
+        // The board is accepted first. History failure is handled separately
+        // and therefore does not turn a successful board read into a failure.
+        switchMap(snapshot =>
+          this.readHistorySnapshot(gameId).pipe(
+            map(() => snapshot),
+          ),
+        ),
+        // Cancel either stage before a move POST begins.
+        takeUntil(this.cancelReads),
         catchError((error: unknown) => {
           this.needsRefresh.set(true);
           this.errorMessage.set(this.describeError(error));
@@ -466,6 +499,7 @@ export class Game implements OnInit {
             (error.status === 403 || error.status === 404)
           ) {
             this.game.set(null);
+            this.history.set(null);
             this.pendingPromotion.set(null);
           }
 
@@ -475,6 +509,77 @@ export class Game implements OnInit {
           this.reading = false;
           this.loading.set(false);
           this.schedulePendingRead();
+        }),
+      );
+    });
+  }
+
+  private readHistorySnapshot(
+    gameId: number,
+  ): Observable<GameHistoryResponse | null> {
+    return defer(() => {
+      this.historyLoading.set(true);
+      this.historyError.set(null);
+
+      return this.gameApi.getHistory(gameId).pipe(
+        tap(history => {
+          const current = this.game();
+
+          if (
+            !current ||
+            current.id !== gameId ||
+            history.gameId !== gameId
+          ) {
+            return;
+          }
+
+          if (history.version > current.version) {
+            // A move committed between the board and history reads.
+            // Synchronize the board before displaying the newer move list.
+            this.latestNotifiedVersion = Math.max(
+              this.latestNotifiedVersion,
+              history.version,
+            );
+
+            this.requestSynchronization(true);
+            return;
+          }
+
+          if (history.version < current.version) {
+            // Preserve the previous list rather than accepting an older read.
+            // Manual/focus/periodic recovery can retry.
+            return;
+          }
+
+          const previous = this.history();
+
+          if (
+            previous === null ||
+            previous.gameId !== history.gameId ||
+            previous.version !== history.version
+          ) {
+            this.history.set(history);
+          }
+        }),
+
+        catchError((error: unknown) => {
+          // History failure does not invalidate an accepted board snapshot.
+          this.historyError.set(
+            'Unable to load the move list. Refresh the game to try again.',
+          );
+
+          if (
+            error instanceof HttpErrorResponse &&
+            (error.status === 403 || error.status === 404)
+          ) {
+            this.history.set(null);
+          }
+
+          return of(null);
+        }),
+
+        finalize(() => {
+          this.historyLoading.set(false);
         }),
       );
     });

@@ -31,3 +31,37 @@ pre {
 [role="alert"] {
   color: var(--mat-sys-error);
 }
+
+.move-history {
+  margin-top: 1.5rem;
+}
+
+.move-history h2 {
+  font-size: 1.15rem;
+}
+
+.move-history-scroll {
+  max-height: 20rem;
+  overflow: auto;
+}
+
+.move-history table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.move-history caption {
+  text-align: left;
+  padding-bottom: 0.5rem;
+}
+
+.move-history th,
+.move-history td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+.move-coordinates {
+  white-space: nowrap;
+}

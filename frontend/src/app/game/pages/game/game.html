@@ -98,6 +98,75 @@
       </section>
       }
 
+      <section class="move-history" aria-labelledby="move-history-title">
+        <h2 id="move-history-title">Moves</h2>
+
+        @if (historyLoading()) {
+        <p role="status">Updating move list…</p>
+        }
+
+        @if (historyError(); as message) {
+        <p role="alert">{{ message }}</p>
+        }
+
+        @if (history(); as recorded) {
+        @if (!recorded.historyComplete) {
+        <p>
+          Earlier moves are unavailable. This list begins from the
+          position saved when history recording was introduced.
+        </p>
+        }
+
+        @if (historyNeedsRefresh() && !historyLoading() && !historyError()) {
+        <p role="status">
+          The move list is catching up. Refresh the game if it stays out of date.
+        </p>
+        }
+
+        @if (recorded.moves.length === 0) {
+        <p>No moves have been recorded in this history yet.</p>
+        } @else {
+        <div class="move-history-scroll">
+          <table>
+            <caption>
+              Recorded moves in order
+            </caption>
+
+            <thead>
+              <tr>
+                <th scope="col">Entry</th>
+                <th scope="col">Player</th>
+                <th scope="col">Move</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              @for (move of recorded.moves; track move.sequenceNumber) {
+              <tr>
+                <th scope="row">{{ move.sequenceNumber }}</th>
+                <td>
+                  {{
+                  move.playerId === current.whitePlayerId
+                  ? 'White'
+                  : 'Black'
+                  }}
+                </td>
+                <td class="move-coordinates">
+                  {{ move.from }}–{{ move.to }}
+                  @if (move.promotion) {
+                  = {{ move.promotion }}
+                  }
+                </td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        }
+        } @else if (!historyLoading() && !historyError()) {
+        <p>The move list has not loaded yet. Refresh the game to try again.</p>
+        }
+      </section>
       <details>
         <summary>Position FEN</summary>
         <pre>{{ current.currentFen }}</pre>
