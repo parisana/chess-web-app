@@ -16,10 +16,18 @@ import {
   combineLatest,
   defer,
   EMPTY,
+  exhaustMap,
+  filter,
   finalize,
+  fromEvent,
+  interval,
+  merge,
+  Observable,
   startWith,
   Subject,
   switchMap,
+  takeUntil,
+  tap,
 } from 'rxjs';
 
 import { MatButtonModule } from '@angular/material/button';
@@ -32,6 +40,8 @@ import { GameApiService } from '../../services/game-api.service';
 import { ChessBoard } from '../../components/chess-board/chess-board';
 import { parseFenForDisplay } from '../../models/fen-display';
 import { ProposedMove, PromotionPiece } from '../../models/game-move';
+import { REALTIME_CONFIG } from '../../../notification/config/realtime.config';
+import { RealtimeService } from '../../../notification/services/realtime.service';
 
 @Component({
   selector: 'app-game',
@@ -64,6 +74,18 @@ export class Game implements OnInit {
   readonly needsRefresh = signal(false);
   readonly pendingPromotion = signal<ProposedMove | null>(null);
   readonly moveMessage = signal<string | null>(null);
+
+  readonly realtimeService = inject(RealtimeService);
+
+  private readonly realtimeConfig = inject(REALTIME_CONFIG);
+  private readonly cancelReads = new Subject<void>();
+
+  private activeGameId: number | null = null;
+  private latestNotifiedVersion = -1;
+
+  private reading = false;
+  private readPending = false;
+  private readScheduled = false;
 
   readonly promotionChoices: readonly PromotionPiece[] = [
     'QUEEN',
@@ -105,15 +127,19 @@ export class Game implements OnInit {
   });
 
   ngOnInit(): void {
-    combineLatest([
-      this.route.paramMap,
-      this.refreshRequests.pipe(startWith(undefined)),
-    ]).pipe(
-      switchMap(([params]) => defer(() => {
-        // Clear the previous game's data before loading another snapshot.
+    this.route.paramMap.pipe(
+      switchMap(params => {
+        // Navigation establishes a new synchronization scope.
+        // switchMap cancels the previous route's read stream first.
+        this.activeGameId = null;
+        this.latestNotifiedVersion = -1;
+        this.readPending = false;
+
         this.game.set(null);
         this.pendingPromotion.set(null);
         this.errorMessage.set(null);
+        this.moveMessage.set(null);
+        this.needsRefresh.set(false);
         this.validGameId.set(false);
 
         const rawId = params.get('gameId');
@@ -128,22 +154,77 @@ export class Game implements OnInit {
           return EMPTY;
         }
 
+        this.activeGameId = gameId;
         this.validGameId.set(true);
-        this.loading.set(true);
 
-        return this.gameApi.getGame(gameId).pipe(
-          catchError((error: unknown) => {
-            this.errorMessage.set(this.describeError(error));
-            return EMPTY;
-          }),
-          finalize(() => this.loading.set(false)),
+        return this.refreshRequests.pipe(
+          startWith(undefined),
+
+          // Only one GET runs for this route at a time.
+          // Additional work is remembered by readPending.
+          exhaustMap(() => this.readSnapshot(gameId)),
         );
-      })),
+      }),
       takeUntilDestroyed(this.destroyRef),
-    ).subscribe(game => {
-      this.game.set(game);
-      this.needsRefresh.set(false);
-      this.moveMessage.set(null);
+    ).subscribe();
+
+    this.realtimeService.updates$.pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(update => {
+      if (update.gameId !== this.activeGameId) {
+        return;
+      }
+
+      const current = this.game();
+
+      // Duplicate or delayed notifications need no additional read.
+      if (current && update.version <= current.version) {
+        return;
+      }
+
+      this.latestNotifiedVersion = Math.max(
+        this.latestNotifiedVersion,
+        update.version,
+      );
+
+      this.pendingPromotion.set(null);
+      this.requestSynchronization(true);
+    });
+
+    this.realtimeService.connections$.pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => {
+      // Initial connection and reconnect may follow missed notifications.
+      this.requestSynchronization(true);
+    });
+
+    merge(
+      fromEvent(window, 'focus'),
+      fromEvent(document, 'visibilitychange').pipe(
+        filter(() => document.visibilityState === 'visible'),
+      ),
+    ).pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => {
+      this.requestSynchronization(true);
+    });
+
+    interval(this.realtimeConfig.reconciliationIntervalMs).pipe(
+      filter(() => {
+        const current = this.game();
+
+        return document.visibilityState === 'visible' &&
+          current !== null &&
+          (
+            current.status === 'IN_PROGRESS' ||
+            this.needsRefresh()
+          );
+      }),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => {
+      // A safety read does not disable the board or cancel promotion.
+      // An actual newer snapshot will update them if necessary.
+      this.requestSynchronization(false);
     });
   }
 
@@ -156,7 +237,7 @@ export class Game implements OnInit {
       return;
     }
 
-    this.refreshRequests.next();
+    this.requestSynchronization(true);
   }
 
   resultText(game: GameResponse): string {
@@ -245,6 +326,13 @@ export class Game implements OnInit {
       return;
     }
 
+    // Only a nonblocking safety read can coexist with an enabled board.
+    // Cancel that GET before issuing a command, then reconcile afterward.
+    if (this.reading) {
+      this.readPending = true;
+      this.cancelReads.next();
+    }
+
     this.moveMessage.set(null);
     this.submitting.set(true);
 
@@ -254,7 +342,10 @@ export class Game implements OnInit {
       expectedVersion: current.version,
     }).pipe(
       takeUntilDestroyed(this.destroyRef),
-      finalize(() => this.submitting.set(false)),
+      finalize(() => {
+        this.submitting.set(false);
+        this.schedulePendingRead();
+      }),
     ).subscribe({
       next: result => {
         // Ignore a response if navigation or a reload replaced its snapshot.
@@ -282,6 +373,113 @@ export class Game implements OnInit {
     });
   }
 
+  private requestSynchronization(blockMoves: boolean): void {
+    if (
+      this.destroyRef.destroyed ||
+      this.activeGameId === null ||
+      !this.auth.isAuthenticated()
+    ) {
+      return;
+    }
+
+    if (blockMoves) {
+      this.needsRefresh.set(true);
+      this.pendingPromotion.set(null);
+    }
+
+    this.readPending = true;
+    this.schedulePendingRead();
+  }
+
+  private schedulePendingRead(): void {
+    if (this.readScheduled || this.destroyRef.destroyed) {
+      return;
+    }
+
+    this.readScheduled = true;
+
+    queueMicrotask(() => {
+      this.readScheduled = false;
+
+      if (
+        !this.readPending ||
+        this.reading ||
+        this.submitting() ||
+        this.destroyRef.destroyed ||
+        this.activeGameId === null ||
+        !this.auth.isAuthenticated()
+      ) {
+        return;
+      }
+
+      this.readPending = false;
+      this.refreshRequests.next();
+    });
+  }
+
+  private readSnapshot(gameId: number): Observable<GameResponse> {
+    return defer(() => {
+      this.reading = true;
+
+      // Keep an existing board visible during synchronization.
+      this.loading.set(this.game() === null);
+      this.errorMessage.set(null);
+
+      return this.gameApi.getGame(gameId).pipe(
+        takeUntil(this.cancelReads),
+        tap(snapshot => {
+          const current = this.game();
+
+          // Never replace a newer accepted snapshot with an older read.
+          // Preserve object identity for an unchanged version.
+          if (
+            current === null ||
+            current.id !== snapshot.id ||
+            snapshot.version > current.version
+          ) {
+            this.pendingPromotion.set(null);
+            this.game.set(snapshot);
+          }
+
+          const observed = this.game();
+
+          const stillBehind =
+            observed === null ||
+            observed.version < this.latestNotifiedVersion;
+
+          this.needsRefresh.set(stillBehind);
+
+          if (stillBehind) {
+            this.errorMessage.set(
+              'A newer game update is known. Refresh again if synchronization does not complete.',
+            );
+          } else {
+            this.moveMessage.set(null);
+          }
+        }),
+        catchError((error: unknown) => {
+          this.needsRefresh.set(true);
+          this.errorMessage.set(this.describeError(error));
+
+          if (
+            error instanceof HttpErrorResponse &&
+            (error.status === 403 || error.status === 404)
+          ) {
+            this.game.set(null);
+            this.pendingPromotion.set(null);
+          }
+
+          return EMPTY;
+        }),
+        finalize(() => {
+          this.reading = false;
+          this.loading.set(false);
+          this.schedulePendingRead();
+        }),
+      );
+    });
+  }
+
   private handleMoveError(error: unknown): void {
     if (error instanceof HttpErrorResponse) {
       const code: unknown = error.error?.code;
@@ -296,7 +494,7 @@ export class Game implements OnInit {
           'The displayed game state is out of date. Reloading it; your move will not be retried.',
         );
 
-        this.refreshRequests.next();
+        this.requestSynchronization(true);
         return;
       }
 
@@ -327,11 +525,12 @@ export class Game implements OnInit {
     }
 
     // A transport/server failure may occur after the move committed.
-    // Read the server state before allowing another proposal.
+    // Reconcile through GET; never retry the command automatically.
     this.needsRefresh.set(true);
     this.moveMessage.set(
-      'The move could not be confirmed. Refresh the game before trying another move.',
+      'The move could not be confirmed. Checking the latest game state; your move will not be retried.',
     );
+    this.requestSynchronization(true);
   }
 
   private describeError(error: unknown): string {

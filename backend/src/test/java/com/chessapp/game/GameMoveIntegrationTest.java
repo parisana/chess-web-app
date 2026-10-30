@@ -28,6 +28,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import com.chessapp.notification.config.WebSocketProperties;
+import com.chessapp.notification.dto.PlayerUpdate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+import static org.mockito.Mockito.*;
 
 import java.util.List;
 import java.util.Optional;
@@ -58,6 +64,12 @@ class GameMoveIntegrationTest {
     @Autowired private MatchmakingService matchmaking;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PlatformTransactionManager transactionManager;
+
+    @MockitoBean
+    private SimpMessagingTemplate outboundMessages;
+
+    @Autowired
+    private WebSocketProperties webSocketProperties;
 
     private List<PlayerResponse> players;
     private GameResponse game;
@@ -527,6 +539,80 @@ class GameMoveIntegrationTest {
                         """, game.id())
         );
 
+        assertUnchanged(INITIAL);
+        assertReservations();
+    }
+
+    @Test
+    void creationNotifiesBothPlayersAfterCommit() {
+        // setUp() called createGame() outside a surrounding transaction,
+        // so its service transaction has already committed.
+        var update = new PlayerUpdate(
+                "GAME_CREATED",
+                game.id(),
+                0
+        );
+
+        verify(outboundMessages).convertAndSendToUser(
+                white().toString(),
+                webSocketProperties.updatesDestination(),
+                update
+        );
+
+        verify(outboundMessages).convertAndSendToUser(
+                black().toString(),
+                webSocketProperties.updatesDestination(),
+                update
+        );
+    }
+
+    @Test
+    void moveNotifiesBothPlayersOnlyAfterTheOuterCommit() {
+        clearInvocations(outboundMessages);
+
+        new TransactionTemplate(transactionManager)
+                .executeWithoutResult(status -> {
+                    submit(white(), 0, "e2", "e4");
+
+                    // The service returned and flushed, but the enclosing
+                    // transaction has not committed.
+                    verifyNoInteractions(outboundMessages);
+                });
+
+        var update = new PlayerUpdate(
+                "GAME_UPDATED",
+                game.id(),
+                1
+        );
+
+        verify(outboundMessages).convertAndSendToUser(
+                white().toString(),
+                webSocketProperties.updatesDestination(),
+                update
+        );
+
+        verify(outboundMessages).convertAndSendToUser(
+                black().toString(),
+                webSocketProperties.updatesDestination(),
+                update
+        );
+
+        assertEquals(Long.valueOf(1), reload().getVersion());
+    }
+
+    @Test
+    void rolledBackMoveDoesNotNotifyEitherPlayer() {
+        clearInvocations(outboundMessages);
+
+        new TransactionTemplate(transactionManager)
+                .executeWithoutResult(status -> {
+                    submit(white(), 0, "e2", "e4");
+
+                    verifyNoInteractions(outboundMessages);
+                    status.setRollbackOnly();
+                });
+
+        verifyNoInteractions(outboundMessages);
         assertUnchanged(INITIAL);
         assertReservations();
     }

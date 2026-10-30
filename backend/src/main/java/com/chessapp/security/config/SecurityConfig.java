@@ -8,6 +8,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import com.chessapp.notification.config.WebSocketProperties;
 
 /**
  * @author pari on 10/16/26
@@ -17,7 +18,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(
-            HttpSecurity http
+            HttpSecurity http,
+            WebSocketProperties webSocketProperties
     ) throws Exception {
 
         /// Spring uses your JwtDecoder bean automatically.
@@ -33,6 +35,10 @@ public class SecurityConfig {
                                 HttpMethod.POST,
                                 "/api/v1/auth/register",
                                 "/api/v1/auth/login"
+                        ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                webSocketProperties.endpoint()
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

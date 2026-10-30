@@ -20,3 +20,12 @@ app:
     secret: "i5o0iYbJLEn9uTdbJPZrOCMgOUiXCjgKJyVpvK5P5Ls="
     issuer: chess-web-app
     access-token-ttl: 15m
+  websocket:
+    endpoint: /api/v1/ws
+    allowed-origin: http://localhost:4200
+    application-prefix: /app
+    user-prefix: /user
+    broker-prefix: /queue
+    updates-path: /updates
+    time-to-first-message: 10s
+    heartbeat-interval: 10s

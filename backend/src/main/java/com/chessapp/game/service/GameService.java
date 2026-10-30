@@ -19,6 +19,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.chessapp.game.event.GameChangedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.chessapp.game.repository.ActiveGamePlayerRepository;
 
@@ -41,6 +43,8 @@ public class GameService {
     private final FenSerializer fenSerializer;
     private final FenParser fenParser;
     private final Clock clock;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public GameResponse getGame(Long gameId, Long requestingPlayerId) {
@@ -90,7 +94,15 @@ public class GameService {
         if (reservedPlayers != 2) {
             throw new PlayerAlreadyInGameException();
         }
-
+        eventPublisher.publishEvent(
+                new GameChangedEvent(
+                        savedGame.getId(),
+                        savedGame.getWhitePlayerId(),
+                        savedGame.getBlackPlayerId(),
+                        savedGame.getVersion(),
+                        GameChangedEvent.Type.GAME_CREATED
+                )
+        );
         return GameResponse.from(savedGame);
     }
 
@@ -210,9 +222,18 @@ public class GameService {
                 );
             }
         }
+        eventPublisher.publishEvent(
+                new GameChangedEvent(
+                        game.getId(),
+                        game.getWhitePlayerId(),
+                        game.getBlackPlayerId(),
+                        game.getVersion(),
+                        GameChangedEvent.Type.GAME_UPDATED
+                )
+        );
 
         // Flush is not commit. An enclosing transaction can still roll back
-        // the game update and reservation deletion together.
+        // the game update, reservation deletion and pending notification.
         return GameMoveResult.from(game, assessment);
     }
 }

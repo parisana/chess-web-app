@@ -74,7 +74,7 @@
       } @else if (canSubmitMove() && pendingPromotion() === null) {
       <p>Select one of your pieces, then its destination.</p>
       } @else if (pendingPromotion() === null) {
-      <p>Waiting for your opponent. Refresh to check for their move.</p>
+      <p>Waiting for your opponent.</p>
       }
       }
 
@@ -103,7 +103,17 @@
         <pre>{{ current.currentFen }}</pre>
       </details>
 
-      <p>Refresh to load the latest position.</p>
+      @if (realtimeService.state() === 'CONNECTED') {
+      <p role="status">
+        Live updates are connected.
+      </p>
+      } @else {
+      <p role="status">
+        Live updates are unavailable or reconnecting.
+        Active games are checked periodically while this page is visible.
+        You can also refresh manually.
+      </p>
+      }
       }
     </mat-card-content>
 

@@ -21,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -43,6 +44,7 @@ class GameMoveServiceTest {
 
     private static final Move E4 = move("e2", "e4");
 
+    @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private GameRepository gameRepository;
     @Mock private PlayerService playerService;
     @Mock private ActiveGamePlayerRepository reservations;

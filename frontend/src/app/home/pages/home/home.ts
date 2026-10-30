@@ -10,7 +10,7 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { finalize, map, Observable, switchMap } from 'rxjs';
+import { filter, finalize, interval, map, merge, Observable, switchMap } from 'rxjs';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -20,6 +20,8 @@ import { AuthService } from '../../../auth/services/auth.service';
 import { QueueStatusResponse } from '../../../matchmaking/models/queue-status-response';
 import { MatchmakingApiService } from '../../../matchmaking/services/matchmaking-api.service';
 import { ProfileEditor } from '../../../player/components/profile-editor/profile-editor';
+import { REALTIME_CONFIG } from '../../../notification/config/realtime.config';
+import { RealtimeService } from '../../../notification/services/realtime.service';
 
 @Component({
   selector: 'app-home',
@@ -32,123 +34,8 @@ import { ProfileEditor } from '../../../player/components/profile-editor/profile
     MatProgressBarModule,
     ProfileEditor
   ],
-  template: `
-    <main class="home-page">
-      @if (auth.currentPlayer(); as player) {
-        <header>
-          <h1>Welcome, {{ player.username }}</h1>
-          <button mat-button type="button" (click)="logout()">
-            Log out
-          </button>
-        </header>
-        <app-profile-editor />
-        <mat-card [attr.aria-busy]="busy()">
-          <mat-card-header>
-            <mat-card-title>Matchmaking</mat-card-title>
-            <mat-card-subtitle>
-              Join or leave the waiting queue
-            </mat-card-subtitle>
-          </mat-card-header>
-
-          <mat-card-content>
-            @if (queue(); as current) {
-              @if (current.status === 'WAITING') {
-                <p role="status">
-                  You are in the queue.
-                  Joined at {{ current.enqueuedAt | date:'mediumTime' }}.
-                </p>
-              } @else if (current.status === 'MATCHED') {
-                <p role="status">
-                  Match found. Your game ID is {{ current.gameId }}.
-                </p>
-                <a mat-flat-button [routerLink]="['/games', current.gameId]" >
-                  Open game
-                </a>
-              } @else {
-                <p role="status">You are not in the queue.</p>
-              }
-            } @else {
-              <p>Queue status has not been loaded.</p>
-            }
-
-            <p>Refresh your status to check whether a match has been found.</p>
-
-            @if (errorMessage(); as message) {
-              <p role="alert">{{ message }}</p>
-            }
-          </mat-card-content>
-
-          <mat-card-actions>
-            @if (queue()?.status === 'NOT_QUEUED') {
-              <button
-                mat-flat-button
-                type="button"
-                [disabled]="busy()"
-                (click)="join()"
-              >
-                Join queue
-              </button>
-            }
-
-            @if (queue()?.status === 'WAITING') {
-              <button
-                mat-flat-button
-                type="button"
-                [disabled]="busy()"
-                (click)="leave()"
-              >
-                Leave queue
-              </button>
-            }
-
-            <button
-              mat-button
-              type="button"
-              [disabled]="busy()"
-              (click)="loadStatus()"
-            >
-              Refresh status
-            </button>
-          </mat-card-actions>
-
-          @if (busy()) {
-            <mat-progress-bar
-              mode="indeterminate"
-              aria-label="Updating queue status"
-            />
-          }
-        </mat-card>
-      }
-    </main>
-  `,
-  styles: `
-    .home-page {
-      max-width: 48rem;
-      margin: 2rem auto;
-      padding: 0 1rem;
-    }
-
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      margin-bottom: 1rem;
-    }
-
-    mat-card-content {
-      padding-top: 1rem;
-    }
-
-    mat-card-actions {
-      gap: 0.5rem;
-      flex-wrap: wrap;
-    }
-
-    [role="alert"] {
-      color: var(--mat-sys-error);
-    }
-  `,
+  templateUrl: './home.html',
+  styleUrl: './home.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Home implements OnInit {
@@ -158,16 +45,69 @@ export class Home implements OnInit {
   private readonly matchmakingApi = inject(MatchmakingApiService);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly queue = signal<QueueStatusResponse | null>(null);
+  readonly queueStatusResponse = signal<QueueStatusResponse | null>(null);
   readonly busy = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly realtimeService = inject(RealtimeService);
+
+  private readonly realtimeConfig = inject(REALTIME_CONFIG);
+
+  // Coalesce status-read requests received while another request is running.
+  private statusReadPending = false;
 
   ngOnInit(): void {
+    merge(
+      this.realtimeService.connections$,
+      this.realtimeService.updates$,
+    ).pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => this.requestStatusRead());
+
+    interval(this.realtimeConfig.reconciliationIntervalMs).pipe(
+      filter(() => {
+        const status = this.queueStatusResponse()?.status;
+
+        // Recover missed matching/completion notifications and failed reads.
+        // An idle Player outside the queue needs no periodic status read.
+        return status === undefined ||
+          status === 'WAITING' ||
+          status === 'MATCHED';
+      }),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => this.requestStatusRead());
+
     this.loadStatus();
   }
 
   // Load status when home opens. PostgreSQL owns membership; the component reads that state.
+  // We still fetch queue status rather than deriving it from the notification.
   loadStatus(): void {
+    this.requestStatusRead();
+  }
+
+  private requestStatusRead(): void {
+    if (
+      this.destroyRef.destroyed ||
+      !this.auth.isAuthenticated()
+    ) {
+      return;
+    }
+
+    this.statusReadPending = true;
+    this.flushPendingStatusRead();
+  }
+
+  private flushPendingStatusRead(): void {
+    if (
+      !this.statusReadPending ||
+      this.busy() ||
+      this.destroyRef.destroyed ||
+      !this.auth.isAuthenticated()
+    ) {
+      return;
+    }
+
+    this.statusReadPending = false;
     this.runRequest(this.matchmakingApi.status());
   }
 
@@ -194,7 +134,11 @@ export class Home implements OnInit {
   private runRequest(
     request: Observable<QueueStatusResponse>,
   ): void {
-    if (this.busy()) {
+    if (
+      this.busy() ||
+      this.destroyRef.destroyed ||
+      !this.auth.isAuthenticated()
+    ) {
       return;
     }
 
@@ -203,9 +147,17 @@ export class Home implements OnInit {
 
     request.pipe(
       takeUntilDestroyed(this.destroyRef),
-      finalize(() => this.busy.set(false)),
+      finalize(() => {
+        this.busy.set(false);
+
+        // Let the current subscription finish before draining a queued read.
+        // Destruction/logout guards are checked again inside the helper.
+        if (this.statusReadPending) {
+          queueMicrotask(() => this.flushPendingStatusRead());
+        }
+      }),
     ).subscribe({
-      next: response => this.queue.set(response),
+      next: response => this.queueStatusResponse.set(response),
       error: (error: unknown) => {
         this.errorMessage.set(this.describeError(error));
       },

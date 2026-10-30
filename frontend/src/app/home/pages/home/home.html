@@ -1,0 +1,79 @@
+<main class="home-page">
+  @if (auth.currentPlayer(); as player) {
+  <header>
+    <h1>Welcome, {{ player.username }}</h1>
+    <button mat-button type="button" (click)="logout()">
+      Log out
+    </button>
+  </header>
+  <app-profile-editor />
+  <mat-card [attr.aria-busy]="busy()">
+    <mat-card-header>
+      <mat-card-title>Matchmaking</mat-card-title>
+      <mat-card-subtitle>
+        Join or leave the waiting queue
+      </mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      @if (queueStatusResponse(); as current) {
+      @if (current.status === 'WAITING') {
+      <p role="status">
+        You are in the queue.
+        Joined at {{ current.enqueuedAt | date:'mediumTime' }}.
+      </p>
+      } @else if (current.status === 'MATCHED') {
+      <p role="status">
+        Match found. Your game ID is {{ current.gameId }}.
+      </p>
+      <a mat-flat-button [routerLink]="['/games', current.gameId]">
+        Open game
+      </a>
+      } @else {
+      <p role="status">You are not in the queue.</p>
+      }
+      } @else {
+      <p>Queue status has not been loaded.</p>
+      }
+
+      @if (realtimeService.state() === 'CONNECTED') {
+      <p role="status">
+        Live updates are connected. Match status updates automatically.
+      </p>
+      } @else {
+      <p role="status">
+        Live updates are unavailable or reconnecting.
+        Queue status is checked periodically while waiting or matched.
+        You can also refresh manually.
+      </p>
+      }
+
+      @if (errorMessage(); as message) {
+      <p role="alert">{{ message }}</p>
+      }
+    </mat-card-content>
+
+    <mat-card-actions>
+      @if (queueStatusResponse()?.status === 'NOT_QUEUED') {
+      <button mat-flat-button type="button" [disabled]="busy()" (click)="join()">
+        Join queue
+      </button>
+      }
+
+      @if (queueStatusResponse()?.status === 'WAITING') {
+      <button mat-flat-button type="button" [disabled]="busy()" (click)="leave()">
+        Leave queue
+      </button>
+      }
+
+      <button mat-button type="button" [disabled]="busy()" (click)="loadStatus()">
+        Refresh status
+      </button>
+    </mat-card-actions>
+
+    @if (busy()) {
+    <mat-progress-bar mode="indeterminate" aria-label="Updating queue status" />
+    }
+  </mat-card>
+  }
+</main>
