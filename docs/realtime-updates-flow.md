@@ -1,6 +1,6 @@
 # Real-time updates flow
 
-Day 20 source companion, reviewed on 30 October 2026 against `chess-web-app-day20-end.zip`. This explains implemented behavior, not a planned transport. No assistant application test/build/browser run is claimed.
+Day 21 source companion (Day 20 transport retained), reviewed on 30 October 2026 against `chess-web-app-day21-end.zip`. This explains implemented behavior, not a planned transport. No assistant application test/build/browser run is claimed.
 
 ## Connection and subscription
 
@@ -58,7 +58,7 @@ flowchart TD
     G --> H["Subscribed clients request HTTP state"]
 ```
 
-createGame publishes after both reservations are verified. submitMove publishes after its flush and any completion reservation release. These events carry IDs, version and type, not managed entities. Game depends on ApplicationEventPublisher, not messaging transport.
+createGame publishes after both reservations are verified. submitMove publishes after game/history flushes and any completion reservation release. These events carry IDs, version and type, not managed entities. Game depends on ApplicationEventPublisher, not messaging transport.
 
 Pairing calls createGame inside MatchmakingService’s transaction. The listener therefore waits for the outer transaction, including both queue deletions. A failure after GameService returns can still roll back and suppress delivery. Flush alone does not permit notification.
 
@@ -85,7 +85,7 @@ The in-memory simple broker has no persistent replay, subscription receipts or g
 | Consumer | Immediate reads | Periodic recovery |
 | --- | --- | --- |
 | Home | Entry, private updates and successful connections | Every 30 seconds for unknown/WAITING/MATCHED, not idle NOT_QUEUED |
-| Game | Entry, relevant newer hints, connection/reconnect, focus/visible return and manual refresh | Every 30 seconds while visible with loaded active or refresh-required state |
+| Game | Entry, relevant newer hints, connection/reconnect, focus/visible return and manual refresh | Every 30 seconds while visible with loaded active or board/history-refresh-required state |
 
 Home coalesces events received during a queue command/read into one pending read. It updates MATCHED feedback but intentionally leaves Open game as an explicit action.
 
@@ -101,9 +101,9 @@ The origin property is a single allowed HTTP(S) origin. Routing prefixes cannot 
 
 ## Tests and scope
 
-Inspected tests cover inbound authorization, outbound expiry/cleanup and real PostgreSQL transaction notification timing with a mocked messaging template. Actual end-to-end socket routing, heartbeat negotiation, subscription readiness and Angular coordination are not independently automated in this ZIP. See [review](day20-realtime-review.md).
+Inspected tests cover inbound authorization, outbound expiry/cleanup and real PostgreSQL transaction notification timing with a mocked messaging template. Actual end-to-end socket routing, heartbeat negotiation, subscription readiness and Angular coordination are not independently automated in this ZIP. See [review](day21-history-review.md).
 
-No clocks, history, acceptance or disconnect outcome is added. This is a single-instance live notification path. Future durable/multi-instance requirements need their own design rather than assuming the simple broker scales transparently.
+Day 21 persists history separately; live notifications remain small hints. No clocks, acceptance or disconnect outcome is added. This is a single-instance live notification path. Future durable/multi-instance requirements need their own design rather than assuming the simple broker scales transparently.
 
 ## References
 
@@ -113,3 +113,7 @@ No clocks, history, acceptance or disconnect outcome is added. This is a single-
 - [Simple broker and heartbeat scheduler](https://docs.spring.io/spring-framework/reference/web/websocket/stomp/handle-simple-broker.html)
 - [Simple broker limitations](https://docs.spring.io/spring-framework/reference/web/websocket/stomp/handle-broker-relay.html)
 - [StompJS lifecycle](https://stomp-js.github.io/guide/stompjs/using-stompjs-v5.html)
+
+## Day 21 read extension
+
+The notification payload is unchanged. Board GET is now followed by history GET. Matching versions accept history; newer history supplies another synchronization trigger; older history is ignored. Successful POST explicitly queues recovery for the sender's move list. cancelReads cancels either GET stage before POST. Loaded finished games keep visible-page safety checks only while board/history still need recovery. A history error alone does not disable an accepted board. See [history flow](move-history-flow.md).

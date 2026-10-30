@@ -2,24 +2,22 @@
 
 ## Current position
 
-Working Days 1–20 identify actual sessions, not a rewritten version of the original 30-working-day estimate. The [progress document](development-progress.md) lists delivered sessions. Day 20 implements authenticated real-time hints plus HTTP state recovery for matchmaking and gameplay.
+Working Days 1–21 identify actual sessions, not a rewritten version of the original 30-working-day estimate. The [progress document](development-progress.md) lists delivered sessions. Day 20 implements authenticated real-time hints plus HTTP recovery. Day 21 adds persisted history, SAN and the synchronized move list.
 
 The custom board is the MVP choice. Home automatically discovers pairing and offers Open game; automatic navigation is not a missing requirement.
 
 ## Next milestone selection
 
-Start a new major milestone in a new chat after closing the Day 20 review/documentation commit. Recheck the latest source before implementation. Do not silently combine unrelated features.
+Day 21 is complete in source: accepted-move history, protected reads, SAN and a minimal list are implemented. Close the review/documentation commit, then begin the next major milestone in a new chat. Recheck the latest source before implementation and agree scope first.
 
-Persisted move history is a reasonable next candidate: record accepted moves atomically, provide ordered participant-protected reads and later add a minimal move list. Existing games cannot recover earlier moves from their current FEN. History continuity/backfill policy must be explicit. Replay controls and SAN/PGN notation are separate scope choices.
-
-A focused verification/reliability milestone is another candidate if desired: configuration-binding tests, actual STOMP security/delivery tests and selected frontend coordination tests. No broad frontend suite is required by the current agreement.
+Possible next milestones include resignation/agreed draws to finish games explicitly, or focused reliability verification (configuration binding, real socket security/delivery and selected frontend coordination). Replay controls, PGN export and clocks remain separate choices; none is implicitly selected by this checkpoint.
 
 ## Remaining capabilities
 
 | Capability | Separate decisions needed |
 | --- | --- |
-| Move history | Stored fields, ordering, legacy games, read contract and minimal display |
-| Replay/notation | Replay controls, SAN/PGN format and export |
+| History extensions | Optional pre-SAN backfill, pagination and retention if needed; missing pre-V7 moves remain unavailable |
+| Replay/export | Replay controls and PGN generation/export; SAN is already implemented |
 | Clocks | Time controls, authoritative timing and timeout results |
 | Extra outcomes | Repetition, move-count and dead-position draws; resignation/agreement |
 | Disconnect policy | Grace periods, abandonment rules, reconnect behavior and reservation release |
@@ -38,4 +36,4 @@ Notifications are best-effort invalidation hints, not a command or durable move 
 
 ## Historical plan
 
-The original estimate and earlier milestone proposals are preserved in [historical main-document checkpoints](history/main-documents-through-day19.md) and existing Day documents. Historical pending features must not override the implemented Day 20 state.
+The original estimate and earlier milestone proposals are preserved in [historical main-document checkpoints](history/main-documents-through-day19.md) and existing Day documents. Historical pending features must not override the implemented Day 21 state.

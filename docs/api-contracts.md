@@ -1,6 +1,6 @@
 # API Contracts
 
-Current Day 20 contracts, source-reviewed on 30 October 2026 against `chess-web-app-day20-end.zip`. Tests follow the standing user agreement; the assistant ran no tests/builds or independent runtime acceptance checks. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day19.md).
+Current Day 21 contracts, source-reviewed on 30 October 2026 against `chess-web-app-day21-end.zip`. Tests follow the standing user agreement; the assistant ran no tests/builds or independent runtime acceptance checks. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day20.md).
 
 ## Shared conventions
 
@@ -26,6 +26,7 @@ Current Day 20 contracts, source-reviewed on 30 October 2026 against `chess-web-
 | DELETE | `/api/v1/matchmaking/queue/me` | Bearer JWT | 204; no body |
 | GET | `/api/v1/games/{gameId}` | Participant bearer JWT | 200; game state |
 | POST | `/api/v1/games/{gameId}/moves` | Participant Bearer JWT | 200; GameMoveResult |
+| GET | `/api/v1/games/{gameId}/moves` | Participant bearer JWT | 200; GameHistoryResponse |
 
 There is no public game-creation endpoint: pairing invokes creation internally. Participant-authenticated POST /api/v1/games/{gameId}/moves delegates to GameService. Pure rules exceptions are not themselves the HTTP contract; game-owned application exceptions map gameplay rejections.
 
@@ -175,7 +176,26 @@ Request validation precedes service lookup. Well-formed command precedence is mi
 
 Clients use the accepted response version for the next command. Reload stale state without automatically replaying a move. An uncertain network failure may follow a commit, so read before proposing another move.
 
-The Angular page preserves GET-only participant metadata when applying a POST response. Both participants can read a finished game. Terminal release permits another queue join. Day 20 GAME_UPDATED notifications request a fresh GET for the opponent as well. No history-listing endpoint is implemented.
+The Angular page preserves GET-only participant metadata when applying a POST response. Both participants can read a finished game. Terminal release permits another queue join. Day 20 GAME_UPDATED notifications request a fresh GET for the opponent as well. The separate history GET exposes persisted moves including SAN.
+
+## Read move history — GET `/api/v1/games/{gameId}/moves`
+
+No body or pagination parameters. Either stored participant may read active or finished history. Identity comes from the JWT. Lookup precedes membership checking, using the existing GAME_NOT_FOUND (404) and GAME_ACCESS_DENIED (403) contracts. Missing/invalid credentials receive 401 without a guaranteed MVC code.
+
+GameHistoryResponse fields:
+
+| Field | Meaning |
+| --- | --- |
+| gameId | Requested game |
+| version | Captured game concurrency version |
+| historyStartFen | Position immediately before the first recorded move |
+| historyComplete | Every move since creation is recorded; false for V7 legacy games |
+| recordedMoveCount | Number of recorded individual moves after the baseline |
+| moves | Ordered ascending by sequenceNumber, bounded by that captured count |
+
+Each move contains sequenceNumber, playerId, from, to, promotion, resultingFen, playedAt and san. Sequence begins at 1 relative to the baseline, not the chess fullmove number. Promotion is null or QUEEN/ROOK/BISHOP/KNIGHT. New application writes require nonblank SAN of at most 32 characters; old pre-SAN rows may return null. Castling/en passant each occupy one entry. playedAt and terminal finishedAt use the same timestamp for a completing move. Internal move-row IDs are not exposed.
+
+The baseline is preserved for future replay; no replay control or PGN export is supplied. There is no SAN backfill or reconstruction of missing pre-V7 moves. Reads currently return the full recorded list; pagination/retention limits are not implemented. Game GET and POST response shapes are unchanged.
 
 ## Real-time updates
 
@@ -242,7 +262,7 @@ Angular validates recognized type, positive safe-integer gameId and nonnegative 
 - CONNECTED means the connection succeeded and the client sent SUBSCRIBE, not that subscription registration has been acknowledged.
 - Stale/duplicate hints at or below the displayed game version are ignored. Out-of-order higher hints cause a fresh HTTP read; a read cannot replace a newer snapshot with an older one.
 - Home rereads on connection/update events, with 30-second checks for unknown/WAITING/MATCHED state. It does not force board navigation.
-- Game rereads on relevant newer hints, connections and focus/visibility return. Visible loaded active games, or loaded games still requiring refresh, receive 30-second safety reads. Initial failed reads without a snapshot rely on manual refresh, connection/focus events or a new hint; the periodic filter requires a snapshot.
+- Game rereads on relevant newer hints, connections and focus/visibility return. Visible loaded active games, or loaded games still requiring board/history refresh, receive 30-second safety reads. Initial failed reads without a snapshot rely on manual refresh, connection/focus events or a new hint; the periodic filter requires a snapshot.
 - Reconciliation waits during POST. A safety GET can be cancelled before POST. Commands are never replayed. Failed reads block proposals pending a successful read.
 
 Server outbound application messages require a registered unexpired session at enqueue and handler checks. Disconnect removes access. Backend filtering does not proactively close the physical socket at the exact expiry instant; already transmitted messages cannot be recalled.

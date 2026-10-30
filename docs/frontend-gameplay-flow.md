@@ -1,6 +1,6 @@
 # Frontend gameplay flow
 
-This companion describes the actual Day 20 source reviewed on 30 October 2026. It supersedes the manual-refresh-only Day 19 flow preserved in [history](history/main-documents-through-day19.md). Source review is not an independent build or runtime acceptance result.
+This companion describes the actual Day 21 source reviewed on 30 October 2026. It supersedes the manual-refresh-only Day 19 flow preserved in [history](history/main-documents-through-day19.md). Source review is not an independent build or runtime acceptance result.
 
 ## Ownership
 
@@ -11,7 +11,7 @@ This companion describes the actual Day 20 source reviewed on 30 October 2026. I
 | Home | Queue commands/status reads and explicit Open game navigation |
 | Game | Authoritative snapshots, requests, promotion and reconciliation |
 | ChessBoard | FEN projection, orientation, selection and move proposals |
-| GameApiService | GET/POST transport |
+| GameApiService | Game/history GET and move POST transport |
 | AuthSessionStore/interceptor | In-memory identity/token and protected HTTP handling |
 
 Home, Game and ChessBoard each use separate HTML/CSS files. Templates are connected through templateUrl/styleUrl; separation changes file organization, not data flow.
@@ -58,11 +58,11 @@ Selecting an own piece stores its square. Selecting another own piece replaces i
 
 Game.route.paramMap uses outer switchMap to cancel the old route’s read stream. New route setup clears old game/promotion/messages and resets activeGameId/latestNotifiedVersion/pending-read state. A validated route starts its first GET immediately.
 
-Within a route, refreshRequests uses exhaustMap so only one GET runs at a time. Additional required work is recorded in readPending instead of being silently lost. The coordinator uses a microtask to coalesce triggers and checks destruction, authentication, current route, reading and submitting before starting another read.
+Within a route, refreshRequests uses exhaustMap so only one coordinated board-then-history read runs at a time. Additional required work is recorded in readPending instead of being silently lost. The coordinator uses a microtask to coalesce triggers and checks destruction, authentication, current route, reading and submitting before starting another read.
 
 readSnapshot retains an existing board. loading represents a read with no snapshot; reading separately coordinates background work. A newer version replaces game and clears promotion. The same version preserves object identity, FEN and promotion. An older snapshot cannot replace newer accepted state. Successful reads clear obsolete move feedback unless the observed version is still below a known notification.
 
-catchError sits inside the read operation so future triggers remain active. Failures set needsRefresh and an error. A 403/404 additionally removes the snapshot. finalize clears read flags and schedules pending work. takeUntilDestroyed tears down page streams; takeUntil(cancelReads) permits cancellation of a safety GET before POST.
+catchError sits inside the read operation so future triggers remain active. Game-state read failures set needsRefresh and an error; history failures have separate feedback. A 403/404 additionally removes the snapshot. finalize clears read flags and schedules pending work. takeUntilDestroyed tears down page streams; takeUntil(cancelReads), placed after the history switchMap, permits cancellation of either GET stage before POST.
 
 ## Read triggers
 
@@ -74,7 +74,7 @@ catchError sits inside the read operation so future triggers remain active. Fail
 | Successful initial/reconnection | Queue blocking synchronization |
 | Window focus/visible return | Queue blocking synchronization |
 | Manual refresh | Queue blocking synchronization, guarded against submission/initial loading |
-| 30-second timer | Nonblocking safety read only while page visible with a loaded active game or loaded refresh-required state |
+| 30-second timer | Nonblocking safety read only while page visible with a loaded active game or loaded board/history-refresh-required state |
 
 An initial GET failure without a loaded snapshot is not retried by that timer. It can recover through manual refresh, connection/focus events or relevant hints. Blocking synchronization can clear selection/promotion even when the resulting version is unchanged; only an unchanged **nonblocking safety read** preserves those interactions.
 
@@ -106,7 +106,7 @@ A successful POST preserves participant metadata from GET and replaces accepted 
 | Stale version / wrong turn / already finished | Queue GET, never retry POST |
 | Uncertain transport/server outcome | Block proposals and queue GET; command may already have committed |
 | Protected HTTP 401 | Existing session-aware interceptor clears/redirects |
-| Read failure | Preserve blocked state; 403/404 removes snapshot |
+| Game-state read failure | Preserve blocked state; 403/404 removes snapshot |
 | FINISHED snapshot/result | Show persisted outcome and disable moves |
 
 Checkmate/stalemate release reservations in the backend transaction. Both Players learn completion through accepted POST or notification-triggered GET/recovery. Returning Home rereads status; another match is permitted after release. Closing the page or losing connectivity has no completion effect.
@@ -115,4 +115,10 @@ Checkmate/stalemate release reservations in the backend transaction. Both Player
 
 Game coordination is in frontend/src/app/game/pages/game/game.ts; board display in game/components/chess-board; transport in game/services/game-api.service.ts. Notification connection/config/models live under frontend/src/app/notification. Home’s current queue signal is queueStatusResponse and both pages expose realtimeService to their templates.
 
-See [real-time delivery and security](realtime-updates-flow.md), [contracts](api-contracts.md), [review](day20-realtime-review.md), [Angular signals](https://angular.dev/guide/signals) and [StompJS lifecycle](https://stomp-js.github.io/guide/stompjs/using-stompjs-v5.html).
+See [real-time delivery and security](realtime-updates-flow.md), [contracts](api-contracts.md), [review](day21-history-review.md), [Angular signals](https://angular.dev/guide/signals) and [StompJS lifecycle](https://stomp-js.github.io/guide/stompjs/using-stompjs-v5.html).
+
+## Day 21 history extension
+
+readSnapshot accepts the game snapshot in tap, then switchMap invokes readHistorySnapshot. reading/loading finalize after the complete read chain. History errors return null inside the history branch; they do not flow into the board-error handler. The history version must match the displayed board version. A newer response updates the known-newer version and queues blocking synchronization; an older one is ignored. A stale accepted list can remain visible while the page catches up.
+
+Successful POST queues a nonblocking read after submission finalizes even when its own notification was ignored. historyNeedsRefresh extends visible-page safety recovery to finished games with missing/failed/outdated history. Matching history and an error-free finished board stop periodic work. No command is replayed. The coordinate and SAN columns remain side by side. See [history flow](move-history-flow.md).

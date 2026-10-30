@@ -1,6 +1,14 @@
-# Movement pipeline architecture — Day 17
+# Movement pipeline architecture
 
-## Day 18 current checkpoint — HTTP gameplay
+## Day 21 current checkpoint — history and SAN
+
+Source-reviewed on 30 October 2026 against the actual user chess-web-app-day21-end.zip. The historical sections below retain their original scope. Current contracts and architecture are in the main documents.
+
+Movement legality/application/evaluation algorithms are unchanged. The added pure Java SanFormatter uses the original position, exact accepted move, complete legal set and resulting assessment. It handles ordinary moves, captures including en passant, standard castling, promotion, file/rank/full-square disambiguation and check/mate suffixes. Pinned pieces without a legal move to the target do not cause disambiguation. It assumes the supplied set is complete and assessment matches the resulting position; it does not independently generate or evaluate moves.
+
+GameService computes SAN before managed state mutation and persists it with coordinates/resulting FEN in the move transaction. No persistence or transport enters game.rules. V7 introduces explicit history baselines/counts; V8 permits null SAN for old records. See [history and SAN flow](move-history-flow.md) and [Day 21 review](day21-history-review.md). No assistant tests/builds/migrations/browser checks were run.
+
+## Historical Day 18 checkpoint — HTTP gameplay
 
 Authenticated POST /api/v1/games/{gameId}/moves now delegates to the existing
 GameService command using JWT-derived Player identity. SubmitMoveRequest

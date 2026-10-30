@@ -4,9 +4,9 @@ A backend-focused chess portfolio project built as a modular monolith with conve
 
 ## Current checkpoint
 
-Day 20 adds authenticated WebSocket/STOMP notifications for matchmaking and gameplay, after-commit delivery, session-expiry checks, reconnect recovery and periodic HTTP reconciliation. Source-reviewed on 30 October 2026 against the actual `chess-web-app-day20-end.zip`.
+Day 21 adds transactional persisted move history, participant-protected history reads, pure Java SAN formatting and separate coordinate/SAN columns in the move list. Source-reviewed on 30 October 2026 against the actual user `chess-web-app-day21-end.zip`. Day 20 real-time delivery and recovery remain in place.
 
-The user reports that the implementation looks good. Tests are treated as green under the standing working agreement unless failures are reported. No tests, builds, migrations or browser checks were run by the assistant. Source review does not establish independent runtime acceptance. See [review and coverage](docs/day20-realtime-review.md).
+The user reports that the implementation looks good. Tests are treated as green under the standing working agreement unless failures are reported. No tests, builds, migrations or browser checks were run by the assistant. Source review does not establish independent runtime acceptance. See [review and coverage](docs/day21-history-review.md).
 
 ## Capabilities
 
@@ -16,6 +16,7 @@ The user reports that the implementation looks good. Tests are treated as green 
 - Participant-protected game GET and versioned HTTP move commands with optimistic concurrency protection.
 - Atomic checkmate/stalemate completion, persisted results and release of both active reservations.
 - Custom Player-oriented board, explicit promotion/cancellation and server-accepted FEN display.
+- Ordered persisted moves with coordinates, promotion, resulting FEN, timestamps and SAN; explicit legacy-game baselines.
 - Private live notifications, automatic queue/game reads, deferred reconciliation during commands, heartbeats and reconnect recovery.
 
 **Pairing does not automatically navigate to the board.** Home updates to show the matched game; the Player clicks **Open game**. This is the intended Day 20 behavior.
@@ -26,7 +27,7 @@ Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, JPA, Flyway, Sprin
 
 ## Run locally
 
-Keep database and JWT configuration user-managed in `backend/src/main/resources/application.yaml`. Flyway migrations V1–V6 provide the schema; Hibernate validates it.
+Keep database and JWT configuration user-managed in `backend/src/main/resources/application.yaml`. Flyway migrations V1–V8 provide the schema; Hibernate validates it.
 
 From `backend/`:
 
@@ -51,7 +52,7 @@ Suggested commands, not assistant-executed results:
 
 ```bash
 # From backend/, no database needed for these focused tests:
-./gradlew test --tests 'com.chessapp.notification.*' --tests 'com.chessapp.game.service.GameMoveServiceTest'
+./gradlew test --tests 'com.chessapp.notification.*' --tests 'com.chessapp.game.service.GameMoveServiceTest' --tests 'com.chessapp.game.rules.notation.SanFormatterTest'
 
 # With the configured PostgreSQL test database:
 SPRING_PROFILES_ACTIVE=test ./gradlew test
@@ -64,13 +65,13 @@ npm test -- --watch=false
 npm run build
 ```
 
-Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests remain the existing focused authentication suite. The [Day 20 review](docs/day20-realtime-review.md) distinguishes source-confirmed coverage from missing tests and suggested manual scenarios.
+Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests remain the existing focused authentication suite. The [Day 21 review](docs/day21-history-review.md) distinguishes source-confirmed coverage from missing tests and suggested manual scenarios.
 
 ## Current limits
 
-Notifications are live hints, not durable move history or guaranteed delivery. HTTP reads recover current state; commands are never automatically replayed. Sessions are in memory, so browser reload requires login again.
+Notifications are best-effort live hints. Accepted moves are separately persisted in the database; notification delivery is not guaranteed. HTTP reads recover current state; commands are never automatically replayed. Sessions are in memory, so browser reload requires login again.
 
-There are no clocks, history/replay interface, resignation/agreed draws, repetition/move-count/dead-position draws, acceptance stage or abandonment policy. Closing the page, disconnecting or logging out does not finish a game or release its reservations. Spectators, chat, AI, external brokers and distributed deployment remain outside current scope. The custom board has no legal-move highlighting, drag-and-drop or persistent check indicator.
+Existing games record forward from their migration-time FEN; earlier moves cannot be reconstructed. Entries recorded before SAN support retain null SAN, displayed as “—” beside their coordinates. There are no replay controls, PGN export, clocks, resignation/agreed draws, repetition/move-count/dead-position draws, acceptance stage or abandonment policy. Closing the page, disconnecting or logging out does not finish a game or release its reservations. Spectators, chat, AI, external brokers and distributed deployment remain outside current scope. The custom board has no legal-move highlighting, drag-and-drop or persistent check indicator.
 
 ## Documentation
 
@@ -80,5 +81,6 @@ There are no clocks, history/replay interface, resignation/agreed draws, repetit
 - [Real-time flow](docs/realtime-updates-flow.md): diagrams for security, commit timing and recovery.
 - [Development progress](docs/development-progress.md), [roadmap](docs/roadmap.md) and [frontend setup](frontend/README.md).
 - [Movement pipeline](docs/movement-pipeline-architecture.md): pure rules companion.
-- [Day 20 source review](docs/day20-realtime-review.md) and [next-session handoff](docs/day20-handoff.md).
-- [Historical main-document checkpoints](docs/history/main-documents-through-day19.md). Existing Day documents retain their historical scope.
+- [Move history and SAN flow](docs/move-history-flow.md).
+- [Day 21 source review](docs/day21-history-review.md) and [next-session handoff](docs/day21-handoff.md).
+- [Historical main-document checkpoints](docs/history/main-documents-through-day20.md). Existing Day documents retain their historical scope.

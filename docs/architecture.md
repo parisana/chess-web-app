@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the current Day 20 system, source-reviewed on 30 October 2026 against `chess-web-app-day20-end.zip`. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day19.md). Verification evidence and scope limits are recorded in the [Day 20 review](day20-realtime-review.md).
+This document describes the current Day 21 system, source-reviewed on 30 October 2026 against `chess-web-app-day21-end.zip`. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day20.md). Verification evidence and scope limits are recorded in the [Day 21 review](day21-history-review.md).
 
 ## Application structure
 
@@ -48,6 +48,8 @@ PostgreSQL is durable storage. Applied Flyway migrations are immutable; future s
 | V4 | Games, participants, FEN and optimistic version |
 | V5 | Active-player reservations and initial backfill |
 | V6 | Completion fields and lifecycle consistency constraints |
+| V7 | History baseline/completeness/count and ordered move records |
+| V8 | Nullable SAN for pre-SAN records; new application records require SAN |
 
 BaseEntity timestamps use JPA callbacks. SQL defaults support non-JPA insertion; direct SQL updates do not automatically advance `updated_at`. Identity sequences need not rewind after rollback.
 
@@ -76,13 +78,13 @@ The facade does not own authorization, persistence, version checks or transactio
 
 Both participants may read a game, including after completion. Commands derive the acting Player from the JWT, never from request-supplied identity.
 
-For a well-formed move command, GameService checks existence, membership, lifecycle, expected version, turn and legal membership. It applies and evaluates the move through ChessRules before mutating the managed game. Flush advances the optimistic version and detects competing writes. A losing optimistic update becomes STALE_GAME_VERSION.
+For a well-formed move command, GameService checks existence, membership, lifecycle, expected version, turn and legal membership. It applies and evaluates the move through ChessRules before mutating the managed game. SAN is formatted from the original position, accepted move, complete legal set and resulting assessment before managed state changes. The recorded sequence advances on the versioned Game row. Flush advances the optimistic version and detects competing writes before history insertion. A losing optimistic update becomes STALE_GAME_VERSION.
 
-Checkmate sets the mover’s winning result; stalemate sets DRAW. Completion FEN, result/reason/time and deletion of both reservations commit or roll back together. Flush is not commit. Version is a concurrency token, not a separately defined move number.
+Checkmate sets the mover’s winning result; stalemate sets DRAW. Position, recorded count, move record including SAN, result/reason/time and deletion of both reservations commit or roll back together. The move and any completion share a Clock-derived timestamp truncated to microseconds. History is explicitly flushed before reservation release and event publication. Flush is not commit. Version is a concurrency token, not a separately defined move number.
 
 ## Internal events and real-time delivery
 
-GameService publishes immutable GameChangedEvent values after creation/reservation success or after move flush/release success. They carry game/participant IDs, version and GAME_CREATED/GAME_UPDATED. The game feature imports no WebSocket transport.
+GameService publishes immutable GameChangedEvent values after creation/reservation success or after game/history flush and any reservation release succeed. They carry game/participant IDs, version and GAME_CREATED/GAME_UPDATED. The game feature imports no WebSocket transport.
 
 GameNotificationListener runs AFTER_COMMIT and sends a small PlayerUpdate to both participant user destinations. During matchmaking it waits for the outer pairing transaction, including queue removal. A rollback produces no notification. Terminal moves use GAME_UPDATED; HTTP GET supplies the result.
 
@@ -118,4 +120,16 @@ The simple broker and session registry are in-process. Current delivery assumes 
 
 ## Deferred scope
 
-History/replay, clocks, extra draws, resignation/agreement, acceptance, abandonment/disconnect completion, ratings and statistics remain separate milestones. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](roadmap.md) and the two flow companions for details.
+Replay controls/PGN export, clocks, extra draws, resignation/agreement, acceptance, abandonment/disconnect completion, ratings and statistics remain separate milestones. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](roadmap.md) and the two flow companions for details.
+
+## Persisted history and SAN
+
+Game owns immutable historyStartFen/historyComplete metadata and a mutable recordedMoveCount. V7 copies existing currentFen into the baseline and marks all existing games incomplete, conservatively including games whose earlier moves are unknown. New games set their supplied initial FEN as the baseline and historyComplete=true. This means history since creation, not game completion. Counts begin at zero and sequence numbers begin at one relative to that baseline; neither is defined as the JPA version or FEN fullmove number.
+
+GameMove uses scalar game/Player IDs and stores source/destination, optional promotion, resulting FEN, playedAt and SAN. No application update operations are exposed. The database unique constraint on (game_id, sequence_number) protects ordering uniqueness and supplies its index. Membership, legal chess behavior and count/row consistency remain application responsibilities rather than cross-row database checks.
+
+getHistory authorizes membership before reading records through the captured recordedMoveCount. Later committed entries are excluded by the query bound. Consistency relies on atomic append-only writes and stable history metadata; this is not a general-purpose repeatable-read transaction or a concurrent-reader integration test claim. No history write belongs in an after-commit listener.
+
+SanFormatter is pure Java. It consumes the original position, accepted move, complete legal set and resulting assessment. It produces English SAN with captures, O-O/O-O-O, = promotion, legal-source disambiguation and +/# suffixes. It does not replace the legality facade. V8 preserves null SAN for pre-SAN entries; no backfill is supplied.
+
+Angular reads the board, then history, within the same coordinated read operation. Matching versions accept history; older history is ignored; newer history queues board synchronization. An older accepted list may remain visible while catching up, but a newer list is not shown ahead of the board. History failures have separate feedback and do not independently disable moves. Accepted POSTs explicitly queue reconciliation so the sender's list catches up even when its notification is already obsolete. See [history flow](move-history-flow.md).
