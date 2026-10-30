@@ -101,4 +101,46 @@ class GameTest {
                 )
         );
     }
+
+    @Test
+    void newGameRetainsItsHistoryBaseline() {
+        var game = new Game(1L, 2L, BEFORE_MATE);
+
+        assertAll(
+                () -> assertEquals(
+                        BEFORE_MATE,
+                        game.getHistoryStartFen()
+                ),
+                () -> assertTrue(game.isHistoryComplete()),
+                () -> assertEquals(0L, game.getRecordedMoveCount())
+        );
+    }
+
+    @Test
+    void recordedMoveSequenceAdvancesWithoutChangingBaseline() {
+        var game = new Game(1L, 2L, BEFORE_MATE);
+
+        assertEquals(1L, game.advanceRecordedMoveCount());
+        assertEquals(2L, game.advanceRecordedMoveCount());
+
+        assertEquals(BEFORE_MATE, game.getHistoryStartFen());
+    }
+
+    @Test
+    void finishedGameCannotAdvanceItsRecordedMoveSequence() {
+        var game = new Game(1L, 2L, BEFORE_MATE);
+
+        game.finish(
+                GameResult.WHITE_WIN,
+                GameTerminationReason.CHECKMATE,
+                Instant.parse("2026-10-30T06:00:00Z")
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                game::advanceRecordedMoveCount
+        );
+
+        assertEquals(0L, game.getRecordedMoveCount());
+    }
 }

@@ -5,6 +5,7 @@ import com.chessapp.game.dto.GameMoveResult;
 import com.chessapp.game.dto.GameResponse;
 import com.chessapp.game.entity.*;
 import com.chessapp.game.exception.*;
+import com.chessapp.game.repository.GameMoveRepository;
 import com.chessapp.game.repository.GameRepository;
 import com.chessapp.game.rules.evaluation.PositionStatus;
 import com.chessapp.game.rules.fen.FenParser;
@@ -60,6 +61,7 @@ class GameMoveIntegrationTest {
 
     @Autowired private GameService service;
     @Autowired private GameRepository repository;
+    @Autowired private GameMoveRepository moveRepository;
     @Autowired private PlayerService playerService;
     @Autowired private MatchmakingService matchmaking;
     @Autowired private JdbcTemplate jdbc;
@@ -108,7 +110,14 @@ class GameMoveIntegrationTest {
                             DELETE FROM active_game_players
                             WHERE player_id IN (?, ?, ?)
                             """, ids);
-
+                    jdbc.update("""
+                            DELETE FROM game_moves
+                            WHERE game_id IN (
+                                SELECT id
+                                FROM games
+                                WHERE white_player_id IN (?, ?, ?)
+                            )
+                            """, ids);
                     // All games created here use only these fixture players.
                     jdbc.update("""
                             DELETE FROM games
@@ -155,6 +164,45 @@ class GameMoveIntegrationTest {
                 service.getGame(game.id(), black()).currentFen()
         );
         assertReservations();
+
+        var moves = history();
+
+        assertEquals(2, moves.size());
+
+        var whiteMove = moves.getFirst();
+        var blackMove = moves.get(1);
+
+        assertAll(
+                () -> assertEquals(1L, whiteMove.getSequenceNumber()),
+                () -> assertEquals(white(), whiteMove.getPlayerId()),
+                () -> assertEquals("e2", whiteMove.getFromSquare()),
+                () -> assertEquals("e4", whiteMove.getToSquare()),
+                () -> assertNull(whiteMove.getPromotion()),
+                () -> assertEquals(
+                        first.currentFen(),
+                        whiteMove.getResultingFen()
+                ),
+                () -> assertNotNull(whiteMove.getPlayedAt()),
+
+                () -> assertEquals(2L, blackMove.getSequenceNumber()),
+                () -> assertEquals(black(), blackMove.getPlayerId()),
+                () -> assertEquals("e7", blackMove.getFromSquare()),
+                () -> assertEquals("e5", blackMove.getToSquare()),
+                () -> assertEquals(
+                        second.currentFen(),
+                        blackMove.getResultingFen()
+                ),
+
+                () -> assertEquals(
+                        2L,
+                        persisted.getRecordedMoveCount()
+                ),
+                () -> assertEquals(
+                        INITIAL,
+                        persisted.getHistoryStartFen()
+                ),
+                () -> assertTrue(persisted.isHistoryComplete())
+        );
     }
 
     @ParameterizedTest
@@ -204,6 +252,32 @@ class GameMoveIntegrationTest {
         assertEquals(Long.valueOf(1), reload().getVersion());
         assertEquals(GameStatus.IN_PROGRESS, result.status());
         assertReservations();
+
+        var moves = history();
+        assertEquals(1, moves.size());
+
+        var recorded = moves.getFirst();
+
+        assertAll(
+                () -> assertEquals(1L, recorded.getSequenceNumber()),
+                () -> assertEquals(mover(fen), recorded.getPlayerId()),
+                () -> assertEquals(from, recorded.getFromSquare()),
+                () -> assertEquals(to, recorded.getToSquare()),
+                () -> assertEquals(
+                        promotion.equals("-")
+                                ? null
+                                : PieceType.valueOf(promotion),
+                        recorded.getPromotion()
+                ),
+                () -> assertEquals(
+                        expectedFen,
+                        recorded.getResultingFen()
+                ),
+                () -> assertEquals(
+                        1L,
+                        reload().getRecordedMoveCount()
+                )
+        );
     }
 
     @ParameterizedTest
@@ -290,6 +364,27 @@ class GameMoveIntegrationTest {
         assertEquals(
                 GameStatus.FINISHED,
                 service.getGame(game.id(), white()).status()
+        );
+
+        var moves = history();
+        assertEquals(1, moves.size());
+
+        var recorded = moves.getFirst();
+
+        assertAll(
+                () -> assertEquals(1L, recorded.getSequenceNumber()),
+                () -> assertEquals(
+                        expectedFen,
+                        recorded.getResultingFen()
+                ),
+                () -> assertEquals(
+                        persisted.getFinishedAt(),
+                        recorded.getPlayedAt()
+                ),
+                () -> assertEquals(
+                        1L,
+                        persisted.getRecordedMoveCount()
+                )
         );
 
         // Both players can now participate in another game.
@@ -498,6 +593,7 @@ class GameMoveIntegrationTest {
         ).contains(persisted.getCurrentFen()));
 
         assertReservations();
+        assertExactlyOneRecordedMove(persisted);
     }
 
     @Test
@@ -514,6 +610,7 @@ class GameMoveIntegrationTest {
         assertEquals(GameStatus.FINISHED, persisted.getStatus());
         assertEquals(GameResult.WHITE_WIN, persisted.getResult());
         assertEquals(0, reservationCount());
+        assertExactlyOneRecordedMove(persisted);
     }
 
     @Test
@@ -617,6 +714,62 @@ class GameMoveIntegrationTest {
         assertReservations();
     }
 
+    @Test
+    void legacyGameRecordsForwardWithoutClaimingCompleteHistory() {
+        String baseline =
+                "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR"
+                        + " b KQkq e3 0 1";
+
+        // Simulate the state established by V7 for an existing game.
+        // Earlier moves are unavailable; the next recorded sequence is one.
+        assertEquals(
+                1,
+                jdbc.update("""
+                    UPDATE games
+                    SET current_fen = ?,
+                        history_start_fen = ?,
+                        history_complete = FALSE
+                    WHERE id = ?
+                    """,
+                        baseline,
+                        baseline,
+                        game.id()
+                )
+        );
+
+        var result = submit(black(), 0, "e7", "e5");
+        var persisted = reload();
+        var moves = history();
+
+        assertEquals(1, moves.size());
+
+        var recorded = moves.getFirst();
+
+        assertAll(
+                () -> assertFalse(persisted.isHistoryComplete()),
+                () -> assertEquals(
+                        baseline,
+                        persisted.getHistoryStartFen()
+                ),
+                () -> assertEquals(
+                        1L,
+                        persisted.getRecordedMoveCount()
+                ),
+                () -> assertEquals(
+                        1L,
+                        recorded.getSequenceNumber()
+                ),
+                () -> assertEquals(
+                        black(),
+                        recorded.getPlayerId()
+                ),
+                () -> assertEquals(
+                        result.currentFen(),
+                        recorded.getResultingFen()
+                )
+        );
+    }
+
     private void race(Move firstMove, Move secondMove)
             throws Exception {
 
@@ -701,11 +854,18 @@ class GameMoveIntegrationTest {
     }
 
     private void seedFen(String fen) {
-        // Controlled test setup only. Production commands never accept FEN.
+        // Controlled fixture setup before any moves.
+        // Treat this custom position as the fixture game's starting position.
+        // Direct SQL intentionally leaves its JPA version at zero.
         assertEquals(
                 1,
-                jdbc.update(
-                        "UPDATE games SET current_fen = ? WHERE id = ?",
+                jdbc.update("""
+                    UPDATE games
+                    SET current_fen = ?,
+                        history_start_fen = ?
+                    WHERE id = ?
+                    """,
+                        fen,
                         fen,
                         game.id()
                 )
@@ -732,6 +892,8 @@ class GameMoveIntegrationTest {
                 () -> assertNull(persisted.getTerminationReason()),
                 () -> assertNull(persisted.getFinishedAt())
         );
+        assertEquals(0L, persisted.getRecordedMoveCount());
+        assertTrue(history().isEmpty());
     }
 
     private int reservationCount() {
@@ -796,6 +958,36 @@ class GameMoveIntegrationTest {
         return playerService.createPlayer(
                 "move_" + suffix,
                 suffix + "@example.com"
+        );
+    }
+
+    private List<GameMove> history() {
+        return moveRepository.findAllByGameIdOrderBySequenceNumberAsc(
+                game.id()
+        );
+    }
+
+    private void assertExactlyOneRecordedMove(Game persisted) {
+        var moves = history();
+
+        assertEquals(1, moves.size());
+        assertEquals(1L, persisted.getRecordedMoveCount());
+
+        var recorded = moves.getFirst();
+
+        assertAll(
+                () -> assertEquals(
+                        1L,
+                        recorded.getSequenceNumber()
+                ),
+                () -> assertEquals(
+                        white(),
+                        recorded.getPlayerId()
+                ),
+                () -> assertEquals(
+                        persisted.getCurrentFen(),
+                        recorded.getResultingFen()
+                )
         );
     }
 }

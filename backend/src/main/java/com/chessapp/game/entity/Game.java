@@ -50,6 +50,28 @@ public class Game extends BaseEntity {
     @Column(nullable = false)
     private Long version;
 
+    //// game history related fields ////
+    @Column(
+            name = "history_start_fen",
+            nullable = false,
+            updatable = false,
+            columnDefinition = "text"
+    )
+    private String historyStartFen;
+
+    @Column(
+            name = "history_complete",
+            nullable = false,
+            updatable = false
+    )
+
+    // True when every move since this game's creation is recorded.
+    // Existing games migrated with only their current FEN remain false.
+    private boolean historyComplete;
+
+    @Column(name = "recorded_move_count", nullable = false)
+    private long recordedMoveCount;
+
     public Game(
             Long whitePlayerId,
             Long blackPlayerId,
@@ -74,6 +96,11 @@ public class Game extends BaseEntity {
         this.blackPlayerId = blackPlayerId;
         this.status = GameStatus.IN_PROGRESS;
         this.currentFen = initialFen;
+        // New games retain their starting position before any moves occur.
+        // Migration V7 separately establishes baselines for existing games.
+        this.historyStartFen = initialFen;
+        this.historyComplete = true;
+        this.recordedMoveCount = 0;
     }
 
     /**
@@ -89,6 +116,17 @@ public class Game extends BaseEntity {
         }
 
         currentFen = fen;
+    }
+
+    /**
+     * Advances the sequence within this game's recorded history.
+     * The service must persist the corresponding move in the same transaction.
+     */
+    public long advanceRecordedMoveCount() {
+        requireInProgress();
+
+        recordedMoveCount = Math.incrementExact(recordedMoveCount);
+        return recordedMoveCount;
     }
 
     /**

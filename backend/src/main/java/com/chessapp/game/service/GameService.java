@@ -2,11 +2,9 @@ package com.chessapp.game.service;
 
 import com.chessapp.game.dto.GameMoveResult;
 import com.chessapp.game.dto.GameResponse;
-import com.chessapp.game.entity.Game;
-import com.chessapp.game.entity.GameResult;
-import com.chessapp.game.entity.GameStatus;
-import com.chessapp.game.entity.GameTerminationReason;
+import com.chessapp.game.entity.*;
 import com.chessapp.game.exception.*;
+import com.chessapp.game.repository.GameMoveRepository;
 import com.chessapp.game.repository.GameRepository;
 import com.chessapp.game.rules.ChessRules;
 import com.chessapp.game.rules.evaluation.PositionStatus;
@@ -25,6 +23,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import com.chessapp.game.repository.ActiveGamePlayerRepository;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
@@ -37,6 +36,7 @@ import java.util.Optional;
 public class GameService {
 
     private final GameRepository gameRepository;
+    private final GameMoveRepository gameMoveRepository;
     private final PlayerService playerService;
     private final ActiveGamePlayerRepository activeGamePlayerRepository;
     private final ChessRules chessRules;
@@ -94,14 +94,9 @@ public class GameService {
         if (reservedPlayers != 2) {
             throw new PlayerAlreadyInGameException();
         }
-        eventPublisher.publishEvent(
-                new GameChangedEvent(
-                        savedGame.getId(),
-                        savedGame.getWhitePlayerId(),
-                        savedGame.getBlackPlayerId(),
-                        savedGame.getVersion(),
-                        GameChangedEvent.Type.GAME_CREATED
-                )
+        publishGameChanged(
+                savedGame,
+                GameChangedEvent.Type.GAME_CREATED
         );
         return GameResponse.from(savedGame);
     }
@@ -184,56 +179,117 @@ public class GameService {
         var nextPosition = chessRules.applyMove(position, move);
         var assessment = chessRules.evaluate(nextPosition);
         var nextFen = fenSerializer.serialize(nextPosition);
+        // Obtain one timestamp for the accepted move and any resulting completion.
+        var playedAt = clock.instant().truncatedTo(ChronoUnit.MICROS);
+        long nextSequenceNumber = updateGameForAcceptedMove(
+                game,
+                nextFen,
+                assessment,
+                playerColor,
+                playedAt
+        );
 
+        // Resolve competing commands before attempting the history insert.
+        flushGameOrRejectConflict();
+
+        // We explicitly flush history so a persistence failure surfaces before reservation release and event publication.
+        gameMoveRepository.saveAndFlush(
+                new GameMove(
+                        game.getId(),
+                        nextSequenceNumber,
+                        requestingPlayerId,
+                        move,
+                        nextFen,
+                        playedAt
+                )
+        );
+
+        releaseReservationsIfFinished(game);
+
+        publishGameChanged(game, GameChangedEvent.Type.GAME_UPDATED);
+
+        // All writes still belong to this transaction.
+        // Notifications are delivered only after its enclosing transaction commits.
+        return GameMoveResult.from(game, assessment);
+    }
+
+    /**
+     * Applies already-validated state and records any resulting completion.
+     * The sequence is relative to this game's history baseline.
+     * @return the sequenceNumber after the move is made
+     */
+    private long updateGameForAcceptedMove(
+            Game game,
+            String nextFen,
+            PositionStatus assessment,
+            PieceColor movingColor,
+            Instant playedAt
+    ) {
         // Complete rules processing before mutating the managed entity.
+        long sequenceNumber = game.advanceRecordedMoveCount();
         game.updatePosition(nextFen);
 
         if (assessment == PositionStatus.CHECKMATE) {
             game.finish(
-                    isWhite
+                    movingColor == PieceColor.WHITE
                             ? GameResult.WHITE_WIN
                             : GameResult.BLACK_WIN,
                     GameTerminationReason.CHECKMATE,
-                    clock.instant().truncatedTo(ChronoUnit.MICROS)
+                    playedAt
             );
         } else if (assessment == PositionStatus.STALEMATE) {
             game.finish(
                     GameResult.DRAW,
                     GameTerminationReason.STALEMATE,
-                    clock.instant().truncatedTo(ChronoUnit.MICROS)
+                    playedAt
             );
         }
 
+        return sequenceNumber;
+    }
+
+    /**
+     * Detects optimistic conflicts before history insertion or reservation release.
+     * Flushing does not commit the transaction.
+     */
+    private void flushGameOrRejectConflict() {
         try {
-            // Two transactions may both pass the expected-version check.
-            // Flush rejects the losing update before reservation release.
             gameRepository.flush();
         } catch (OptimisticLockingFailureException exception) {
             throw new StaleGameVersionException(exception);
         }
+    }
 
-        if (game.getStatus() == GameStatus.FINISHED) {
-            int released =
-                    activeGamePlayerRepository.releasePlayers(game.getId());
-
-            if (released != 2) {
-                throw new IllegalStateException(
-                        "Finishing a game requires exactly two active reservations"
-                );
-            }
+    private void releaseReservationsIfFinished(Game game) {
+        if (game.getStatus() != GameStatus.FINISHED) {
+            return;
         }
+
+        int released =
+                activeGamePlayerRepository.releasePlayers(game.getId());
+
+        if (released != 2) {
+            throw new IllegalStateException(
+                    "Finishing a game requires exactly two active reservations"
+            );
+        }
+    }
+
+    /**
+     * Publishes an internal event now; its notification listener runs after commit.
+     */
+    private void publishGameChanged(
+            Game game,
+            GameChangedEvent.Type type
+    ) {
         eventPublisher.publishEvent(
                 new GameChangedEvent(
                         game.getId(),
                         game.getWhitePlayerId(),
                         game.getBlackPlayerId(),
                         game.getVersion(),
-                        GameChangedEvent.Type.GAME_UPDATED
+                        type
                 )
         );
-
-        // Flush is not commit. An enclosing transaction can still roll back
-        // the game update, reservation deletion and pending notification.
-        return GameMoveResult.from(game, assessment);
     }
 }

@@ -5,6 +5,7 @@ import com.chessapp.game.entity.GameResult;
 import com.chessapp.game.entity.GameTerminationReason;
 import com.chessapp.game.exception.*;
 import com.chessapp.game.repository.ActiveGamePlayerRepository;
+import com.chessapp.game.repository.GameMoveRepository;
 import com.chessapp.game.repository.GameRepository;
 import com.chessapp.game.rules.ChessRules;
 import com.chessapp.game.rules.evaluation.PositionStatus;
@@ -46,6 +47,7 @@ class GameMoveServiceTest {
 
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private GameRepository gameRepository;
+    @Mock private GameMoveRepository gameMoveRepository;
     @Mock private PlayerService playerService;
     @Mock private ActiveGamePlayerRepository reservations;
     @Mock private ChessRules rules;
@@ -235,7 +237,11 @@ class GameMoveServiceTest {
         );
 
         assertSame(failure, conflict.getCause());
-        verifyNoInteractions(reservations);
+        verifyNoInteractions(
+                reservations,
+                gameMoveRepository,
+                eventPublisher
+        );
 
         // Mock-only tests establish ordering, not database rollback.
     }

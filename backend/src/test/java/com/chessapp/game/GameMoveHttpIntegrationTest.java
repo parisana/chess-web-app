@@ -100,6 +100,14 @@ class GameMoveHttpIntegrationTest {
                             WHERE player_id IN (?, ?, ?)
                             """, ids);
 
+                    jdbc.update("""
+                            DELETE FROM game_moves
+                            WHERE game_id IN (
+                                SELECT id
+                                FROM games
+                                WHERE white_player_id IN (?, ?, ?)
+                            )
+                            """, ids);
                     // Every game created here belongs to fixture players.
                     jdbc.update("""
                             DELETE FROM games
@@ -558,12 +566,18 @@ class GameMoveHttpIntegrationTest {
     }
 
     private void seedFen(String fen) {
-        // Controlled fixture setup only. Production requests never accept FEN.
-        // Direct SQL intentionally leaves the initial JPA version at zero.
+        // Controlled fixture setup before any moves.
+        // Treat this custom position as the fixture game's starting position.
+        // Direct SQL intentionally leaves its JPA version at zero.
         assertEquals(
                 1,
-                jdbc.update(
-                        "UPDATE games SET current_fen = ? WHERE id = ?",
+                jdbc.update("""
+                    UPDATE games
+                    SET current_fen = ?,
+                        history_start_fen = ?
+                    WHERE id = ?
+                    """,
+                        fen,
                         fen,
                         game.id()
                 )
