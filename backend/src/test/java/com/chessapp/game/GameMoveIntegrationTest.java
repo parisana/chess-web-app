@@ -172,6 +172,9 @@ class GameMoveIntegrationTest {
         var whiteMove = moves.getFirst();
         var blackMove = moves.get(1);
 
+        assertEquals("e4", whiteMove.getSan());
+        assertEquals("e5", blackMove.getSan());
+
         assertAll(
                 () -> assertEquals(1L, whiteMove.getSequenceNumber()),
                 () -> assertEquals(white(), whiteMove.getPlayerId()),

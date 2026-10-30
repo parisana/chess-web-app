@@ -7,6 +7,7 @@ import com.chessapp.game.rules.evaluation.PositionEvaluator;
 import com.chessapp.game.rules.fen.FenParser;
 import com.chessapp.game.rules.fen.FenSerializer;
 import com.chessapp.game.rules.movement.*;
+import com.chessapp.game.rules.notation.SanFormatter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 /**
@@ -23,6 +24,11 @@ public class GameRulesConfig {
     @Bean
     FenSerializer fenSerializer() {
         return new FenSerializer();
+    }
+
+    @Bean
+    SanFormatter sanFormatter() {
+        return new SanFormatter();
     }
 
     @Bean

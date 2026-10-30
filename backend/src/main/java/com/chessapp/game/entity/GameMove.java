@@ -71,13 +71,18 @@ public class GameMove {
     @Column(name = "played_at", nullable = false, updatable = false)
     private Instant playedAt;
 
+    // Existing rows may have no SAN; all newly recorded moves require it.
+    @Column(updatable = false, length = 32)
+    private String san;
+
     public GameMove(
             Long gameId,
             long sequenceNumber,
             Long playerId,
             Move move,
             String resultingFen,
-            Instant playedAt
+            Instant playedAt,
+            String san
     ) {
         requirePositiveId(gameId, "Game ID");
         requirePositiveId(playerId, "Player ID");
@@ -97,6 +102,12 @@ public class GameMove {
             );
         }
 
+        if (san == null || san.isBlank() || san.length() > 32) {
+            throw new IllegalArgumentException(
+                    "SAN must contain between 1 and 32 characters"
+            );
+        }
+
         this.gameId = gameId;
         this.sequenceNumber = sequenceNumber;
         this.playerId = playerId;
@@ -105,6 +116,7 @@ public class GameMove {
         this.promotion = move.promotion().orElse(null);
         this.resultingFen = resultingFen;
         this.playedAt = playedAt;
+        this.san = san;
     }
 
     private static void requirePositiveId(Long value, String name) {

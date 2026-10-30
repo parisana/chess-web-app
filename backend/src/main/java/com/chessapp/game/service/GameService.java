@@ -14,6 +14,7 @@ import com.chessapp.game.rules.fen.FenParser;
 import com.chessapp.game.rules.fen.FenSerializer;
 import com.chessapp.game.rules.model.Move;
 import com.chessapp.game.rules.model.PieceColor;
+import com.chessapp.game.rules.notation.SanFormatter;
 import com.chessapp.player.service.PlayerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -29,6 +30,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * @author pari on 10/22/26
@@ -44,6 +46,7 @@ public class GameService {
     private final ChessRules chessRules;
     private final FenSerializer fenSerializer;
     private final FenParser fenParser;
+    private final SanFormatter sanFormatter;
     private final Clock clock;
 
     private final ApplicationEventPublisher eventPublisher;
@@ -171,9 +174,10 @@ public class GameService {
             throw new NotPlayersTurnException();
         }
 
+        final Set<Move> legalMoves = chessRules.legalMoves(position);
         // Distinguish an ordinary rejected proposal from invalid stored state
         // or other failures propagated by the rules pipeline.
-        if (!chessRules.legalMoves(position).contains(move)) {
+        if (!legalMoves.contains(move)) {
             throw new IllegalGameMoveException();
         }
 
@@ -183,6 +187,14 @@ public class GameService {
         var nextFen = fenSerializer.serialize(nextPosition);
         // Obtain one timestamp for the accepted move and any resulting completion.
         var playedAt = clock.instant().truncatedTo(ChronoUnit.MICROS);
+        // Notation needs the original position and complete legal alternatives.
+        // Generate it before mutating the managed game.
+        var san = sanFormatter.format(
+                position,
+                move,
+                legalMoves,
+                assessment
+        );
         long nextSequenceNumber = updateGameForAcceptedMove(
                 game,
                 nextFen,
@@ -202,7 +214,8 @@ public class GameService {
                         requestingPlayerId,
                         move,
                         nextFen,
-                        playedAt
+                        playedAt,
+                        san
                 )
         );
 

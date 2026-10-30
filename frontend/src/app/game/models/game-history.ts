@@ -8,6 +8,7 @@ export interface GameMoveResponse {
   promotion: PromotionPiece | null;
   resultingFen: string;
   playedAt: string;
+  san: string | null;
 }
 
 export interface GameHistoryResponse {

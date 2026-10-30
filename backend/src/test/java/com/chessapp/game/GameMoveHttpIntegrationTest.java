@@ -479,7 +479,9 @@ class GameMoveHttpIntegrationTest {
                     .andExpect(jsonPath("$.moves[1].playerId").value(black()))
                     .andExpect(jsonPath("$.moves[1].from").value("e7"))
                     .andExpect(jsonPath("$.moves[1].to").value("e5"))
-                    .andExpect(jsonPath("$.moves[1].resultingFen").value(AFTER_E4_E5));
+                    .andExpect(jsonPath("$.moves[1].resultingFen").value(AFTER_E4_E5))
+                    .andExpect(jsonPath("$.moves[0].san").value("e4"))
+                    .andExpect(jsonPath("$.moves[1].san").value("e5"));
         }
     }
 
@@ -545,6 +547,63 @@ class GameMoveHttpIntegrationTest {
                 .andExpect(jsonPath("$.moves[0].from").value("e7"))
                 .andExpect(jsonPath("$.moves[0].to").value("e5"))
                 .andExpect(jsonPath("$.moves[0].resultingFen").value(AFTER_E4_E5));
+    }
+
+    @Test
+    void historyExposesPawnAndKnightCapturesAsSan() throws Exception {
+        submit(white(), 0, "e2", "e4", null)
+                .andExpect(status().isOk());
+
+        submit(black(), 1, "d7", "d5", null)
+                .andExpect(status().isOk());
+
+        submit(white(), 2, "e4", "d5", null)
+                .andExpect(status().isOk());
+
+        submit(black(), 3, "g8", "f6", null)
+                .andExpect(status().isOk());
+
+        submit(white(), 4, "g1", "f3", null)
+                .andExpect(status().isOk());
+
+        submit(black(), 5, "f6", "d5", null)
+                .andExpect(status().isOk());
+
+        readHistory(white())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.moves.length()").value(6))
+                .andExpect(jsonPath("$.moves[0].san").value("e4"))
+                .andExpect(jsonPath("$.moves[1].san").value("d5"))
+                .andExpect(jsonPath("$.moves[2].san").value("exd5"))
+                .andExpect(jsonPath("$.moves[3].san").value("Nf6"))
+                .andExpect(jsonPath("$.moves[4].san").value("Nf3"))
+                .andExpect(jsonPath("$.moves[5].san").value("Nxd5"));
+    }
+
+    @Test
+    void historyRemainsReadableWhenAnOlderEntryHasNoSan() throws Exception {
+        submit(white(), 0, "e2", "e4", null)
+                .andExpect(status().isOk());
+
+        // Simulate an entry recorded before migration V8.
+        assertEquals(
+                1,
+                jdbc.update("""
+                    UPDATE game_moves
+                    SET san = NULL
+                    WHERE game_id = ?
+                      AND sequence_number = 1
+                    """,
+                        game.id()
+                )
+        );
+
+        readHistory(white())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.historyComplete").value(true))
+                .andExpect(jsonPath("$.moves[0].san").value(nullValue()))
+                .andExpect(jsonPath("$.moves[0].from").value("e2"))
+                .andExpect(jsonPath("$.moves[0].to").value("e4"));
     }
 
     private ResultActions submit(

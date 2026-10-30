@@ -15,7 +15,8 @@ public record GameMoveResponse(
         String to,
         PieceType promotion,
         String resultingFen,
-        Instant playedAt
+        Instant playedAt,
+        String san
 ) {
     public static GameMoveResponse from(GameMove move) {
         return new GameMoveResponse(
@@ -25,7 +26,8 @@ public record GameMoveResponse(
                 move.getToSquare(),
                 move.getPromotion(),
                 move.getResultingFen(),
-                move.getPlayedAt()
+                move.getPlayedAt(),
+                move.getSan()
         );
     }
 }

@@ -13,12 +13,14 @@ import com.chessapp.game.rules.fen.FenParser;
 import com.chessapp.game.rules.fen.FenSerializer;
 import com.chessapp.game.rules.model.Move;
 import com.chessapp.game.rules.model.Square;
+import com.chessapp.game.rules.notation.SanFormatter;
 import com.chessapp.player.service.PlayerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -44,7 +46,8 @@ class GameMoveServiceTest {
                     + " b KQkq e3 0 1";
 
     private static final Move E4 = move("e2", "e4");
-
+    @Spy
+    private SanFormatter sanFormatter = new SanFormatter();
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private GameRepository gameRepository;
     @Mock private GameMoveRepository gameMoveRepository;
