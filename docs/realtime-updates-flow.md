@@ -1,6 +1,6 @@
 # Real-time updates flow
 
-Day 21 source companion (Day 20 transport retained), reviewed on 31 October 2026 against `chess-web-app-day22-end.zip`. This explains implemented behavior, not a planned transport. No assistant application test/build/browser run is claimed.
+Day 23 source companion (Day 20 transport retained), reviewed on 31 October 2026 against `chess-web-app-day23-end.zip`. This explains implemented behavior, not a planned transport. No assistant application test/build/browser run is claimed.
 
 ## Connection and subscription
 
@@ -101,7 +101,7 @@ The origin property is a single allowed HTTP(S) origin. Routing prefixes cannot 
 
 ## Tests and scope
 
-Inspected tests cover inbound authorization, outbound expiry/cleanup and real PostgreSQL transaction notification timing with a mocked messaging template. Actual end-to-end socket routing, heartbeat negotiation, subscription readiness and Angular coordination are not independently automated in this ZIP. See [review](day21-history-review.md).
+Inspected tests cover inbound authorization, outbound expiry/cleanup and real PostgreSQL transaction notification timing with a mocked messaging template. Day 23 adds actual socket routing/security and a private probe readiness fixture, including resignation after-commit delivery, outsider isolation and rollback suppression. Heartbeat negotiation and Angular coordination are not covered by these new socket tests. See [review](day23-reliability-review.md).
 
 Day 21 persists history separately; live notifications remain small hints. No clocks, acceptance or disconnect outcome is added. This is a single-instance live notification path. Future durable/multi-instance requirements need their own design rather than assuming the simple broker scales transparently.
 
@@ -123,3 +123,9 @@ The notification payload is unchanged. Board GET is now followed by history GET.
 The transport contract and notification module are unchanged. After every accepted resignation/offer/accept/decline/withdraw, GameService publishes GAME_UPDATED after flushing and any required release. GameNotificationListener still sends the committed version through updatesDestination() to both Players; PlayerUpdate.type is the event enum's name string.
 
 The recipient rereads GameResponse to discover drawOfferedByPlayerId or completion. Lifecycle versions invalidate stale command preconditions and history versions without implying a new move row. executeGameCommand now coordinates every game POST with notification/recovery reads. Missed offer hints recover through the existing active-page reads; no durable negotiation replay is added.
+
+## Day 23 socket fixture
+
+WebSocketIntegrationTest uses a random-port server, real JWTs, allowed Origin and the private subscription. Repeated unique byte-array probes establish reception before testing notifications; late probe replies are ignored. SimpleMessageConverter retains raw payload bytes, then JsonMapper parses application updates. text(null) tolerates an ERROR frame without a body; otherwise callback failure can prevent the error being recorded.
+
+Seven rejection cases assert STOMP ERROR callbacks; two cases exercise real resignation commit/rollback through GameService with three ready Players. Negative assertions observe 300 ms per check and positive reads allow five seconds. These are bounded observations, not proof of durable or exactly-once delivery. Heartbeats are disabled in this test client. No test-level transaction surrounds the fixture; explicit TransactionTemplate blocks own completion while service methods join them.

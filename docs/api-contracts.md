@@ -1,6 +1,6 @@
 # API Contracts
 
-Current Day 22 contracts, source-reviewed on 31 October 2026 against `chess-web-app-day22-end.zip`. Tests follow the standing user agreement; the assistant ran no tests/builds or independent runtime acceptance checks. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day21.md).
+Current contracts, source-reviewed on 31 October 2026 against `chess-web-app-day23-end.zip`. Day 23 adds backend tests and changes no HTTP or real-time contract. Tests follow the standing user agreement; the assistant ran no tests/builds or independent runtime acceptance checks. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day21.md).
 
 ## Shared conventions
 
@@ -319,3 +319,9 @@ REALTIME_CONFIG currently declares reconnect delay 5000ms, connection timeout 10
 ## Keeping contracts synchronized
 
 When changing an endpoint, update its owning DTO/service/controller, corresponding integration assertions, this action's contract and the checkpoint progress together. Keep feature error constants in their owning package. Tests verify documented behavior; this document does not establish that a test run passed.
+
+## Day 23 contract verification
+
+Both previously reported draw authentication/version-precedence HTTP tests are present and inspected. Binding tests cover configured paths, origin, routing overlap and duration validation. Real socket tests cover missing/malformed CONNECT credentials, four forbidden subscription forms and client SEND, plus participant-only resignation hints after commit and suppression on rollback. Bodyless ERROR frames are valid for this test fixture; no REST error-code shape is assumed.
+
+The socket client disables heartbeats and is not a browser/proxy test. Strict expiry, origin rejection and reconnection are not newly exercised over real sockets. The migration fixtures verify old rows and selected constraints using SQL, not application authorization or command atomicity. See [Day 23 review](day23-reliability-review.md).

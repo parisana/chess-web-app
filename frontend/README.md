@@ -1,6 +1,6 @@
 # Chess Frontend
 
-Angular 21 standalone frontend with Angular Material, signals, RxJS, in-memory authentication and a custom board. Current Day 22 source was reviewed on 31 October 2026. No assistant build/test/browser run is claimed; see [review](../docs/day22-lifecycle-review.md).
+Angular 21 standalone frontend with Angular Material, signals, RxJS, in-memory authentication and a custom board. Current source was reviewed against the Day 23 upload on 31 October 2026. Day 23 changes backend tests only; frontend code is unchanged. No assistant build/test/browser run is claimed; see [review](../docs/day23-reliability-review.md).
 
 ## Run
 

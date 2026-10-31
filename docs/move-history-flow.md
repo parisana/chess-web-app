@@ -1,6 +1,6 @@
 # Move history and SAN flow
 
-Day 22 source companion, reviewed on 31 October 2026 against the actual user chess-web-app-day22-end.zip. No assistant application tests, builds, migrations or browser checks were run.
+Day 23 source companion, reviewed on 31 October 2026 against the actual user chess-web-app-day23-end.zip. Production history and SAN code is unchanged. No assistant application tests, builds, migrations or browser checks were run.
 
 ## Storage meanings
 
@@ -61,7 +61,7 @@ Accepted POST explicitly queues nonblocking board/history reconciliation, coales
 
 ## Limits
 
-No reconstruction of pre-V7 moves, pre-SAN backfill, replay controls, PGN export, history pagination, clocks or disconnect outcome. No new frontend coordinator suite or old-database upgrade test is present. See [review](day21-history-review.md).
+No reconstruction of pre-V7 moves, pre-SAN backfill, replay controls, PGN export, history pagination, clocks or disconnect outcome. No new frontend coordinator suite is present. Day 23 adds real schema-upgrade fixtures: V6 legacy baselines and V7 pre-SAN move preservation through V10, including null SAN after V8 and existing V9 resignation preservation. See [review](day23-reliability-review.md).
 
 ## Day 22 lifecycle versions
 

@@ -4,9 +4,9 @@ A backend-focused chess portfolio project built as a modular monolith with conve
 
 ## Current checkpoint
 
-Day 22 adds versioned resignation and draw-offer commands, atomic agreed completion and Angular lifecycle controls. Source-reviewed on 31 October 2026 against the actual user `chess-web-app-day22-end.zip`, compared with the attached Day 21 checkpoint. Day 21 history/SAN and Day 20 real-time recovery remain in place.
+Day 23 adds backend reliability coverage for WebSocket property binding, real socket security/private delivery and prior-schema database upgrades. Source-reviewed on 31 October 2026 against the actual user `chess-web-app-day23-end.zip`, compared with `chess-web-app-day22-end(1).zip`. Production behavior, migrations, dependencies and frontend code are unchanged. Day 22 resignation/draw negotiation, Day 21 history/SAN and Day 20 real-time recovery remain in place.
 
-The user reports all tests green, including the two HTTP tests added after the upload. The assistant ran no tests, builds, migrations or browser checks. See [Day 22 review and coverage](docs/day22-lifecycle-review.md).
+The user reports the Day 23 tests passing after the socket fixture corrections. The two previously reported draw HTTP tests are present and source-reviewed. The assistant ran no tests, builds, migrations or browser checks. See [Day 23 review and coverage](docs/day23-reliability-review.md).
 
 ## Capabilities
 
@@ -53,7 +53,10 @@ Suggested commands, not assistant-executed results:
 
 ```bash
 # From backend/, no database needed for these focused tests:
-./gradlew test --tests 'com.chessapp.notification.*' --tests 'com.chessapp.game.service.GameMoveServiceTest' --tests 'com.chessapp.game.rules.notation.SanFormatterTest'
+./gradlew test --tests 'com.chessapp.notification.config.WebSocketPropertiesTest' --tests 'com.chessapp.notification.security.*' --tests 'com.chessapp.game.service.GameMoveServiceTest' --tests 'com.chessapp.game.rules.notation.SanFormatterTest'
+
+# Day 23 socket and migration checks require the configured PostgreSQL test database:
+./gradlew test --tests 'com.chessapp.notification.WebSocketIntegrationTest' --tests 'com.chessapp.game.GameMigrationIntegrationTest'
 
 # With the configured PostgreSQL test database:
 SPRING_PROFILES_ACTIVE=test ./gradlew test
@@ -66,7 +69,7 @@ npm test -- --watch=false
 npm run build
 ```
 
-Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests remain the existing focused authentication suite. The [Day 22 review](docs/day22-lifecycle-review.md) distinguishes source-confirmed coverage from missing tests and suggested manual scenarios.
+Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests remain the existing focused authentication suite. The [Day 23 review](docs/day23-reliability-review.md) distinguishes inspected coverage, user-reported execution and remaining limits. Migration tests create and drop unique schemas and require schema creation permission. The broad notification test pattern now includes a database-backed socket test.
 
 ## Current limits
 
@@ -83,9 +86,9 @@ Existing games record forward from their migration-time FEN; earlier moves canno
 - [Development progress](docs/development-progress.md), [roadmap](docs/roadmap.md) and [frontend setup](frontend/README.md).
 - [Movement pipeline](docs/movement-pipeline-architecture.md): pure rules companion.
 - [Move history and SAN flow](docs/move-history-flow.md).
-- [Lifecycle flow](docs/game-lifecycle-flow.md), [Day 22 source review](docs/day22-lifecycle-review.md) and [next-session handoff](docs/day22-handoff.md).
+- [Lifecycle flow](docs/game-lifecycle-flow.md), [Day 23 source review](docs/day23-reliability-review.md) and [next-session handoff](docs/day23-handoff.md).
 - [Day 21 source review](docs/day21-history-review.md) retains historical checkpoint evidence.
-- [Historical main-document checkpoints](docs/history/main-documents-through-day21.md). Existing Day documents retain their historical scope.
+- [Historical main-document checkpoints](docs/history/main-documents-through-day22.md). Existing Day documents retain their historical scope.
 
 ## Lifecycle policy
 

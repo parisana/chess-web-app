@@ -2,15 +2,15 @@
 
 ## Current position
 
-Working Days 1–22 identify actual sessions, not a rewritten version of the original 30-working-day estimate. The [progress document](development-progress.md) lists delivered sessions. Day 20 implements authenticated real-time hints plus HTTP recovery. Day 21 adds persisted history, SAN and the synchronized move list. Day 22 adds explicit resignation and draw negotiation with atomic completion and shared Angular command coordination.
+Working Days 1–23 identify actual sessions, not a rewritten version of the original 30-working-day estimate. The [progress document](development-progress.md) lists delivered sessions. Day 20 implements authenticated real-time hints plus HTTP recovery. Day 21 adds persisted history, SAN and the synchronized move list. Day 22 adds explicit resignation and draw negotiation with atomic completion and shared Angular command coordination. Day 23 adds configuration binding tests, real socket security/private delivery tests and actual prior-schema migration fixtures; application capabilities are unchanged.
 
 The custom board is the MVP choice. Home automatically discovers pairing and offers Open game; automatic navigation is not a missing requirement.
 
 ## Next milestone selection
 
-Day 22 is complete in inspected source. Review and commit documentation, then select the next milestone in a new chat. No next feature is implicitly authorized.
+Day 23 reliability work is complete in inspected source, with user-reported passing tests. Apply the documentation replacements, then select the next milestone in a new chat. The user reports the test naming cleanup completed; the remaining unused import is optional. No next feature is authorized by this handoff.
 
-A focused backend reliability milestone is a reasonable candidate: consider configuration binding, real socket security/delivery or an actual old-database upgrade fixture. The user reports the two previously missing draw HTTP precondition tests added and all tests green; inspect them with the next source checkpoint. Replay controls/PGN export or Player statistics/ratings are separate feature choices. Minimal frontend testing remains the user's preference.
+Replay/PGN export is a reasonable next feature candidate because history, baseline FEN and SAN are already persisted. Player statistics/ratings, clocks, extra rule-based draws, acceptance and abandonment remain separate choices. Remaining socket/migration coverage limits are documented rather than an implicit obligation to extend this reliability milestone.
 
 ## Remaining capabilities
 

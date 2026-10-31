@@ -1,6 +1,6 @@
 # Frontend gameplay flow
 
-This companion describes the actual Day 22 source reviewed on 31 October 2026. It supersedes the manual-refresh-only Day 19 flow preserved in [history](history/main-documents-through-day19.md). Source review is not an independent build or runtime acceptance result.
+This companion describes the current gameplay source reviewed against the Day 23 upload on 31 October 2026. Day 23 changes backend tests only. It supersedes the manual-refresh-only Day 19 flow preserved in [history](history/main-documents-through-day19.md). Source review is not an independent build or runtime acceptance result.
 
 ## Ownership
 
@@ -132,3 +132,7 @@ executeGameCommand receives a captured GameResponse, an Observable factory and a
 Resign and accept-draw first open an inline confirmation. The confirmation disables board proposals and hides other lifecycle buttons. Confirm rechecks current permission. Route changes, blocking synchronization and accepted newer snapshots dismiss it; unchanged nonblocking reads preserve it. Promotion must be chosen/cancelled before lifecycle actions.
 
 All accepted commands queue board/history reconciliation. Conflicts, missing/changed offers and uncertain failures block commands and request GET without retrying POST. Finished snapshots show resignation or agreement alongside existing outcome labels and remove lifecycle controls. Game.moveMessage remains the general action-feedback signal. See [lifecycle flow](game-lifecycle-flow.md).
+
+## Day 23 verification note
+
+The frontend is unchanged. Actual backend STOMP clients now exercise selected private delivery/security paths, but these tests do not exercise Angular signals, browser timers, reconnect recovery or command/read coordination. No new frontend tests or assistant browser checks were performed. See [review](day23-reliability-review.md).

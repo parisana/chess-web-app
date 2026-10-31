@@ -1,6 +1,17 @@
 # Development Progress
 
-## Current checkpoint — Day 22
+## Current checkpoint — Day 23
+
+Source-reviewed on 31 October 2026 against actual user chess-web-app-day23-end.zip, compared byte-for-byte by file with chess-web-app-day22-end(1).zip. The only source additions are WebSocketPropertiesTest, WebSocketIntegrationTest and G.java (declaring GameMigrationIntegrationTest). Production, migration, configuration, dependency and frontend files are unchanged. No blocking issue was found in inspected additions. The user reports passing tests after correcting the socket fixture; no assistant tests, builds, migrations or browser checks were run.
+
+Delivered: property binding/startup rejection and boundaries; nine real socket cases covering missing/invalid credentials, forbidden destinations, client SEND, private resignation delivery after outer commit and rollback suppression; two real prior-schema upgrade fixtures. Both Day 22 draw HTTP tests previously described as post-upload additions are now present and inspected.
+
+Socket fixes present: SimpleMessageConverter preserves raw bytes across content types; text(null) handles bodyless ERROR frames. The converter change alone did not resolve the reported failures; null handling resolved the seven rejection failures. No production security relaxation was needed.
+
+See [Day 23 review](day23-reliability-review.md), [reliability testing guide](backend-reliability-testing.md) and [next-session handoff](day23-handoff.md). Older checkpoint sections below retain their historical evidence; their missing-coverage statements are superseded by this checkpoint where applicable.
+
+
+## Previous checkpoint — Day 22 (historical review evidence)
 
 Source-reviewed on 31 October 2026 against the actual user chess-web-app-day22-end.zip, compared with chess-web-app-day21-end(1).zip including documentation replacements. No blocking defect was found in inspected changes. The user reports all tests green, including the subsequently added HTTP tests. No assistant tests, builds, migrations or browser checks were run.
 
@@ -62,6 +73,7 @@ The user reports that the implementation looks good. Tests follow the standing a
 | Day 20 | Authenticated private WebSocket/STOMP updates, typed YAML routing, after-commit game events, expiry filtering, heartbeat/reconnect handling, automatic Home/Game reconciliation and separate Home HTML/CSS |
 | Day 21 | Atomic persisted history, legacy baselines, bounded protected reads, SAN and synchronized coordinate/SAN move list |
 | Day 22 | Versioned resignation/draw negotiation, atomic completion/release, shared Angular commands and inline confirmation |
+| Day 23 | WebSocket property binding, real socket security/private after-commit delivery and real prior-schema migration fixtures |
 
 
 ## Source-confirmed test coverage
@@ -81,7 +93,7 @@ The proposed WebSocketPropertiesTest is **not present** in this archive. There i
 From backend/, focused checks without a database:
 
 ```bash
-./gradlew test --tests 'com.chessapp.notification.*' --tests 'com.chessapp.game.service.GameMoveServiceTest'
+./gradlew test --tests 'com.chessapp.notification.config.WebSocketPropertiesTest' --tests 'com.chessapp.notification.security.*' --tests 'com.chessapp.game.service.GameMoveServiceTest'
 ```
 
 With the configured PostgreSQL test database:
@@ -107,6 +119,6 @@ Continue with inline, explainable increments. The user implements production cha
 
 Historical checkpoint evidence is preserved in [the archive](history/main-documents-through-day19.md) and the existing Day documents.
 
-## Current scope after Day 22
+## Scope retained from Day 22
 
 Resignation and agreed draws are implemented. Replay/export, clocks, extra rule-based draws, ratings and abandonment remain separate decisions. No next feature has been selected. The historical Day 20/21 sections above retain their checkpoint-specific evidence.

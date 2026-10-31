@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the current Day 22 system, source-reviewed on 31 October 2026 against `chess-web-app-day22-end.zip`. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day21.md). Verification evidence and scope limits are recorded in the [Day 22 review](day22-lifecycle-review.md).
+This document describes the current Day 23 checkpoint, source-reviewed on 31 October 2026 against `chess-web-app-day23-end.zip`. Day 23 adds backend test coverage without changing the Day 22 application architecture. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day22.md). Verification evidence and scope limits are recorded in the [Day 23 review](day23-reliability-review.md).
 
 ## Application structure
 
@@ -147,3 +147,11 @@ Game.drawOfferedByPlayerId stores one nullable participant ID. Entity guards and
 Lifecycle-only mutations leave FEN, baseline and recorded count unchanged and insert no GameMove. Version therefore advances independently of move count. GameResponse includes pending offer ownership; GameMoveResult is unchanged. History is a move log, not an audit of negotiations.
 
 Angular executeGameCommand coordinates all POST types through one submission lock and shared recovery. General command permission is independent of turn; move permission adds turn checks. Promotion must be resolved before lifecycle actions. Inline confirmation is required for resignation/acceptance. Known-newer snapshots clear confirmations even when FEN did not change. Accepted lifecycle responses trigger board/history reconciliation because captured history versions advance too. See [lifecycle flow](game-lifecycle-flow.md).
+
+## Day 23 verification boundaries
+
+WebSocketPropertiesTest uses an isolated binding context. WebSocketIntegrationTest starts the real server on a random port and uses actual STOMP clients, the configured JWT decoder, simple broker, listener and database transactions. A private probe establishes subscription readiness before application assertions. Resignation delivery waits for outer commit, reaches both participants and excludes an independently ready outsider. Rollback preserves active state and reservations and produces no update during the bounded observation windows.
+
+GameMigrationIntegrationTest applies the real migrations to uniquely named PostgreSQL schemas. It tests V6-to-V10 legacy metadata and V7/V8/V9/V10 history/resignation continuity. It does not run JPA services against intermediate schemas or prove every deployment upgrade path. The reviewed upload names the source file G.java although its package-private class is GameMigrationIntegrationTest; the user subsequently reports the naming cleanup completed.
+
+These tests do not introduce delivery guarantees, heartbeat/reconnection socket coverage or a frontend coordinator suite. The user reports passing tests; no assistant execution is claimed. See [review](day23-reliability-review.md).
