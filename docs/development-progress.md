@@ -1,6 +1,18 @@
 # Development Progress
 
-## Current checkpoint — Day 23
+## Current checkpoint — Day 24
+
+Source-reviewed on 31 October 2026 against actual user chess-web-app-day24-end.zip, compared by file bytes with the Day 23 baseline including documentation replacements. Four files are added and nine changed: seven backend production sources (three new), two backend test sources (one new), three Angular page files and roadmap.md. No files are removed. Core rules, GameService, repositories, migrations, configuration and dependencies are unchanged.
+
+Delivered: participant-protected backend PGN export, captured-count history, current Player names through PlayerService, UTC creation date, baseline-based numbering, matching result markers, custom-baseline tags, escaping/wrapping and structured legacy rejection. Angular adds saved-FEN replay, entry selection, explicit Latest return, shared command blocking, local-dialog clearing and cursor preservation across live updates.
+
+The Angular PGN download UI is intentionally deferred; the proposed client method/button/Blob handling is absent. Next automatically returning to live at the final move is also unimplemented by decision. The premature promotion chooser remains unchanged and is documented for the user to improve later.
+
+PgnFormatterTest has eight test methods and ten invocations including three result cases. GameReadIntegrationTest adds six methods/seven invocations for both participants, authentication, missing game, authorization before legacy availability, persisted move plus resignation result and old null SAN. These rollback-managed HTTP fixtures do not require commit assertions. There is no new export concurrency fixture or frontend coordinator/replay suite.
+
+User reports the increments working; tests are treated as green under the standing agreement unless failures are reported. User did not verify route-switch replay reset. The assistant ran no tests/builds/migrations/browser checks. No blocking issue was found in inspected changes. See [Day 24 review](day24-replay-pgn-review.md), [flow](replay-pgn-flow.md) and [handoff](day24-handoff.md).
+
+## Previous checkpoint — Day 23
 
 Source-reviewed on 31 October 2026 against actual user chess-web-app-day23-end.zip, compared byte-for-byte by file with chess-web-app-day22-end(1).zip. The only source additions are WebSocketPropertiesTest, WebSocketIntegrationTest and G.java (declaring GameMigrationIntegrationTest). Production, migration, configuration, dependency and frontend files are unchanged. No blocking issue was found in inspected additions. The user reports passing tests after correcting the socket fixture; no assistant tests, builds, migrations or browser checks were run.
 
@@ -74,9 +86,10 @@ The user reports that the implementation looks good. Tests follow the standing a
 | Day 21 | Atomic persisted history, legacy baselines, bounded protected reads, SAN and synchronized coordinate/SAN move list |
 | Day 22 | Versioned resignation/draw negotiation, atomic completion/release, shared Angular commands and inline confirmation |
 | Day 23 | WebSocket property binding, real socket security/private after-commit delivery and real prior-schema migration fixtures |
+| Day 24 | Backend PGN export with focused formatter/HTTP tests and Angular recorded-position replay; download UI deferred |
 
 
-## Source-confirmed test coverage
+## Source-confirmed test coverage — historical Day 20
 
 | Source | Inspected coverage |
 | --- | --- |
@@ -86,14 +99,14 @@ The user reports that the implementation looks good. Tests follow the standing a
 | GameMoveServiceTest | Existing rejection/order/rules-failure tests with the added event-publisher mock |
 | Existing Angular auth-flow.spec.ts | Existing five focused authentication tests; unchanged |
 
-The proposed WebSocketPropertiesTest is **not present** in this archive. There is no independent configuration-binding test, full STOMP socket delivery test or new frontend notification/coordinator test in this checkpoint. Code inspection and existing integration contexts do not replace those tests. These are coverage limits, not evidence that a failure occurred.
+At the historical Day 20 checkpoint, WebSocketPropertiesTest was **not present**. Day 23 subsequently adds it and real socket/migration fixtures; see the newer checkpoint above. There is no independent configuration-binding test, full STOMP socket delivery test or new frontend notification/coordinator test in this checkpoint. Code inspection and existing integration contexts do not replace those tests. These are coverage limits, not evidence that a failure occurred.
 
 ## Suggested verification
 
 From backend/, focused checks without a database:
 
 ```bash
-./gradlew test --tests 'com.chessapp.notification.config.WebSocketPropertiesTest' --tests 'com.chessapp.notification.security.*' --tests 'com.chessapp.game.service.GameMoveServiceTest'
+./gradlew test --tests 'com.chessapp.game.export.PgnFormatterTest' --tests 'com.chessapp.notification.config.WebSocketPropertiesTest' --tests 'com.chessapp.notification.security.*' --tests 'com.chessapp.game.service.GameMoveServiceTest'
 ```
 
 With the configured PostgreSQL test database:
@@ -121,4 +134,4 @@ Historical checkpoint evidence is preserved in [the archive](history/main-docume
 
 ## Scope retained from Day 22
 
-Resignation and agreed draws are implemented. Replay/export, clocks, extra rule-based draws, ratings and abandonment remain separate decisions. No next feature has been selected. The historical Day 20/21 sections above retain their checkpoint-specific evidence.
+Resignation, agreed draws, replay and backend PGN export are implemented. The PGN download UI, clocks, extra rule-based draws, ratings and abandonment remain separate decisions. No feature after Day 24 is authorized. The historical Day 20/21 sections above retain their checkpoint-specific evidence.

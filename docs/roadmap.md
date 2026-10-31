@@ -1,48 +1,51 @@
 # Roadmap
 
-## Current position
+## Current position — Day 24
 
-Working Days 1–23 identify actual sessions, not a rewritten version of the original 30-working-day estimate. The [progress document](development-progress.md) lists delivered sessions. Day 20 implements authenticated real-time hints plus HTTP recovery. Day 21 adds persisted history, SAN and the synchronized move list. Day 22 adds explicit resignation and draw negotiation with atomic completion and shared Angular command coordination. Day 23 adds configuration binding tests, real socket security/private delivery tests and actual prior-schema migration fixtures; application capabilities are unchanged.
+Working Days 1–24 identify actual sessions, not a revised promise about the original 30-working-day estimate. Day 20 adds live hints/recovery, Day 21 persisted history/SAN, Day 22 resignation/draw negotiation, Day 23 reliability fixtures, and Day 24 recorded-position replay plus backend PGN export. See [progress](development-progress.md) and [Day 24 review](day24-replay-pgn-review.md).
 
-The custom board is the MVP choice. Home automatically discovers pairing and offers Open game; automatic navigation is not a missing requirement.
-
-## Next milestone selection
-
-Day 23 reliability work is complete in inspected source, with user-reported passing tests. Apply the documentation replacements, then select the next milestone in a new chat. The user reports the test naming cleanup completed; the remaining unused import is optional. No next feature is authorized by this handoff.
-
-Replay/PGN export is a reasonable next feature candidate because history, baseline FEN and SAN are already persisted. Player statistics/ratings, clocks, extra rule-based draws, acceptance and abandonment remain separate choices. Remaining socket/migration coverage limits are documented rather than an implicit obligation to extend this reliability milestone.
+The custom board remains the MVP choice. Home discovers pairing and offers explicit Open game. Replay Start/Previous/Next/history entries remain read-only until Latest is selected; live state continues updating.
 
 ## Deferred: PGN download UI
 
-Backend PGN export and its focused tests are implemented.
-Connecting an Angular download button is deferred.
+Backend PGN export and focused formatter/HTTP tests are implemented. Connecting an Angular download button is deferred by user decision. Replay uses the existing history API and does not depend on PGN export. Future integration should include authenticated Blob retrieval, availability feedback and cancellation on route changes. Do not remove or rebuild the existing backend endpoint merely because the UI is deferred.
 
-Replay uses the existing history API and does not depend on PGN export.
-Future download integration should include authenticated Blob retrieval,
-legacy-history availability feedback and cancellation on route changes.
+## Deferred: promotion chooser legality gating
+
+The chooser can open for a promotion-shaped proposal that does not resolve check or exposes the king. The backend still owns legal membership and must reject that move without changing state. The user intentionally keeps this UI limitation to fix later. A moderate future extension can expose version-associated legal moves and gate the chooser accordingly; no implementation is authorized now. See [tracking details](frontend-gameplay-flow.md#deferred-improvement-promotion-chooser-before-legality-validation).
+
+## Optional replay interaction
+
+Automatically resuming live mode when Next reaches the synchronized final move was discussed only. Current behavior requires Latest explicitly. Any future change should distinguish an outdated history list from the true latest position and account for commands becoming available again. No change is required for Day 24 completion.
+
+## Next milestone selection
+
+Day 24 source review found no blocking issue in inspected changes. Tests follow the user's standing green-unless-reported agreement; replay is reported working apart from the unverified route-switch scenario. No assistant builds/tests/browser checks were run. Select the next milestone in a new chat before implementation. Ratings/statistics, clocks, additional rule-based draws, acceptance and abandonment are separate choices, not automatically authorized work.
 
 ## Remaining capabilities
 
 | Capability | Separate decisions needed |
 | --- | --- |
-| History extensions | Optional pre-SAN backfill, pagination and retention if needed; missing pre-V7 moves remain unavailable |
-| Replay/export | Replay controls and PGN generation/export; SAN is already implemented |
+| PGN UI | Optional authenticated download integration; backend already implemented |
+| History extensions | Optional pre-SAN backfill, pagination and retention; missing pre-V7 moves stay unavailable |
+| Promotion interaction | Version-associated legal candidates before opening the chooser |
+| Replay polish | Optional Next-to-live behavior and later justified UI refinements |
 | Clocks | Time controls, authoritative timing and timeout results |
 | Extra outcomes | Repetition, move-count and dead-position draws |
-| Disconnect policy | Grace periods, abandonment rules, reconnect behavior and reservation release |
-| Match lifecycle | Acceptance stage, cancellation, queue expiry and rating filters |
-| Player profile growth | Statistics, ELO and event-driven updates; account email/password actions |
+| Disconnect policy | Grace periods, abandonment, reconnect behavior and reservation release |
+| Match lifecycle | Acceptance, cancellation, queue expiry and rating filters |
+| Player profile growth | Statistics, ELO, event-driven updates and account actions |
 | Delivery reliability | Whether durable outbox/replay or multi-instance routing is actually needed |
-| Board polish | Optional styling, accessibility/interaction improvements or a justified library adapter |
+| Board polish | Optional accessibility/interaction work or a justified library adapter |
 
-These are candidates rather than promises to implement every item in the MVP. Redis/Kafka, spectators, tournaments, chat, engine analysis, AI and distributed scaling remain outside current scope.
+These are candidates rather than promises to implement every item in the MVP. Redis/Kafka, spectators, tournaments, chat, engine analysis, AI and distributed scaling remain outside current scope. Existing coverage limits do not imply another reliability milestone.
 
 ## Engineering constraints
 
-Preserve the modular monolith and conventional feature layers. Cross-feature calls use services/events; repositories stay owned by their feature. Pure rules remain free of transport/persistence dependencies. Keep Player terminology, versioned HTTP moves, atomic reservation/lifecycle updates, YAML configuration and separate component templates/styles.
+Preserve the modular monolith and conventional feature layers, cross-feature services/events, pure Java rules, Player naming, versioned HTTP commands, atomic reservation/lifecycle changes, YAML configuration and separate component HTML/CSS. User implements inline coherent increments; no assistant tests/builds without explicit request. Keep frontend tests minimal and provide a short what-to-understand note with test increments.
 
-Notifications are best-effort invalidation hints, not a command or durable move log. Closing a page does not finish the game. Browser session persistence/refresh tokens are separate decisions. Map-versus-array board evaluation remains deferred until a demonstrated benefit justifies it while preserving Board API.
+Notifications are best-effort hints, not a durable move log or command channel. Closing a page does not finish a game. Login/token state is in memory; games/history are persisted in PostgreSQL. Session persistence/refresh tokens remain a separate decision. Board storage changes remain deferred until justified.
 
 ## Historical plan
 
-The original estimate and earlier milestone proposals are preserved in [historical main-document checkpoints](history/main-documents-through-day19.md) and existing Day documents. Historical pending features must not override the implemented Day 22 state.
+Earlier estimates and checkpoint narratives are preserved in [history](history/main-documents-through-day23.md) and existing Day documents. Historical pending-feature lists do not override the implemented Day 24 state.

@@ -1,6 +1,6 @@
 # Explicit game lifecycle flow
 
-Source-reviewed on 31 October 2026 against user chess-web-app-day23-end.zip. Day 23 adds tests; lifecycle production behavior is unchanged. No assistant tests, builds, migrations or browser checks were run.
+Source-reviewed on 31 October 2026 against actual user chess-web-app-day24-end.zip. Backend lifecycle behavior is retained; Day 24 adds replay to Angular shared command permission. No assistant tests, builds, migrations or browser checks were run.
 
 ## Ownership and policy
 
@@ -81,3 +81,8 @@ GameResponse includes nullable drawOfferedByPlayerId. Lifecycle responses replac
 ## Verification boundaries
 
 Source includes controlled move-versus-resignation and move-versus-acceptance race fixtures, completion/release rollback and HTTP workflow coverage. No assistant execution is claimed. The two endpoint-wide draw HTTP authentication/precondition tests are now present and inspected. Day 23 adds real socket resignation commit/rollback and participant-isolation tests plus selected database-upgrade constraints. New Angular coordinator tests remain absent. See [review](day23-reliability-review.md).
+
+
+## Day 24 replay boundary
+
+Every numeric replay selection disables shared command permission, including resignation and all draw actions. Entering replay clears a pending local lifecycle confirmation. Latest resumes live display; existing active/participant/version-refresh/promotion guards remain in force. Opponent offers or completion can update live status while an earlier position stays displayed. Replay is not a rollback of game state or a change to reservations. The PGN endpoint exports captured lifecycle results without inserting negotiation/resignation history rows. See [replay/PGN flow](replay-pgn-flow.md).

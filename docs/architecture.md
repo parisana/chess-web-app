@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the current Day 23 checkpoint, source-reviewed on 31 October 2026 against `chess-web-app-day23-end.zip`. Day 23 adds backend test coverage without changing the Day 22 application architecture. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day22.md). Verification evidence and scope limits are recorded in the [Day 23 review](day23-reliability-review.md).
+This document describes the Day 24 checkpoint, source-reviewed on 31 October 2026 against actual user `chess-web-app-day24-end.zip`. Day 24 adds backend PGN export and Angular replay without schema, dependency or configuration changes. Earlier main documents are preserved in [history](history/main-documents-through-day23.md). See [Day 24 review](day24-replay-pgn-review.md) for evidence and limits; no assistant application execution is claimed.
 
 ## Application structure
 
@@ -122,7 +122,7 @@ The simple broker and session registry are in-process. Current delivery assumes 
 
 ## Deferred scope
 
-Replay controls/PGN export, clocks, extra rule-based draws, acceptance, abandonment/disconnect completion, ratings and statistics remain separate milestones. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](roadmap.md) and the two flow companions for details.
+The PGN download UI, pre-SAN backfill, clocks, extra rule-based draws, acceptance, abandonment/disconnect completion, ratings and statistics remain separate choices. Replay and backend PGN export are implemented. Promotion chooser legality gating is intentionally deferred. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](roadmap.md) and the two flow companions for details.
 
 ## Persisted history and SAN
 
@@ -155,3 +155,16 @@ WebSocketPropertiesTest uses an isolated binding context. WebSocketIntegrationTe
 GameMigrationIntegrationTest applies the real migrations to uniquely named PostgreSQL schemas. It tests V6-to-V10 legacy metadata and V7/V8/V9/V10 history/resignation continuity. It does not run JPA services against intermediate schemas or prove every deployment upgrade path. The reviewed upload names the source file G.java although its package-private class is GameMigrationIntegrationTest; the user subsequently reports the naming cleanup completed.
 
 These tests do not introduce delivery guarantees, heartbeat/reconnection socket coverage or a frontend coordinator suite. The user reports passing tests; no assistant execution is claimed. See [review](day23-reliability-review.md).
+
+
+## Day 24 replay and export
+
+GameExportService owns the participant-protected PGN read transaction. It loads the game, authorizes before exposing export availability, captures GameResponse and recordedMoveCount, then reads immutable move rows through that count. Player usernames come through PlayerService, never another feature's repository. Names are current at export time, not historical snapshots; they are not guaranteed to reflect one simultaneous cross-Player read.
+
+PgnFormatter lives in game.export, outside the pure rules engine. It consumes captured DTOs and the existing FenParser. It requires matching game IDs/versions, complete history, an exact row count, contiguous sequences and nonblank SAN. It formats persisted SAN without replaying or revalidating chess moves. Baseline side/fullmove number determines numbering; lifecycle versions do not. Current result and captured move boundary remain consistent under existing atomic append-only writes, without asserting general repeatable-read isolation or an explicitly tested concurrent-export schedule.
+
+The controller emits UTF-8 bytes, application/x-chess-pgn, an attachment filename based on game ID and Cache-Control: no-store. Authentication and access use existing JWT/feature errors; unsupported history returns 409 PGN_EXPORT_UNAVAILABLE. No export button or Blob client method is included in Angular by user decision.
+
+Game.replayIndex is a local display cursor: null follows game.currentFen; zero selects historyStartFen; a positive value selects a move's resultingFen. replayHistory checks game identity, version not ahead, row count and sequence continuity. An older accepted list remains usable during reconciliation. displayedFen drives both board and FEN details, while live status/offer/result remain sourced from game(). Numeric replay selection disables the shared command permission, including at the last recorded entry. Only Latest resumes live following; Next does not automatically do so.
+
+Replay navigation clears pending promotion/confirmation, is blocked during POST, preserves its cursor across live updates and resets on route initialization or history-clearing 403/404 responses. ChessBoard's existing FEN/enabled effect clears selection. No new board component, rules engine, migration or frontend test suite was introduced. See [replay/export flow](replay-pgn-flow.md).

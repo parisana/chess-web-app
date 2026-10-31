@@ -1,6 +1,6 @@
 # API Contracts
 
-Current contracts, source-reviewed on 31 October 2026 against `chess-web-app-day23-end.zip`. Day 23 adds backend tests and changes no HTTP or real-time contract. Tests follow the standing user agreement; the assistant ran no tests/builds or independent runtime acceptance checks. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day21.md).
+Current contracts, source-reviewed on 31 October 2026 against actual user `chess-web-app-day24-end.zip`. Day 24 adds the PGN GET endpoint; existing command, history and real-time contracts are retained. The assistant ran no tests/builds or independent runtime checks. See [Day 24 review](day24-replay-pgn-review.md) and [historical main documents](history/main-documents-through-day23.md).
 
 ## Shared conventions
 
@@ -25,6 +25,7 @@ Current contracts, source-reviewed on 31 October 2026 against `chess-web-app-day
 | GET | `/api/v1/matchmaking/queue/me` | Bearer JWT | 200; queue status |
 | DELETE | `/api/v1/matchmaking/queue/me` | Bearer JWT | 204; no body |
 | GET | `/api/v1/games/{gameId}` | Participant bearer JWT | 200; game state |
+| GET | `/api/v1/games/{gameId}/pgn` | Participant bearer JWT | 200; UTF-8 PGN attachment |
 | POST | `/api/v1/games/{gameId}/moves` | Participant Bearer JWT | 200; GameMoveResult |
 | GET | `/api/v1/games/{gameId}/moves` | Participant bearer JWT | 200; GameHistoryResponse |
 | POST | `/api/v1/games/{gameId}/resignation` | Participant bearer JWT | 200; GameResponse |
@@ -200,7 +201,34 @@ GameHistoryResponse fields:
 
 Each move contains sequenceNumber, playerId, from, to, promotion, resultingFen, playedAt and san. Sequence begins at 1 relative to the baseline, not the chess fullmove number. Promotion is null or QUEEN/ROOK/BISHOP/KNIGHT. New application writes require nonblank SAN of at most 32 characters; old pre-SAN rows may return null. Castling/en passant each occupy one entry. playedAt and terminal finishedAt use the same timestamp for a completing move. Internal move-row IDs are not exposed.
 
-The baseline is preserved for future replay; no replay control or PGN export is supplied. There is no SAN backfill or reconstruction of missing pre-V7 moves. Reads currently return the full recorded list; pagination/retention limits are not implemented. History and move POST response shapes are unchanged; GameResponse adds nullable drawOfferedByPlayerId in Day 22.
+The baseline and resulting FENs supply Angular replay. The separate PGN endpoint below uses this stored history; its Angular download UI is deferred. There is no SAN backfill or reconstruction of missing pre-V7 moves. Reads currently return the full recorded list; pagination/retention limits are not implemented. History and move POST response shapes are unchanged; GameResponse adds nullable drawOfferedByPlayerId in Day 22.
+
+## Export PGN — GET `/api/v1/games/{gameId}/pgn`
+
+No request body, expectedVersion, replay cursor or pagination parameters. Either participant can export an active or finished game when history is supported. Lookup precedes membership checks; authorization precedes history availability disclosure. This read does not mutate game/version/history/reservations or publish game events.
+
+Successful response:
+
+| Header | Value |
+| --- | --- |
+| Content-Type | application/x-chess-pgn;charset=UTF-8 |
+| Content-Disposition | attachment; filename="game-{gameId}.pgn" |
+| Cache-Control | no-store |
+
+Body contains Event, Site, Date, Round, White, Black and Result headers. Event is Casual Game, Site is ?, Round is -, Date uses creation time formatted as uuuu.MM.dd in UTC, and Player names use current usernames with backslash/quote escaping and control-character replacement. Nonstandard baselines add FEN and SetUp=1 supplemental tags. Header spacing/case above describes semantics rather than an exact HTTP serialization string.
+
+Movetext reuses persisted SAN; every White move is numbered and an initial Black move uses the baseline fullmove number plus three periods. Fullmove advances after Black. Lines wrap between tokens below 80 characters. The final marker matches Result: * for active games, 1-0 for WHITE_WIN, 0-1 for BLACK_WIN, 1/2-1/2 for DRAW. A completed game with no moves still exports its final marker. A pending draw offer has no SAN entry or special export marker.
+
+The service captures result/version and a move-count boundary before reading rows at or below that boundary. Later moves are excluded, relying on the existing atomic append-only write model. The export can already be older than the live game when received; no browser replay selection limits its contents. No ETag/version response header or username history is supplied.
+
+| Failure | HTTP | Application code |
+| --- | --- | --- |
+| Missing/invalid bearer credentials | 401 | Not guaranteed |
+| Missing game | 404 | GAME_NOT_FOUND |
+| Nonparticipant | 403 | GAME_ACCESS_DENIED |
+| Incomplete history, row-count mismatch, sequence gap or missing/blank SAN | 409 | PGN_EXPORT_UNAVAILABLE |
+
+V7 legacy history is rejected even when its recorded list is empty. Pre-SAN null entries are rejected without reconstruction. Unexpected malformed stored FEN or internal snapshot mismatches are not reclassified as legacy availability. Formatting trusts internally persisted SAN; it is not an arbitrary PGN/SAN validator or a legality replay. There is no Angular download integration in this checkpoint. See [flow](replay-pgn-flow.md).
 
 ## Explicit lifecycle commands
 

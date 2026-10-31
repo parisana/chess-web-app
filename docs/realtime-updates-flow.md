@@ -1,6 +1,6 @@
 # Real-time updates flow
 
-Day 23 source companion (Day 20 transport retained), reviewed on 31 October 2026 against `chess-web-app-day23-end.zip`. This explains implemented behavior, not a planned transport. No assistant application test/build/browser run is claimed.
+Day 24 source companion (Day 20 transport retained), reviewed on 31 October 2026 against actual user `chess-web-app-day24-end.zip`. Day 24 adds replay display state, not a transport change. No assistant application test/build/browser run is claimed.
 
 ## Connection and subscription
 
@@ -129,3 +129,8 @@ The recipient rereads GameResponse to discover drawOfferedByPlayerId or completi
 WebSocketIntegrationTest uses a random-port server, real JWTs, allowed Origin and the private subscription. Repeated unique byte-array probes establish reception before testing notifications; late probe replies are ignored. SimpleMessageConverter retains raw payload bytes, then JsonMapper parses application updates. text(null) tolerates an ERROR frame without a body; otherwise callback failure can prevent the error being recorded.
 
 Seven rejection cases assert STOMP ERROR callbacks; two cases exercise real resignation commit/rollback through GameService with three ready Players. Negative assertions observe 300 ms per check and positive reads allow five seconds. These are bounded observations, not proof of durable or exactly-once delivery. Heartbeats are disabled in this test client. No test-level transaction surrounds the fixture; explicit TransactionTemplate blocks own completion while service methods join them.
+
+
+## Day 24 live snapshots during replay
+
+Notifications still compare against the authoritative game().version, never the replay cursor or a displayed historical FEN. Relevant hints and periodic reads update live game/history while preserving numeric replay selection. Pending local promotion/confirmation can still be cleared by synchronization. Latest returns to the latest accepted game snapshot, subject to existing synchronization guards before commands. Replay does not pause the opponent, socket, database or game lifecycle. No PGN data is sent over WebSocket, and export performs no game mutation/event publication.

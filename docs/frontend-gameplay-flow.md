@@ -1,6 +1,6 @@
 # Frontend gameplay flow
 
-This companion describes the current gameplay source reviewed against the Day 23 upload on 31 October 2026. Day 23 changes backend tests only. It supersedes the manual-refresh-only Day 19 flow preserved in [history](history/main-documents-through-day19.md). Source review is not an independent build or runtime acceptance result.
+This companion describes Day 24 gameplay source reviewed against actual user `chess-web-app-day24-end.zip` on 31 October 2026. Day 24 adds replay display state and command gating; existing HTTP/live reconciliation remains in place. The Angular PGN download UI is deferred. Review is not an assistant build/runtime acceptance result.
 
 ## Ownership
 
@@ -9,7 +9,7 @@ This companion describes the current gameplay source reviewed against the Day 23
 | GameService | Participant/turn/version/lifecycle checks, rules, persistence and completion |
 | RealtimeService | Application-wide socket lifecycle, subscription and validated change hints |
 | Home | Queue commands/status reads and explicit Open game navigation |
-| Game | Authoritative snapshots, requests, promotion and reconciliation |
+| Game | Authoritative snapshots, replay cursor/displayed FEN, requests, promotion and reconciliation |
 | ChessBoard | FEN projection, orientation, selection and move proposals |
 | GameApiService | Game/history GET and move/lifecycle POST transport |
 | AuthSessionStore/interceptor | In-memory identity/token and protected HTTP handling |
@@ -48,7 +48,7 @@ Game.canSubmitMove requires a loaded active game, authenticated participant, no 
 
 ## Board inputs and selection
 
-Game passes currentFen, Player orientation and interaction permission to ChessBoard. The FEN display parser projects placement/side to move; it does not duplicate legal-move evaluation. Display orientation changes ordering, not algebraic coordinates. a1 remains dark.
+Game passes displayedFen, Player orientation and interaction permission to ChessBoard. displayedFen follows currentFen in live mode or projects a stored replay position. The FEN display parser projects placement/side to move; it does not duplicate legal-move evaluation. Display orientation changes ordering, not algebraic coordinates. a1 remains dark.
 
 The selection-reset effect deliberately reads fen(), orientation() and enabled(), then clears selectedSquare. It does not read selectedSquare and therefore does not subscribe to selection changes. An effect is a lifecycle-managed reactive side effect, not polling or a synchronous callback inside every signal.set().
 
@@ -125,7 +125,7 @@ Successful POST queues a nonblocking read after submission finalizes even when i
 
 ## Day 22 shared command and confirmation flow
 
-canSubmitGameCommand requires an authenticated active participant, no initial loading/submission and no blocking refresh. canSubmitMove adds the side-to-move check and absence of lifecycle confirmation. canSubmitLifecycleAction ignores turn but requires promotion to be resolved. History-only failures do not independently block either command type.
+canSubmitGameCommand requires an authenticated active participant, no replay selection, no initial loading/submission and no blocking refresh. canSubmitMove adds the side-to-move check and absence of lifecycle confirmation. canSubmitLifecycleAction ignores turn but requires promotion to be resolved. History-only failures do not independently block either command type.
 
 executeGameCommand receives a captured GameResponse, an Observable factory and a response mapper. It cancels an allowed safety read, clears local dialogs, sets submitting and invokes the command through defer. Both move and lifecycle paths use this lock and finalize handler. Snapshot identity protects against callbacks after route replacement. Lifecycle success accepts GameResponse directly; move success preserves participant metadata and explicitly sets drawOfferedByPlayerId to null.
 
@@ -136,3 +136,26 @@ All accepted commands queue board/history reconciliation. Conflicts, missing/cha
 ## Day 23 verification note
 
 The frontend is unchanged. Actual backend STOMP clients now exercise selected private delivery/security paths, but these tests do not exercise Angular signals, browser timers, reconnect recovery or command/read coordination. No new frontend tests or assistant browser checks were performed. See [review](day23-reliability-review.md).
+
+
+## Day 24 recorded-position replay
+
+replayIndex=null means live following. Zero means the recorded baseline; n means the FEN after recorded entry n. Numeric selections stay read-only even when n is the final available entry. Start, Previous, Next and entry buttons select numeric positions; Latest alone returns to live following. Previous from live uses available history length minus one, so an outdated available list is not a promise to step back exactly one move from the current live board. Empty history still supports the baseline.
+
+replayHistory requires matching game ID, history version not ahead of the live game, count equal to list length and contiguous sequences starting at one. It permits a previously accepted older list while reconciliation continues. Legacy incomplete history and null SAN still allow replay because saved positions, not notation reconstruction, drive display. displayedFen is null for an unavailable selected position rather than silently switching to live.
+
+canSubmitGameCommand includes !isReplaying, which blocks both move and lifecycle submission. canNavigateReplay blocks cursor navigation during POST. Entering replay cancels pending promotion/action confirmation and clears move feedback. Existing board input effects clear selectedSquare on FEN/enabled changes. Live game/offer/result continue updating independently and are labeled as live status.
+
+Route initialization resets the cursor; board/history 403/404 branches that clear history also reset it. New accepted game/history versions do not reset it. A missing newer history response can retain the old selection with catching-up feedback. Latest returns to the currently accepted authoritative board; existing needsRefresh/turn/status/confirmation guards still apply before commands.
+
+The user reports replay working except that the route-switch scenario was not manually verified. No new frontend tests, assistant browser checks or frontend builds were run. Next-to-live-at-the-end behavior was discussed only and remains unimplemented. See [flow and manual checks](replay-pgn-flow.md).
+
+## Deferred improvement: promotion chooser before legality validation
+
+The frontend opens promotion selection when a proposed pawn move reaches the last rank. This detects promotion shape, not legal-move membership. The chooser may therefore appear for a proposal that fails to resolve check or exposes the moving king. The user observed this premature chooser and intentionally deferred fixing it for later personal implementation.
+
+After piece selection, the existing backend must reject a move outside the legal set, preserving position, version and history. A chooser appearing is a UI limitation; accepting a self-check move would be a separate rules defect. This review does not claim a new runtime reproduction or dedicated promotion-chooser test.
+
+A future extension can expose version-associated legal moves from the existing rules engine and open the chooser only for a matching legal promotion candidate. The work is moderate API/frontend integration; keeping legal data aligned with the current version matters more than adding another promotion-rank check. Backend legality/version validation remains authoritative. No legal-move endpoint or client chess engine is added now.
+
+Future checks: a promotion that fails king safety never opens the chooser; a legal promotion still offers explicit piece selection; stale legal data cannot authorize a command; rejected moves preserve position/version/history. Cancelling a chooser continues to send no POST.

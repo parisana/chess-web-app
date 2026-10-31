@@ -1,6 +1,6 @@
 # Move history and SAN flow
 
-Day 23 source companion, reviewed on 31 October 2026 against the actual user chess-web-app-day23-end.zip. Production history and SAN code is unchanged. No assistant application tests, builds, migrations or browser checks were run.
+Day 24 source companion, reviewed on 31 October 2026 against actual user `chess-web-app-day24-end.zip`. Existing persistence/SAN/history-query behavior is retained; replay and backend PGN export now consume it. The DTO has an additional ordering comment only. No assistant application tests, builds, migrations or browser checks were run.
 
 ## Storage meanings
 
@@ -39,7 +39,7 @@ For Nb1-d2, another legal knight on f1 requires Nbd2; one on b3 requires N1d2; a
 
 ## Protected history read
 
-GameService loads the game, checks membership, captures recordedMoveCount and queries only sequenceNumber <= that count in ascending order. A move committed afterward cannot leak its later record into that captured response. The guarantee depends on atomic append-only writes and stable baseline metadata. The endpoint returns all recorded entries, without pagination or replay/export behavior.
+GameService loads the game, checks membership, captures recordedMoveCount and queries only sequenceNumber <= that count in ascending order. A move committed afterward cannot leak its later record into that captured response. The guarantee depends on atomic append-only writes and stable baseline metadata. The endpoint returns all recorded entries without pagination. Angular replay consumes this response; PGN export is a separate endpoint with the same captured-count approach.
 
 ## Browser reconciliation
 
@@ -61,7 +61,7 @@ Accepted POST explicitly queues nonblocking board/history reconciliation, coales
 
 ## Limits
 
-No reconstruction of pre-V7 moves, pre-SAN backfill, replay controls, PGN export, history pagination, clocks or disconnect outcome. No new frontend coordinator suite is present. Day 23 adds real schema-upgrade fixtures: V6 legacy baselines and V7 pre-SAN move preservation through V10, including null SAN after V8 and existing V9 resignation preservation. See [review](day23-reliability-review.md).
+No reconstruction of pre-V7 moves, pre-SAN backfill, Angular PGN download UI, history pagination, clocks or disconnect outcome. Replay controls and backend PGN export are implemented. No new frontend coordinator suite is present. Day 23 adds real schema-upgrade fixtures: V6 legacy baselines and V7 pre-SAN move preservation through V10, including null SAN after V8 and existing V9 resignation preservation. See [review](day23-reliability-review.md).
 
 ## Day 22 lifecycle versions
 
@@ -70,3 +70,10 @@ Resignation and draw negotiation update Game.version while leaving currentFen, h
 For example: new game version 0/count 0; offer version 1/count 0; accepted e4 version 2/count 1 (offer cleared); resignation version 3/count 1. Sequence number 1 still identifies e4. Offers and outcomes are not SAN moves and are not inserted into this table.
 
 Lifecycle POST success explicitly queues board/history reconciliation through executeGameCommand. Otherwise the same-version notification could be ignored while the accepted history version remained old. No extra history row or SAN marker is created for resignation/agreement. The new lifecycle companion covers pending offer ownership and command races.
+
+
+## Day 24 consumers
+
+Replay chooses historyStartFen or a recorded resultingFen, so available legacy positions remain usable and null SAN is not a blocker. Game/history reconciliation continues while a numeric replay cursor stays fixed. Lifecycle-only version changes can replace accepted history metadata without changing the selected position or adding rows.
+
+PGN instead requires historyComplete=true, list length equal to the captured count, contiguous sequences and SAN on every row. Missing earlier moves are not concealed by exporting the legacy baseline as a complete game. Custom initial FENs for complete games are supported with FEN/SetUp tags and baseline fullmove/side numbering. Existing SAN is trusted, not recomputed. See [replay/PGN flow](replay-pgn-flow.md).
