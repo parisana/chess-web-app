@@ -35,6 +35,9 @@ public final class GameErrorCodes {
     public static final String DRAW_OFFER_ACTION_NOT_ALLOWED =
             "DRAW_OFFER_ACTION_NOT_ALLOWED";
 
+    public static final String PGN_EXPORT_UNAVAILABLE =
+            "PGN_EXPORT_UNAVAILABLE";
+
     private GameErrorCodes() {
     }
 }

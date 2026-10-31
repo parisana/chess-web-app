@@ -237,6 +237,152 @@ class GameReadIntegrationTest {
                 .andExpect(jsonPath("$.finishedAt").isNotEmpty());
     }
 
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {true, false})
+    void pgnBothParticipantsCanDownload(boolean asWhite) throws Exception {
+        Long playerId = asWhite ? white.id() : black.id();
+
+        mockMvc.perform(get("/api/v1/games/{gameId}/pgn", game.id())
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(playerId)
+                        ))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(
+                        "application/x-chess-pgn"
+                ))
+                .andExpect(header().string(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"game-" + game.id() + ".pgn\""
+                ))
+                .andExpect(header().string(
+                        HttpHeaders.CACHE_CONTROL,
+                        "no-store"
+                ))
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.containsString("\n\n*\n\n")
+                ));
+    }
+
+    @Test
+    void pgnRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/games/{gameId}/pgn", game.id()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void pgnMissingGameReturnsNotFound() throws Exception {
+        mockMvc.perform(get("/api/v1/games/{gameId}/pgn", -1L)
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(white.id())
+                        ))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("GAME_NOT_FOUND"));
+    }
+
+    @Test
+    void pgnChecksMembershipBeforeLegacyAvailability() throws Exception {
+        entityManager.flush();
+
+        // Simulate migration-preserved history without changing applied migrations.
+        entityManager.createNativeQuery("""
+                    update games
+                    set history_complete = false
+                    where id = :id
+                    """)
+                .setParameter("id", game.id())
+                .executeUpdate();
+
+        entityManager.clear();
+
+        mockMvc.perform(get("/api/v1/games/{gameId}/pgn", game.id())
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(outsider.id())
+                        ))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GAME_ACCESS_DENIED"));
+
+        mockMvc.perform(get("/api/v1/games/{gameId}/pgn", game.id())
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(white.id())
+                        ))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PGN_EXPORT_UNAVAILABLE"));
+    }
+
+    @Test
+    void pgnUsesPersistedMovesAndLifecycleResult() throws Exception {
+        var moved = gameService.submitMove(
+                game.id(),
+                white.id(),
+                game.version(),
+                new Move(
+                        Square.fromAlgebraic("e2"),
+                        Square.fromAlgebraic("e4")
+                )
+        );
+
+        // A lifecycle command advances the version without adding a SAN move.
+        gameService.resign(game.id(), black.id(), moved.version());
+
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc.perform(get("/api/v1/games/{gameId}/pgn", game.id())
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(white.id())
+                        ))
+                .andExpect(status().isOk())
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.containsString(
+                                "[Result \"1-0\"]"
+                        )
+                ))
+                .andExpect(content().string(
+                        org.hamcrest.Matchers.endsWith(
+                                "1. e4 1-0\n\n"
+                        )
+                ));
+    }
+
+    @Test
+    void pgnRejectsPersistedPreSanMove() throws Exception {
+        gameService.submitMove(
+                game.id(),
+                white.id(),
+                game.version(),
+                new Move(
+                        Square.fromAlgebraic("e2"),
+                        Square.fromAlgebraic("e4")
+                )
+        );
+
+        entityManager.flush();
+
+        // V8 deliberately permits null SAN for older persisted records.
+        entityManager.createNativeQuery("""
+                    update game_moves
+                    set san = null
+                    where game_id = :id
+                    """)
+                .setParameter("id", game.id())
+                .executeUpdate();
+
+        entityManager.clear();
+
+        mockMvc.perform(get("/api/v1/games/{gameId}/pgn", game.id())
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(white.id())
+                        ))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PGN_EXPORT_UNAVAILABLE"));
+    }
+
     private String bearerToken(Long playerId) {
         // Exercise the configured JWT filter using a real signed token.
         return "Bearer " + tokenService.issueAccessToken(playerId)

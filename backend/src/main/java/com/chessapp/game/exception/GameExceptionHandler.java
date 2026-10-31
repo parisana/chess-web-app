@@ -131,6 +131,18 @@ public class GameExceptionHandler {
         );
     }
 
+    @ExceptionHandler(PgnExportUnavailableException.class)
+    public ProblemDetail handlePgnExportUnavailable(
+            PgnExportUnavailableException exception
+    ) {
+        return problem(
+                HttpStatus.CONFLICT,
+                "PGN export unavailable",
+                GameErrorCodes.PGN_EXPORT_UNAVAILABLE,
+                exception
+        );
+    }
+
     private static ProblemDetail problem(
             HttpStatusCode status,
             String title,

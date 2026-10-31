@@ -11,7 +11,7 @@ public record GameHistoryResponse(
         String historyStartFen,
         boolean historyComplete, // almost always true
         long recordedMoveCount,
-        List<GameMoveResponse> moves
+        List<GameMoveResponse> moves // sorted list by sequenceNumber
 ) {
     public GameHistoryResponse {
         // Prevent callers from changing the response's move collection.

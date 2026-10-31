@@ -1,13 +1,19 @@
 package com.chessapp.game.controller;
 
 import com.chessapp.game.dto.*;
+import com.chessapp.game.service.GameExportService;
 import com.chessapp.game.service.GameService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /**
@@ -19,6 +25,7 @@ import java.util.Objects;
 public class GameController {
 
     private final GameService gameService;
+    private final GameExportService gameExportService;
 
     @GetMapping("/{gameId}")
     public GameResponse getGame(
@@ -140,5 +147,34 @@ public class GameController {
                 requestingPlayerId,
                 request.expectedVersion()
         );
+    }
+
+    @GetMapping("/{gameId}/pgn")
+    public ResponseEntity<byte[]> exportPgn(
+            @PathVariable("gameId") Long gameId,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        Long requestingPlayerId =
+                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+
+        String pgn = gameExportService.exportPgn(
+                gameId,
+                requestingPlayerId
+        );
+
+        String disposition = ContentDisposition.attachment()
+                .filename("game-" + gameId + ".pgn")
+                .build()
+                .toString();
+
+        return ResponseEntity.ok()
+                .contentType(new MediaType(
+                        "application",
+                        "x-chess-pgn",
+                        StandardCharsets.UTF_8
+                ))
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(pgn.getBytes(StandardCharsets.UTF_8));
     }
 }
