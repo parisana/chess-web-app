@@ -2,15 +2,15 @@
 
 ## Current position
 
-Working Days 1–21 identify actual sessions, not a rewritten version of the original 30-working-day estimate. The [progress document](development-progress.md) lists delivered sessions. Day 20 implements authenticated real-time hints plus HTTP recovery. Day 21 adds persisted history, SAN and the synchronized move list.
+Working Days 1–22 identify actual sessions, not a rewritten version of the original 30-working-day estimate. The [progress document](development-progress.md) lists delivered sessions. Day 20 implements authenticated real-time hints plus HTTP recovery. Day 21 adds persisted history, SAN and the synchronized move list. Day 22 adds explicit resignation and draw negotiation with atomic completion and shared Angular command coordination.
 
 The custom board is the MVP choice. Home automatically discovers pairing and offers Open game; automatic navigation is not a missing requirement.
 
 ## Next milestone selection
 
-Day 21 is complete in source: accepted-move history, protected reads, SAN and a minimal list are implemented. Close the review/documentation commit, then begin the next major milestone in a new chat. Recheck the latest source before implementation and agree scope first.
+Day 22 is complete in inspected source. Review and commit documentation, then select the next milestone in a new chat. No next feature is implicitly authorized.
 
-Possible next milestones include resignation/agreed draws to finish games explicitly, or focused reliability verification (configuration binding, real socket security/delivery and selected frontend coordination). Replay controls, PGN export and clocks remain separate choices; none is implicitly selected by this checkpoint.
+A focused backend reliability milestone is a reasonable candidate: consider configuration binding, real socket security/delivery or an actual old-database upgrade fixture. The user reports the two previously missing draw HTTP precondition tests added and all tests green; inspect them with the next source checkpoint. Replay controls/PGN export or Player statistics/ratings are separate feature choices. Minimal frontend testing remains the user's preference.
 
 ## Remaining capabilities
 
@@ -19,7 +19,7 @@ Possible next milestones include resignation/agreed draws to finish games explic
 | History extensions | Optional pre-SAN backfill, pagination and retention if needed; missing pre-V7 moves remain unavailable |
 | Replay/export | Replay controls and PGN generation/export; SAN is already implemented |
 | Clocks | Time controls, authoritative timing and timeout results |
-| Extra outcomes | Repetition, move-count and dead-position draws; resignation/agreement |
+| Extra outcomes | Repetition, move-count and dead-position draws |
 | Disconnect policy | Grace periods, abandonment rules, reconnect behavior and reservation release |
 | Match lifecycle | Acceptance stage, cancellation, queue expiry and rating filters |
 | Player profile growth | Statistics, ELO and event-driven updates; account email/password actions |
@@ -36,4 +36,4 @@ Notifications are best-effort invalidation hints, not a command or durable move 
 
 ## Historical plan
 
-The original estimate and earlier milestone proposals are preserved in [historical main-document checkpoints](history/main-documents-through-day19.md) and existing Day documents. Historical pending features must not override the implemented Day 21 state.
+The original estimate and earlier milestone proposals are preserved in [historical main-document checkpoints](history/main-documents-through-day19.md) and existing Day documents. Historical pending features must not override the implemented Day 22 state.

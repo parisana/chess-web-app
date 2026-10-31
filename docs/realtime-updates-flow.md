@@ -1,6 +1,6 @@
 # Real-time updates flow
 
-Day 21 source companion (Day 20 transport retained), reviewed on 30 October 2026 against `chess-web-app-day21-end.zip`. This explains implemented behavior, not a planned transport. No assistant application test/build/browser run is claimed.
+Day 21 source companion (Day 20 transport retained), reviewed on 31 October 2026 against `chess-web-app-day22-end.zip`. This explains implemented behavior, not a planned transport. No assistant application test/build/browser run is claimed.
 
 ## Connection and subscription
 
@@ -62,7 +62,7 @@ createGame publishes after both reservations are verified. submitMove publishes 
 
 Pairing calls createGame inside MatchmakingService’s transaction. The listener therefore waits for the outer transaction, including both queue deletions. A failure after GameService returns can still roll back and suppress delivery. Flush alone does not permit notification.
 
-PlayerUpdate contains only type, gameId and version. GAME_CREATED leads Home to reread status. GAME_UPDATED covers ordinary and terminal moves; Game reads the current participant-protected snapshot. Terminal result fields are not duplicated into the notification contract.
+PlayerUpdate contains only type, gameId and version. GAME_CREATED leads Home to reread status. GAME_UPDATED covers ordinary/terminal moves and accepted lifecycle commands; Game reads the current participant-protected snapshot. Terminal result fields are not duplicated into the notification contract.
 
 The listener attempts each participant separately and logs runtime enqueue failures. It performs no database writes or fresh entity loads. It does not turn a failed send into a failed committed HTTP command.
 
@@ -117,3 +117,9 @@ Day 21 persists history separately; live notifications remain small hints. No cl
 ## Day 21 read extension
 
 The notification payload is unchanged. Board GET is now followed by history GET. Matching versions accept history; newer history supplies another synchronization trigger; older history is ignored. Successful POST explicitly queues recovery for the sender's move list. cancelReads cancels either GET stage before POST. Loaded finished games keep visible-page safety checks only while board/history still need recovery. A history error alone does not disable an accepted board. See [history flow](move-history-flow.md).
+
+## Day 22 lifecycle extension
+
+The transport contract and notification module are unchanged. After every accepted resignation/offer/accept/decline/withdraw, GameService publishes GAME_UPDATED after flushing and any required release. GameNotificationListener still sends the committed version through updatesDestination() to both Players; PlayerUpdate.type is the event enum's name string.
+
+The recipient rereads GameResponse to discover drawOfferedByPlayerId or completion. Lifecycle versions invalidate stale command preconditions and history versions without implying a new move row. executeGameCommand now coordinates every game POST with notification/recovery reads. Missed offer hints recover through the existing active-page reads; no durable negotiation replay is added.

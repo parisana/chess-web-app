@@ -1,6 +1,6 @@
 # Move history and SAN flow
 
-Day 21 source companion, reviewed on 30 October 2026 against the actual user chess-web-app-day21-end.zip. No assistant application tests, builds, migrations or browser checks were run.
+Day 22 source companion, reviewed on 31 October 2026 against the actual user chess-web-app-day22-end.zip. No assistant application tests, builds, migrations or browser checks were run.
 
 ## Storage meanings
 
@@ -62,3 +62,11 @@ Accepted POST explicitly queues nonblocking board/history reconciliation, coales
 ## Limits
 
 No reconstruction of pre-V7 moves, pre-SAN backfill, replay controls, PGN export, history pagination, clocks or disconnect outcome. No new frontend coordinator suite or old-database upgrade test is present. See [review](day21-history-review.md).
+
+## Day 22 lifecycle versions
+
+Resignation and draw negotiation update Game.version while leaving currentFen, historyStartFen, historyComplete, recordedMoveCount and all GameMove rows unchanged. A game may finish by agreement with zero recorded moves. The history endpoint captures the current game version even when returning the same list.
+
+For example: new game version 0/count 0; offer version 1/count 0; accepted e4 version 2/count 1 (offer cleared); resignation version 3/count 1. Sequence number 1 still identifies e4. Offers and outcomes are not SAN moves and are not inserted into this table.
+
+Lifecycle POST success explicitly queues board/history reconciliation through executeGameCommand. Otherwise the same-version notification could be ignored while the accepted history version remained old. No extra history row or SAN marker is created for resignation/agreement. The new lifecycle companion covers pending offer ownership and command races.

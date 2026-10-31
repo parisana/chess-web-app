@@ -857,6 +857,79 @@ class GameMoveHttpIntegrationTest {
                 .andExpect(jsonPath("$.code").value("DRAW_OFFER_ACTION_NOT_ALLOWED"));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"", "/accept", "/decline", "/withdraw"})
+    void drawCommandsRequireAuthentication(String action) throws Exception {
+        mockMvc.perform(post(
+                        "/api/v1/games/{gameId}/draw-offer" + action,
+                        game.id()
+                )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {"expectedVersion": 0}
+                            """))
+                .andExpect(status().isUnauthorized());
+
+        assertUnchanged(INITIAL, 0, 2);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "/accept", "/decline", "/withdraw"})
+    void drawCommandsValidateVersionAndPreserveFailurePrecedence(
+            String action
+    ) throws Exception {
+        for (String body : List.of(
+                "{}",
+                "{\"expectedVersion\": null}",
+                "{\"expectedVersion\": -1}"
+        )) {
+            mockMvc.perform(post(
+                            "/api/v1/games/{gameId}/draw-offer" + action,
+                            game.id()
+                    )
+                            .header(
+                                    HttpHeaders.AUTHORIZATION,
+                                    bearerToken(white())
+                            )
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+        }
+
+        mockMvc.perform(post(
+                        "/api/v1/games/{gameId}/draw-offer" + action,
+                        -1L
+                )
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(outsider())
+                        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {"expectedVersion": 99}
+                            """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("GAME_NOT_FOUND"));
+
+        drawCommand(outsider(), action, 99)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GAME_ACCESS_DENIED"));
+
+        drawCommand(white(), action, 99)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("STALE_GAME_VERSION"));
+
+        assertUnchanged(INITIAL, 0, 2);
+
+        resign(white(), 0)
+                .andExpect(status().isOk());
+
+        drawCommand(black(), action, 0)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("GAME_ALREADY_FINISHED"));
+    }
+
     // action will be "", "/accept", "/decline" or "/withdraw"
     private ResultActions drawCommand(
             Long actor,

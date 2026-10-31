@@ -4,9 +4,9 @@ A backend-focused chess portfolio project built as a modular monolith with conve
 
 ## Current checkpoint
 
-Day 21 adds transactional persisted move history, participant-protected history reads, pure Java SAN formatting and separate coordinate/SAN columns in the move list. Source-reviewed on 30 October 2026 against the actual user `chess-web-app-day21-end.zip`. Day 20 real-time delivery and recovery remain in place.
+Day 22 adds versioned resignation and draw-offer commands, atomic agreed completion and Angular lifecycle controls. Source-reviewed on 31 October 2026 against the actual user `chess-web-app-day22-end.zip`, compared with the attached Day 21 checkpoint. Day 21 history/SAN and Day 20 real-time recovery remain in place.
 
-The user reports that the implementation looks good. Tests are treated as green under the standing working agreement unless failures are reported. No tests, builds, migrations or browser checks were run by the assistant. Source review does not establish independent runtime acceptance. See [review and coverage](docs/day21-history-review.md).
+The user reports all tests green, including the two HTTP tests added after the upload. The assistant ran no tests, builds, migrations or browser checks. See [Day 22 review and coverage](docs/day22-lifecycle-review.md).
 
 ## Capabilities
 
@@ -14,7 +14,8 @@ The user reports that the implementation looks good. Tests are treated as green 
 - Persistent matchmaking with atomic pairing, oldest-first eligibility and one active-game reservation per Player.
 - Immutable chess rules: all pieces, king safety, explicit promotion, en passant, standard castling and normal/check/checkmate/stalemate assessment.
 - Participant-protected game GET and versioned HTTP move commands with optimistic concurrency protection.
-- Atomic checkmate/stalemate completion, persisted results and release of both active reservations.
+- Atomic checkmate/stalemate, resignation and agreed-draw completion, persisted outcomes and release of both active reservations.
+- One pending draw offer, opponent accept/decline and sender withdrawal; any accepted move clears the offer.
 - Custom Player-oriented board, explicit promotion/cancellation and server-accepted FEN display.
 - Ordered persisted moves with coordinates, promotion, resulting FEN, timestamps and SAN; explicit legacy-game baselines.
 - Private live notifications, automatic queue/game reads, deferred reconciliation during commands, heartbeats and reconnect recovery.
@@ -27,7 +28,7 @@ Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, JPA, Flyway, Sprin
 
 ## Run locally
 
-Keep database and JWT configuration user-managed in `backend/src/main/resources/application.yaml`. Flyway migrations V1–V8 provide the schema; Hibernate validates it.
+Keep database and JWT configuration user-managed in `backend/src/main/resources/application.yaml`. Flyway migrations V1–V10 provide the schema; Hibernate validates it.
 
 From `backend/`:
 
@@ -65,13 +66,13 @@ npm test -- --watch=false
 npm run build
 ```
 
-Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests remain the existing focused authentication suite. The [Day 21 review](docs/day21-history-review.md) distinguishes source-confirmed coverage from missing tests and suggested manual scenarios.
+Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests remain the existing focused authentication suite. The [Day 22 review](docs/day22-lifecycle-review.md) distinguishes source-confirmed coverage from missing tests and suggested manual scenarios.
 
 ## Current limits
 
 Notifications are best-effort live hints. Accepted moves are separately persisted in the database; notification delivery is not guaranteed. HTTP reads recover current state; commands are never automatically replayed. Sessions are in memory, so browser reload requires login again.
 
-Existing games record forward from their migration-time FEN; earlier moves cannot be reconstructed. Entries recorded before SAN support retain null SAN, displayed as “—” beside their coordinates. There are no replay controls, PGN export, clocks, resignation/agreed draws, repetition/move-count/dead-position draws, acceptance stage or abandonment policy. Closing the page, disconnecting or logging out does not finish a game or release its reservations. Spectators, chat, AI, external brokers and distributed deployment remain outside current scope. The custom board has no legal-move highlighting, drag-and-drop or persistent check indicator.
+Existing games record forward from their migration-time FEN; earlier moves cannot be reconstructed. Entries recorded before SAN support retain null SAN, displayed as “—” beside their coordinates. There are no replay controls, PGN export, clocks, repetition/move-count/dead-position draws, acceptance stage or abandonment policy. Closing the page, disconnecting or logging out does not finish a game or release its reservations. Spectators, chat, AI, external brokers and distributed deployment remain outside current scope. The custom board has no legal-move highlighting, drag-and-drop or persistent check indicator.
 
 ## Documentation
 
@@ -82,5 +83,10 @@ Existing games record forward from their migration-time FEN; earlier moves canno
 - [Development progress](docs/development-progress.md), [roadmap](docs/roadmap.md) and [frontend setup](frontend/README.md).
 - [Movement pipeline](docs/movement-pipeline-architecture.md): pure rules companion.
 - [Move history and SAN flow](docs/move-history-flow.md).
-- [Day 21 source review](docs/day21-history-review.md) and [next-session handoff](docs/day21-handoff.md).
-- [Historical main-document checkpoints](docs/history/main-documents-through-day20.md). Existing Day documents retain their historical scope.
+- [Lifecycle flow](docs/game-lifecycle-flow.md), [Day 22 source review](docs/day22-lifecycle-review.md) and [next-session handoff](docs/day22-handoff.md).
+- [Day 21 source review](docs/day21-history-review.md) retains historical checkpoint evidence.
+- [Historical main-document checkpoints](docs/history/main-documents-through-day21.md). Existing Day documents retain their historical scope.
+
+## Lifecycle policy
+
+Either participant may resign or offer a draw regardless of turn. Only the recipient can accept/decline; only the sender can withdraw. Play continues during an offer, and any accepted move clears it. Resignation awards the opponent a win. Offers, responses and resignation advance the concurrency version without adding move-history rows. Angular confirms resignation/draw acceptance and shares one POST lock with moves. See [contracts](docs/api-contracts.md#explicit-lifecycle-commands).

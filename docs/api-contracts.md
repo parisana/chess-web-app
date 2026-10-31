@@ -1,6 +1,6 @@
 # API Contracts
 
-Current Day 21 contracts, source-reviewed on 30 October 2026 against `chess-web-app-day21-end.zip`. Tests follow the standing user agreement; the assistant ran no tests/builds or independent runtime acceptance checks. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day20.md).
+Current Day 22 contracts, source-reviewed on 31 October 2026 against `chess-web-app-day22-end.zip`. Tests follow the standing user agreement; the assistant ran no tests/builds or independent runtime acceptance checks. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day21.md).
 
 ## Shared conventions
 
@@ -27,6 +27,11 @@ Current Day 21 contracts, source-reviewed on 30 October 2026 against `chess-web-
 | GET | `/api/v1/games/{gameId}` | Participant bearer JWT | 200; game state |
 | POST | `/api/v1/games/{gameId}/moves` | Participant Bearer JWT | 200; GameMoveResult |
 | GET | `/api/v1/games/{gameId}/moves` | Participant bearer JWT | 200; GameHistoryResponse |
+| POST | `/api/v1/games/{gameId}/resignation` | Participant bearer JWT | 200; GameResponse |
+| POST | `/api/v1/games/{gameId}/draw-offer` | Participant bearer JWT | 200; GameResponse |
+| POST | `/api/v1/games/{gameId}/draw-offer/accept` | Participant bearer JWT | 200; GameResponse |
+| POST | `/api/v1/games/{gameId}/draw-offer/decline` | Participant bearer JWT | 200; GameResponse |
+| POST | `/api/v1/games/{gameId}/draw-offer/withdraw` | Participant bearer JWT | 200; GameResponse |
 
 There is no public game-creation endpoint: pairing invokes creation internally. Participant-authenticated POST /api/v1/games/{gameId}/moves delegates to GameService. Pure rules exceptions are not themselves the HTTP contract; game-owned application exceptions map gameplay rejections.
 
@@ -136,7 +141,7 @@ An ordinary repeated join by an already matched player returns 200 `MATCHED`; it
 
 ## Read game — GET `/api/v1/games/{gameId}`
 
-No request body. Success returns id, whitePlayerId, blackPlayerId, status, currentFen, createdAt, version, result, terminationReason and finishedAt through GameResponse.from(game). Either participant can read; opponent profile/email is not returned. New games start in IN_PROGRESS at the initial FEN. Accepted commands advance FEN/version and may produce FINISHED. Completion fields are null during active play. GET does not reevaluate the position and has no positionStatus.
+No request body. Success returns id, whitePlayerId, blackPlayerId, status, currentFen, createdAt, version, result, terminationReason, finishedAt and nullable drawOfferedByPlayerId through GameResponse.from(game). Either participant can read; opponent profile/email is not returned. New games start in IN_PROGRESS at the initial FEN. Accepted commands advance FEN/version and may produce FINISHED. Completion fields are null during active play. GET does not reevaluate the position and has no positionStatus.
 
 | Failure | Status | Application code |
 | --- | --- | --- |
@@ -159,7 +164,7 @@ Authenticated Player identity comes from the validated JWT subject.
 
 expectedVersion is required and nonnegative. Coordinates are required lowercase algebraic squares from a1 through h8 and must differ. Promotion is omitted/null or exactly QUEEN, ROOK, BISHOP or KNIGHT; board-dependent validity remains in the rules pipeline. No automatic queen choice is supplied.
 
-Success returns 200 with gameId, currentFen, version, positionStatus, status, result, terminationReason and finishedAt. positionStatus assesses the side to move and is NORMAL, CHECK, CHECKMATE or STALEMATE. Lifecycle is IN_PROGRESS/FINISHED; results are WHITE_WIN/BLACK_WIN/DRAW; implemented termination reasons are CHECKMATE/STALEMATE.
+Success returns 200 with gameId, currentFen, version, positionStatus, status, result, terminationReason and finishedAt. positionStatus assesses the side to move and is NORMAL, CHECK, CHECKMATE or STALEMATE. Lifecycle is IN_PROGRESS/FINISHED; results are WHITE_WIN/BLACK_WIN/DRAW; supported termination reasons are CHECKMATE/STALEMATE/RESIGNATION/DRAW_AGREEMENT. Move-driven completion uses CHECKMATE/STALEMATE; explicit lifecycle commands produce the other two.
 
 | Failure | Status | Application code |
 | --- | --- | --- |
@@ -195,7 +200,45 @@ GameHistoryResponse fields:
 
 Each move contains sequenceNumber, playerId, from, to, promotion, resultingFen, playedAt and san. Sequence begins at 1 relative to the baseline, not the chess fullmove number. Promotion is null or QUEEN/ROOK/BISHOP/KNIGHT. New application writes require nonblank SAN of at most 32 characters; old pre-SAN rows may return null. Castling/en passant each occupy one entry. playedAt and terminal finishedAt use the same timestamp for a completing move. Internal move-row IDs are not exposed.
 
-The baseline is preserved for future replay; no replay control or PGN export is supplied. There is no SAN backfill or reconstruction of missing pre-V7 moves. Reads currently return the full recorded list; pagination/retention limits are not implemented. Game GET and POST response shapes are unchanged.
+The baseline is preserved for future replay; no replay control or PGN export is supplied. There is no SAN backfill or reconstruction of missing pre-V7 moves. Reads currently return the full recorded list; pagination/retention limits are not implemented. History and move POST response shapes are unchanged; GameResponse adds nullable drawOfferedByPlayerId in Day 22.
+
+## Explicit lifecycle commands
+
+All five routes require participant authentication. The actor comes from the JWT; no request-supplied Player ID selects the actor. Each uses a JSON object with required, nonnegative Long expectedVersion:
+
+```json
+{"expectedVersion": 3}
+```
+
+Resignation uses ResignGameRequest; the four draw endpoints share DrawOfferRequest. Success returns 200 with the complete GameResponse, including nullable drawOfferedByPlayerId and the new concurrency version. Neither FEN nor recorded move count changes and no move row is inserted.
+
+| POST suffix under /api/v1/games/{gameId} | Preconditions after common checks | Outcome |
+| --- | --- | --- |
+| /resignation | Either participant, any turn | FINISHED; opponent wins; RESIGNATION |
+| /draw-offer | No pending offer; either participant, any turn | Remains active; sender stored |
+| /draw-offer/accept | Pending opponent offer | FINISHED; DRAW; DRAW_AGREEMENT |
+| /draw-offer/decline | Pending opponent offer | Remains active; offer cleared |
+| /draw-offer/withdraw | Pending own offer | Remains active; offer cleared |
+
+Play continues during an offer. Any accepted move by either side clears it. A rejected move preserves it. Every completion clears it. This is the application's negotiation policy, not a claim of tournament draw-offer procedure. No expiry, minimum move requirement, offer throttling or negotiation audit is implemented.
+
+Well-formed command precedence is missing game, participant membership, active lifecycle, expected version, then offer presence/role. For offering, pending-offer detection follows the common checks. Field validation happens before service lookup.
+
+| Failure | HTTP | Application code |
+| --- | --- | --- |
+| Invalid fields | 400 | VALIDATION_FAILED |
+| Missing/invalid bearer | 401 | Not guaranteed |
+| Nonparticipant | 403 | GAME_ACCESS_DENIED |
+| Missing game | 404 | GAME_NOT_FOUND |
+| Finished game | 409 | GAME_ALREADY_FINISHED |
+| Stale observed/concurrent version | 409 | STALE_GAME_VERSION |
+| Existing offer when offering | 409 | DRAW_OFFER_ALREADY_PENDING |
+| No offer when accepting/declining/withdrawing | 409 | DRAW_OFFER_NOT_FOUND |
+| Sender accepts/declines, or recipient withdraws | 409 | DRAW_OFFER_ACTION_NOT_ALLOWED |
+
+Resignation and agreement set finishedAt from Clock, truncated to microseconds, and require exactly two reservation deletions. Flush, completion, release and event publication share one transaction. A competing command is rejected rather than replayed. Repeated successful lifecycle requests do not have an idempotency key; reread current state after a conflict or uncertain response.
+
+A lifecycle change advances history's captured version even when its move list stays identical. Clients must reconcile board and history versions as before. Notifications remain GAME_UPDATED hints with no offer/result payload.
 
 ## Real-time updates
 
@@ -251,7 +294,7 @@ No game-topic, spectator or client-publication contract is supplied. Raw broker 
 }
 ```
 
-Type is GAME_CREATED or GAME_UPDATED. GameService events provide both stored participant IDs; the notification listener sends the hint to each Player after commit. GAME_UPDATED includes terminal moves. Each Player’s subscribed sessions may receive the notification; the payload has no FEN, move, result or opponent profile.
+Type is GAME_CREATED or GAME_UPDATED. GameService events provide both stored participant IDs; the notification listener sends the hint to each Player after commit. GAME_UPDATED includes terminal moves and all accepted lifecycle changes. Each Player’s subscribed sessions may receive the notification; the payload has no FEN, move, result or opponent profile.
 
 Angular validates recognized type, positive safe-integer gameId and nonnegative safe-integer version. Unknown/malformed payloads are ignored. The version is an observed game concurrency version, not a separate move-history index.
 

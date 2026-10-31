@@ -1,6 +1,6 @@
 # Frontend gameplay flow
 
-This companion describes the actual Day 21 source reviewed on 30 October 2026. It supersedes the manual-refresh-only Day 19 flow preserved in [history](history/main-documents-through-day19.md). Source review is not an independent build or runtime acceptance result.
+This companion describes the actual Day 22 source reviewed on 31 October 2026. It supersedes the manual-refresh-only Day 19 flow preserved in [history](history/main-documents-through-day19.md). Source review is not an independent build or runtime acceptance result.
 
 ## Ownership
 
@@ -11,7 +11,7 @@ This companion describes the actual Day 21 source reviewed on 30 October 2026. I
 | Home | Queue commands/status reads and explicit Open game navigation |
 | Game | Authoritative snapshots, requests, promotion and reconciliation |
 | ChessBoard | FEN projection, orientation, selection and move proposals |
-| GameApiService | Game/history GET and move POST transport |
+| GameApiService | Game/history GET and move/lifecycle POST transport |
 | AuthSessionStore/interceptor | In-memory identity/token and protected HTTP handling |
 
 Home, Game and ChessBoard each use separate HTML/CSS files. Templates are connected through templateUrl/styleUrl; separation changes file organization, not data flow.
@@ -122,3 +122,13 @@ See [real-time delivery and security](realtime-updates-flow.md), [contracts](api
 readSnapshot accepts the game snapshot in tap, then switchMap invokes readHistorySnapshot. reading/loading finalize after the complete read chain. History errors return null inside the history branch; they do not flow into the board-error handler. The history version must match the displayed board version. A newer response updates the known-newer version and queues blocking synchronization; an older one is ignored. A stale accepted list can remain visible while the page catches up.
 
 Successful POST queues a nonblocking read after submission finalizes even when its own notification was ignored. historyNeedsRefresh extends visible-page safety recovery to finished games with missing/failed/outdated history. Matching history and an error-free finished board stop periodic work. No command is replayed. The coordinate and SAN columns remain side by side. See [history flow](move-history-flow.md).
+
+## Day 22 shared command and confirmation flow
+
+canSubmitGameCommand requires an authenticated active participant, no initial loading/submission and no blocking refresh. canSubmitMove adds the side-to-move check and absence of lifecycle confirmation. canSubmitLifecycleAction ignores turn but requires promotion to be resolved. History-only failures do not independently block either command type.
+
+executeGameCommand receives a captured GameResponse, an Observable factory and a response mapper. It cancels an allowed safety read, clears local dialogs, sets submitting and invokes the command through defer. Both move and lifecycle paths use this lock and finalize handler. Snapshot identity protects against callbacks after route replacement. Lifecycle success accepts GameResponse directly; move success preserves participant metadata and explicitly sets drawOfferedByPlayerId to null.
+
+Resign and accept-draw first open an inline confirmation. The confirmation disables board proposals and hides other lifecycle buttons. Confirm rechecks current permission. Route changes, blocking synchronization and accepted newer snapshots dismiss it; unchanged nonblocking reads preserve it. Promotion must be chosen/cancelled before lifecycle actions.
+
+All accepted commands queue board/history reconciliation. Conflicts, missing/changed offers and uncertain failures block commands and request GET without retrying POST. Finished snapshots show resignation or agreement alongside existing outcome labels and remove lifecycle controls. Game.moveMessage remains the general action-feedback signal. See [lifecycle flow](game-lifecycle-flow.md).

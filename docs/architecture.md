@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the current Day 21 system, source-reviewed on 30 October 2026 against `chess-web-app-day21-end.zip`. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day20.md). Verification evidence and scope limits are recorded in the [Day 21 review](day21-history-review.md).
+This document describes the current Day 22 system, source-reviewed on 31 October 2026 against `chess-web-app-day22-end.zip`. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day21.md). Verification evidence and scope limits are recorded in the [Day 22 review](day22-lifecycle-review.md).
 
 ## Application structure
 
@@ -50,6 +50,8 @@ PostgreSQL is durable storage. Applied Flyway migrations are immutable; future s
 | V6 | Completion fields and lifecycle consistency constraints |
 | V7 | History baseline/completeness/count and ordered move records |
 | V8 | Nullable SAN for pre-SAN records; new application records require SAN |
+| V9 | Completion constraint permits resignation with a winner |
+| V10 | Pending participant offer on active games; completion permits draw agreement |
 
 BaseEntity timestamps use JPA callbacks. SQL defaults support non-JPA insertion; direct SQL updates do not automatically advance `updated_at`. Identity sequences need not rewind after rollback.
 
@@ -120,7 +122,7 @@ The simple broker and session registry are in-process. Current delivery assumes 
 
 ## Deferred scope
 
-Replay controls/PGN export, clocks, extra draws, resignation/agreement, acceptance, abandonment/disconnect completion, ratings and statistics remain separate milestones. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](roadmap.md) and the two flow companions for details.
+Replay controls/PGN export, clocks, extra rule-based draws, acceptance, abandonment/disconnect completion, ratings and statistics remain separate milestones. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](roadmap.md) and the two flow companions for details.
 
 ## Persisted history and SAN
 
@@ -133,3 +135,15 @@ getHistory authorizes membership before reading records through the captured rec
 SanFormatter is pure Java. It consumes the original position, accepted move, complete legal set and resulting assessment. It produces English SAN with captures, O-O/O-O-O, = promotion, legal-source disambiguation and +/# suffixes. It does not replace the legality facade. V8 preserves null SAN for pre-SAN entries; no backfill is supplied.
 
 Angular reads the board, then history, within the same coordinated read operation. Matching versions accept history; older history is ignored; newer history queues board synchronization. An older accepted list may remain visible while catching up, but a newer list is not shown ahead of the board. History failures have separate feedback and do not independently disable moves. Accepted POSTs explicitly queue reconciliation so the sender's list catches up even when its notification is already obsolete. See [history flow](move-history-flow.md).
+
+## Day 22 explicit lifecycle commands
+
+GameService owns resign, offerDraw, acceptDraw, declineDraw and withdrawDraw. Public methods own transactions. loadActiveGameForCommand performs existence, participant, active lifecycle and expected-version checks in that order. requireDrawOfferActor checks offer presence and sender/recipient roles. These application commands do not evaluate pure chess rules.
+
+persistLifecycleChange flushes the optimistic game update, releases exactly two reservations if finished, publishes GAME_UPDATED and maps GameResponse. It does not commit. An enclosing failure restores completion, pending offer and reservations and suppresses AFTER_COMMIT delivery. A concurrent move or lifecycle command may win; another write based on the same loaded version must fail. Private helpers do not create transaction boundaries.
+
+Game.drawOfferedByPlayerId stores one nullable participant ID. Entity guards and ck_games_draw_offer prevent nonparticipant or finished-game offers. finish validates outcome before clearing negotiation; updatePosition clears an offer only after validating its input. Service-rejected moves never mutate the entity. V10 allows DRAW only for STALEMATE/DRAW_AGREEMENT and winning results only for CHECKMATE/RESIGNATION. Applied migrations remain immutable.
+
+Lifecycle-only mutations leave FEN, baseline and recorded count unchanged and insert no GameMove. Version therefore advances independently of move count. GameResponse includes pending offer ownership; GameMoveResult is unchanged. History is a move log, not an audit of negotiations.
+
+Angular executeGameCommand coordinates all POST types through one submission lock and shared recovery. General command permission is independent of turn; move permission adds turn checks. Promotion must be resolved before lifecycle actions. Inline confirmation is required for resignation/acceptance. Known-newer snapshots clear confirmations even when FEN did not change. Accepted lifecycle responses trigger board/history reconciliation because captured history versions advance too. See [lifecycle flow](game-lifecycle-flow.md).
