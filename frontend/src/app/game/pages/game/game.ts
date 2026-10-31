@@ -116,6 +116,80 @@ export class Game implements OnInit {
   ];
 
   /**
+ * null follows the live game.
+ * 0 displays the baseline; n displays the position after recorded move n.
+ * Numeric selections remain read-only until Latest is clicked.
+ */
+  readonly replayIndex = signal<number | null>(null);
+
+  readonly isReplaying = computed(() => this.replayIndex() !== null);
+
+  /**
+   * Previously accepted history remains usable while live history catches up.
+   * Sequence numbers must map directly to the available position indexes.
+   */
+  readonly replayHistory = computed(() => {
+    const current = this.game();
+    const recorded = this.history();
+
+    if (
+      current === null ||
+      recorded === null ||
+      recorded.gameId !== current.id ||
+      recorded.version > current.version ||
+      recorded.recordedMoveCount !== recorded.moves.length ||
+      !recorded.moves.every(
+        (move, index) => move.sequenceNumber === index + 1,
+      )
+    ) {
+      return null;
+    }
+
+    return recorded;
+  });
+
+  readonly displayedFen = computed<string | null>(() => {
+    const index = this.replayIndex();
+
+    if (index === null) {
+      return this.game()?.currentFen ?? null;
+    }
+
+    const recorded = this.replayHistory();
+
+    if (recorded === null) {
+      return null;
+    }
+
+    return index === 0
+      ? recorded.historyStartFen
+      : recorded.moves[index - 1]?.resultingFen ?? null;
+  });
+
+  readonly canNavigateReplay = computed(() =>
+    this.replayHistory() !== null &&
+    !this.submitting()
+  );
+
+  readonly canReplayPrevious = computed(() => {
+    const recorded = this.replayHistory();
+
+    return recorded !== null &&
+      this.canNavigateReplay() &&
+      (this.replayIndex() ?? recorded.moves.length) > 0;
+  });
+
+  readonly canReplayNext = computed(() => {
+    const recorded = this.replayHistory();
+    const index = this.replayIndex();
+
+    return recorded !== null &&
+      this.canNavigateReplay() &&
+      index !== null &&
+      index < recorded.moves.length;
+  });
+
+  /**
  * Shared permission for commands that mutate an active game.
  * Turn-specific permission belongs only to move submission.
  */
@@ -131,6 +205,7 @@ export class Game implements OnInit {
         game.whitePlayerId === player.id ||
         game.blackPlayerId === player.id
       ) &&
+      !this.isReplaying() &&
       !this.loading() &&
       !this.submitting() &&
       !this.needsRefresh();
@@ -176,6 +251,7 @@ export class Game implements OnInit {
         this.latestNotifiedVersion = -1;
         this.readPending = false;
 
+        this.replayIndex.set(null);
         this.game.set(null);
         this.history.set(null);
         this.historyError.set(null);
@@ -271,6 +347,64 @@ export class Game implements OnInit {
       // An actual newer snapshot will update them if necessary.
       this.requestSynchronization(false);
     });
+  }
+
+  /**
+ * Selecting a historical position cancels any unfinished local proposal.
+ * It never changes the authoritative game snapshot.
+ */
+  showReplayPosition(index: number): void {
+    const recorded = this.replayHistory();
+
+    if (
+      !this.canNavigateReplay() ||
+      recorded === null ||
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index > recorded.moves.length
+    ) {
+      return;
+    }
+
+    this.pendingPromotion.set(null);
+    this.pendingLifecycleConfirmation.set(null);
+    this.moveMessage.set(null);
+    this.replayIndex.set(index);
+  }
+
+  replayPrevious(): void {
+    const recorded = this.replayHistory();
+
+    if (recorded === null || !this.canReplayPrevious()) {
+      return;
+    }
+
+    // From live mode, step back from the latest recorded position.
+    const currentIndex =
+      this.replayIndex() ?? recorded.moves.length;
+
+    this.showReplayPosition(currentIndex - 1);
+  }
+
+  replayNext(): void {
+    const index = this.replayIndex();
+
+    if (index === null || !this.canReplayNext()) {
+      return;
+    }
+
+    this.showReplayPosition(index + 1);
+  }
+
+  returnToLatest(): void {
+    if (this.submitting()) {
+      return;
+    }
+
+    this.pendingPromotion.set(null);
+    this.pendingLifecycleConfirmation.set(null);
+    this.moveMessage.set(null);
+    this.replayIndex.set(null);
   }
 
   refresh(): void {
@@ -642,6 +776,7 @@ export class Game implements OnInit {
           ) {
             this.game.set(null);
             this.history.set(null);
+            this.replayIndex.set(null);
             this.pendingPromotion.set(null);
           }
 
@@ -715,6 +850,7 @@ export class Game implements OnInit {
             (error.status === 403 || error.status === 404)
           ) {
             this.history.set(null);
+            this.replayIndex.set(null);
           }
 
           return of(null);

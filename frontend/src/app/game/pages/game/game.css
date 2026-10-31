@@ -94,3 +94,32 @@ pre {
   color: var(--mat-sys-on-surface-variant);
   font-size: 0.875rem;
 }
+
+.replay-controls {
+  margin: 1.5rem 0 1rem;
+}
+
+.replay-controls h2 {
+  font-size: 1.15rem;
+}
+
+.replay-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.replay-help,
+.live-status-label {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.875rem;
+}
+
+.live-status-label {
+  margin-bottom: 0.25rem;
+}
+
+.selected-replay-entry {
+  background-color: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+}

@@ -12,6 +12,15 @@ Day 23 reliability work is complete in inspected source, with user-reported pass
 
 Replay/PGN export is a reasonable next feature candidate because history, baseline FEN and SAN are already persisted. Player statistics/ratings, clocks, extra rule-based draws, acceptance and abandonment remain separate choices. Remaining socket/migration coverage limits are documented rather than an implicit obligation to extend this reliability milestone.
 
+## Deferred: PGN download UI
+
+Backend PGN export and its focused tests are implemented.
+Connecting an Angular download button is deferred.
+
+Replay uses the existing history API and does not depend on PGN export.
+Future download integration should include authenticated Blob retrieval,
+legacy-history availability feedback and cancellation on route changes.
+
 ## Remaining capabilities
 
 | Capability | Separate decisions needed |

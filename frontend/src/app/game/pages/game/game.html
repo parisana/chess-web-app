@@ -39,6 +39,7 @@
         </strong>.
       </p>
 
+      <p class="live-status-label">Live game status</p>
       @if (current.status === 'IN_PROGRESS') {
       <p role="status">This game is in progress.</p>
       } @else {
@@ -66,16 +67,83 @@
       }
       }
 
-      <p>Version: {{ current.version }}</p>
+      <p>Live version: {{ current.version }}</p>
 
-      <app-chess-board [fen]="current.currentFen" [orientation]="
-                current.whitePlayerId === auth.currentPlayer()?.id
-                  ? 'WHITE'
-                  : 'BLACK'
-              " [enabled]="canSubmitMove() && pendingPromotion() === null" (moveProposed)="proposeMove($event)" />
+      <section class="replay-controls" aria-labelledby="replay-title">
+        <h2 id="replay-title">Replay</h2>
+
+        <div class="replay-buttons">
+          <button mat-button type="button" [disabled]="!canNavigateReplay() || replayIndex() === 0"
+            (click)="showReplayPosition(0)">
+            Start
+          </button>
+
+          <button mat-button type="button" [disabled]="!canReplayPrevious()" (click)="replayPrevious()">
+            Previous
+          </button>
+
+          <button mat-button type="button" [disabled]="!canReplayNext()" (click)="replayNext()">
+            Next
+          </button>
+
+          <button mat-flat-button type="button" [disabled]="!isReplaying() || submitting()" (click)="returnToLatest()">
+            Latest
+          </button>
+        </div>
+
+        @if (isReplaying()) {
+        <p role="status">
+          @if (replayIndex() === 0) {
+          Viewing the recorded starting position.
+          } @else {
+          Viewing the position after recorded entry {{ replayIndex() }}.
+          }
+
+          Game actions are disabled. Select Latest to return to the live board.
+        </p>
+        } @else {
+        <p role="status">Following the latest game position.</p>
+        }
+
+        @if (replayHistory(); as recorded) {
+        <p>{{ recorded.moves.length }} recorded moves available.</p>
+
+        @if (!recorded.historyComplete) {
+        <p>
+          Start shows the earliest saved position.
+          Moves before that position are unavailable.
+        </p>
+        }
+        }
+
+        @if (historyNeedsRefresh()) {
+        <p class="replay-help">
+          Replay uses the available recorded history while the move list updates.
+        </p>
+        }
+
+        <p class="replay-help">
+          Choosing a replay position cancels any pending promotion or action confirmation.
+        </p>
+      </section>
+
+      @if (displayedFen(); as fen) {
+      <app-chess-board [fen]="fen" [orientation]="
+      current.whitePlayerId === auth.currentPlayer()?.id
+        ? 'WHITE'
+        : 'BLACK'
+    " [enabled]="canSubmitMove() && pendingPromotion() === null" (moveProposed)="proposeMove($event)" />
+      } @else {
+      <p role="status">
+        This replay position is unavailable.
+        Select Latest to return to the live board.
+      </p>
+      }
 
       @if (current.status === 'IN_PROGRESS') {
-      @if (submitting()) {
+      @if (isReplaying()) {
+      <p>Reviewing recorded positions. Select Latest before playing.</p>
+      } @else if (submitting()) {
       <p role="status">Submitting action…</p>
       } @else if (needsRefresh()) {
       <p role="status">Synchronizing the game before further actions.</p>
@@ -228,8 +296,16 @@
 
             <tbody>
               @for (move of recorded.moves; track move.sequenceNumber) {
-              <tr>
-                <th scope="row">{{ move.sequenceNumber }}</th>
+              <tr [class.selected-replay-entry]="replayIndex() === move.sequenceNumber">
+                <th scope="row">
+                  <button mat-button type="button" [disabled]="!canNavigateReplay()" [attr.aria-label]="
+                        'View position after recorded entry ' + move.sequenceNumber
+                      " [attr.aria-current]="
+                        replayIndex() === move.sequenceNumber ? 'step' : null
+                      " (click)="showReplayPosition(move.sequenceNumber)">
+                    {{ move.sequenceNumber }}
+                  </button>
+                </th>
                 <td>
                   {{
                   move.playerId === current.whitePlayerId
@@ -255,8 +331,10 @@
         }
       </section>
       <details>
-        <summary>Position FEN</summary>
-        <pre>{{ current.currentFen }}</pre>
+        <summary>
+          {{ isReplaying() ? 'Replay position FEN' : 'Live position FEN' }}
+        </summary>
+        <pre>{{ displayedFen() ?? 'Position unavailable' }}</pre>
       </details>
 
       @if (realtimeService.state() === 'CONNECTED') {
