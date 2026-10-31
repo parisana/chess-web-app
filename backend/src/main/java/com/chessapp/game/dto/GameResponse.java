@@ -21,7 +21,8 @@ public record GameResponse(
         Long version,
         GameResult result,
         GameTerminationReason terminationReason,
-        Instant finishedAt
+        Instant finishedAt,
+        Long drawOfferedByPlayerId
 ) {
     public static GameResponse from(Game game) {
         return new GameResponse(
@@ -34,7 +35,8 @@ public record GameResponse(
                 game.getVersion(),
                 game.getResult(),
                 game.getTerminationReason(),
-                game.getFinishedAt()
+                game.getFinishedAt(),
+                game.getDrawOfferedByPlayerId()
         );
     }
 }

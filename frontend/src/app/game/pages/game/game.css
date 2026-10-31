@@ -65,3 +65,32 @@ pre {
 .move-coordinates {
   white-space: nowrap;
 }
+
+.game-actions {
+  margin-top: 1.5rem;
+}
+
+.game-actions h2 {
+  font-size: 1.15rem;
+}
+
+.lifecycle-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.action-confirmation {
+  padding: 1rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0.5rem;
+}
+
+.action-confirmation p {
+  margin-top: 0;
+}
+
+.action-help {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.875rem;
+}

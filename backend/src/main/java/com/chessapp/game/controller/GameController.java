@@ -1,9 +1,6 @@
 package com.chessapp.game.controller;
 
-import com.chessapp.game.dto.GameHistoryResponse;
-import com.chessapp.game.dto.GameMoveResult;
-import com.chessapp.game.dto.GameResponse;
-import com.chessapp.game.dto.SubmitMoveRequest;
+import com.chessapp.game.dto.*;
 import com.chessapp.game.service.GameService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -61,6 +58,87 @@ public class GameController {
                 requestingPlayerId,
                 request.expectedVersion(),
                 request.toMove()
+        );
+    }
+
+    @PostMapping("/{gameId}/resignation")
+    public GameResponse resign(
+            @PathVariable("gameId") Long gameId,
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody ResignGameRequest request
+    ) {
+        // The authenticated subject determines who resigns.
+        Long requestingPlayerId =
+                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+
+        return gameService.resign(
+                gameId,
+                requestingPlayerId,
+                request.expectedVersion()
+        );
+    }
+
+    @PostMapping("/{gameId}/draw-offer")
+    public GameResponse offerDraw(
+            @PathVariable("gameId") Long gameId,
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody DrawOfferRequest request
+    ) {
+        Long requestingPlayerId =
+                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+
+        return gameService.offerDraw(
+                gameId,
+                requestingPlayerId,
+                request.expectedVersion()
+        );
+    }
+
+    @PostMapping("/{gameId}/draw-offer/accept")
+    public GameResponse acceptDraw(
+            @PathVariable("gameId") Long gameId,
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody DrawOfferRequest request
+    ) {
+        Long requestingPlayerId =
+                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+
+        return gameService.acceptDraw(
+                gameId,
+                requestingPlayerId,
+                request.expectedVersion()
+        );
+    }
+
+    @PostMapping("/{gameId}/draw-offer/decline")
+    public GameResponse declineDraw(
+            @PathVariable("gameId") Long gameId,
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody DrawOfferRequest request
+    ) {
+        Long requestingPlayerId =
+                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+
+        return gameService.declineDraw(
+                gameId,
+                requestingPlayerId,
+                request.expectedVersion()
+        );
+    }
+
+    @PostMapping("/{gameId}/draw-offer/withdraw")
+    public GameResponse withdrawDraw(
+            @PathVariable("gameId") Long gameId,
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody DrawOfferRequest request
+    ) {
+        Long requestingPlayerId =
+                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+
+        return gameService.withdrawDraw(
+                gameId,
+                requestingPlayerId,
+                request.expectedVersion()
         );
     }
 }

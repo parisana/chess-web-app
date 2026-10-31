@@ -45,6 +45,7 @@ import { ProposedMove, PromotionPiece } from '../../models/game-move';
 import { REALTIME_CONFIG } from '../../../notification/config/realtime.config';
 import { RealtimeService } from '../../../notification/services/realtime.service';
 import { GameHistoryResponse } from '../../models/game-history';
+import { GameLifecycleAction } from '../../models/game-lifecycle';
 
 @Component({
   selector: 'app-game',
@@ -80,6 +81,7 @@ export class Game implements OnInit {
   readonly history = signal<GameHistoryResponse | null>(null);
   readonly historyLoading = signal(false);
   readonly historyError = signal<string | null>(null);
+  readonly pendingLifecycleConfirmation = signal<GameLifecycleAction | null>(null);
 
   readonly historyNeedsRefresh = computed(() => {
     const current = this.game();
@@ -113,30 +115,50 @@ export class Game implements OnInit {
     'KNIGHT',
   ];
 
-  readonly canSubmitMove = computed(() => {
+  /**
+ * Shared permission for commands that mutate an active game.
+ * Turn-specific permission belongs only to move submission.
+ */
+  readonly canSubmitGameCommand = computed(() => {
     const game = this.game();
     const player = this.auth.currentPlayer();
 
+    return game !== null &&
+      player !== null &&
+      this.auth.isAuthenticated() &&
+      game.status === 'IN_PROGRESS' &&
+      (
+        game.whitePlayerId === player.id ||
+        game.blackPlayerId === player.id
+      ) &&
+      !this.loading() &&
+      !this.submitting() &&
+      !this.needsRefresh();
+  });
+
+  readonly canSubmitLifecycleAction = computed(() =>
+    this.canSubmitGameCommand() &&
+    this.pendingPromotion() === null
+  );
+
+  readonly canSubmitMove = computed(() => {
     if (
-      !game ||
-      !player ||
-      game.status !== 'IN_PROGRESS' ||
-      this.loading() ||
-      this.submitting() ||
-      this.needsRefresh()
+      !this.canSubmitGameCommand() ||
+      this.pendingLifecycleConfirmation() !== null
     ) {
+      return false;
+    }
+
+    const game = this.game();
+    const player = this.auth.currentPlayer();
+
+    if (!game || !player) {
       return false;
     }
 
     const color = game.whitePlayerId === player.id
       ? 'WHITE'
-      : game.blackPlayerId === player.id
-        ? 'BLACK'
-        : null;
-
-    if (color === null) {
-      return false;
-    }
+      : 'BLACK';
 
     try {
       return parseFenForDisplay(game.currentFen).sideToMove === color;
@@ -158,6 +180,7 @@ export class Game implements OnInit {
         this.history.set(null);
         this.historyError.set(null);
         this.pendingPromotion.set(null);
+        this.pendingLifecycleConfirmation.set(null);
         this.errorMessage.set(null);
         this.moveMessage.set(null);
         this.needsRefresh.set(false);
@@ -334,6 +357,94 @@ export class Game implements OnInit {
     this.pendingPromotion.set(null);
   }
 
+  requestLifecycleAction(action: GameLifecycleAction): void {
+    if (
+      this.pendingLifecycleConfirmation() !== null ||
+      !this.canPerformLifecycleAction(action)
+    ) {
+      return;
+    }
+
+    this.moveMessage.set(null);
+
+    // These actions finish the game, so ask for an explicit second click.
+    if (action === 'resign' || action === 'accept-draw') {
+      this.pendingLifecycleConfirmation.set(action);
+      return;
+    }
+
+    this.sendLifecycleAction(action);
+  }
+
+  confirmLifecycleAction(): void {
+    const action = this.pendingLifecycleConfirmation();
+
+    if (action === null) {
+      return;
+    }
+
+    this.pendingLifecycleConfirmation.set(null);
+
+    // Recheck current state rather than trusting the earlier button click.
+    this.sendLifecycleAction(action);
+  }
+
+  cancelLifecycleConfirmation(): void {
+    this.pendingLifecycleConfirmation.set(null);
+  }
+
+  private canPerformLifecycleAction(
+    action: GameLifecycleAction,
+  ): boolean {
+    if (!this.canSubmitLifecycleAction()) {
+      return false;
+    }
+
+    const current = this.game();
+    const player = this.auth.currentPlayer();
+
+    if (!current || !player) {
+      return false;
+    }
+
+    const sender = current.drawOfferedByPlayerId;
+
+    switch (action) {
+      case 'resign':
+        return true;
+
+      case 'offer-draw':
+        return sender === null;
+
+      case 'accept-draw':
+      case 'decline-draw':
+        return sender !== null && sender !== player.id;
+
+      case 'withdraw-draw':
+        return sender === player.id;
+    }
+  }
+
+  private sendLifecycleAction(action: GameLifecycleAction): void {
+    if (!this.canPerformLifecycleAction(action)) {
+      return;
+    }
+
+    const current = this.game();
+
+    if (!current) {
+      return;
+    }
+
+    this.executeGameCommand(
+      current,
+      () => this.gameApi.submitLifecycleAction(current.id, action, {
+        expectedVersion: current.version,
+      }),
+      result => result,
+    );
+  }
+
   private sendMove(
     move: ProposedMove,
     promotion: PromotionPiece | null,
@@ -348,21 +459,57 @@ export class Game implements OnInit {
       return;
     }
 
-    // Only a nonblocking safety read can coexist with an enabled board.
-    // Cancel that GET before issuing a command, then reconcile afterward.
+    this.executeGameCommand(
+      current,
+      () => this.gameApi.submitMove(current.id, {
+        ...move,
+        promotion,
+        expectedVersion: current.version,
+      }),
+      result => ({
+        ...current,
+        currentFen: result.currentFen,
+        version: result.version,
+        status: result.status,
+        result: result.result,
+        terminationReason: result.terminationReason,
+        finishedAt: result.finishedAt,
+
+        // Every accepted move clears any pending offer.
+        drawOfferedByPlayerId: null,
+      }),
+    );
+  }
+
+  /**
+ * Serializes game commands with the existing submission lock.
+ * Reads are cancelled before POST and reconciliation runs afterward.
+ * An uncertain command is never automatically replayed.
+ */
+  private executeGameCommand<T>(
+    current: GameResponse,
+    command: () => Observable<T>,
+    toSnapshot: (result: T) => GameResponse,
+  ): void {
+    if (
+      !this.canSubmitGameCommand() ||
+      this.game() !== current
+    ) {
+      return;
+    }
+
+    // Only a nonblocking safety read can coexist with command permission.
     if (this.reading) {
       this.readPending = true;
       this.cancelReads.next();
     }
 
+    this.pendingPromotion.set(null);
+    this.pendingLifecycleConfirmation.set(null);
     this.moveMessage.set(null);
     this.submitting.set(true);
 
-    this.gameApi.submitMove(current.id, {
-      ...move,
-      promotion,
-      expectedVersion: current.version,
-    }).pipe(
+    defer(command).pipe(
       takeUntilDestroyed(this.destroyRef),
       finalize(() => {
         this.submitting.set(false);
@@ -370,22 +517,15 @@ export class Game implements OnInit {
       }),
     ).subscribe({
       next: result => {
-        // Ignore a response if navigation or a reload replaced its snapshot.
+        // Ignore callbacks belonging to a replaced route snapshot.
         if (this.game() !== current) {
           return;
         }
 
-        this.game.set({
-          ...current,
-          currentFen: result.currentFen,
-          version: result.version,
-          status: result.status,
-          result: result.result,
-          terminationReason: result.terminationReason,
-          finishedAt: result.finishedAt,
-        });
-        // Our own notification may already be obsolete after accepting POST.
-        // Explicitly queue a read so our move list also catches up.
+        this.game.set(toSnapshot(result));
+
+        // Lifecycle changes also advance history's captured game version,
+        // even when the recorded move list itself has not changed.
         this.requestSynchronization(false);
       },
       error: (error: unknown) => {
@@ -393,7 +533,7 @@ export class Game implements OnInit {
           return;
         }
 
-        this.handleMoveError(error);
+        this.handleCommandError(error);
       },
     });
   }
@@ -410,6 +550,7 @@ export class Game implements OnInit {
     if (blockMoves) {
       this.needsRefresh.set(true);
       this.pendingPromotion.set(null);
+      this.pendingLifecycleConfirmation.set(null);
     }
 
     this.readPending = true;
@@ -462,6 +603,7 @@ export class Game implements OnInit {
             snapshot.version > current.version
           ) {
             this.pendingPromotion.set(null);
+            this.pendingLifecycleConfirmation.set(null);
             this.game.set(snapshot);
           }
 
@@ -585,18 +727,21 @@ export class Game implements OnInit {
     });
   }
 
-  private handleMoveError(error: unknown): void {
+  private handleCommandError(error: unknown): void {
     if (error instanceof HttpErrorResponse) {
       const code: unknown = error.error?.code;
 
       if (
         code === 'STALE_GAME_VERSION' ||
         code === 'NOT_PLAYERS_TURN' ||
-        code === 'GAME_ALREADY_FINISHED'
+        code === 'GAME_ALREADY_FINISHED' ||
+        code === 'DRAW_OFFER_ALREADY_PENDING' ||
+        code === 'DRAW_OFFER_NOT_FOUND' ||
+        code === 'DRAW_OFFER_ACTION_NOT_ALLOWED'
       ) {
-        this.needsRefresh.set(true);
         this.moveMessage.set(
-          'The displayed game state is out of date. Reloading it; your move will not be retried.',
+          'The action could not be applied to the displayed state. ' +
+          'Checking the latest game; the action will not be retried.',
         );
 
         this.requestSynchronization(true);
@@ -612,13 +757,14 @@ export class Game implements OnInit {
 
       if (error.status === 400) {
         this.moveMessage.set(
-          'The move request was invalid. Check the selected move.',
+          'The request was invalid. Refresh the game before trying again.',
         );
+        this.requestSynchronization(true);
         return;
       }
 
       if (error.status === 401) {
-        // The existing authentication interceptor handles session cleanup.
+        // The session-aware authentication interceptor handles cleanup.
         return;
       }
 
@@ -629,11 +775,10 @@ export class Game implements OnInit {
       }
     }
 
-    // A transport/server failure may occur after the move committed.
-    // Reconcile through GET; never retry the command automatically.
-    this.needsRefresh.set(true);
+    // A transport/server error can arrive after a successful commit.
     this.moveMessage.set(
-      'The move could not be confirmed. Checking the latest game state; your move will not be retried.',
+      'The action could not be confirmed. Checking the latest game; ' +
+      'the action will not be retried.',
     );
     this.requestSynchronization(true);
   }

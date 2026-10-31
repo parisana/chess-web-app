@@ -95,6 +95,42 @@ public class GameExceptionHandler {
         );
     }
 
+    @ExceptionHandler(DrawOfferAlreadyPendingException.class)
+    public ProblemDetail handleDrawOfferAlreadyPending(
+            DrawOfferAlreadyPendingException exception
+    ) {
+        return problem(
+                HttpStatus.CONFLICT,
+                "Draw offer already pending",
+                GameErrorCodes.DRAW_OFFER_ALREADY_PENDING,
+                exception
+        );
+    }
+
+    @ExceptionHandler(DrawOfferNotFoundException.class)
+    public ProblemDetail handleDrawOfferNotFound(
+            DrawOfferNotFoundException exception
+    ) {
+        return problem(
+                HttpStatus.CONFLICT,
+                "Draw offer not found",
+                GameErrorCodes.DRAW_OFFER_NOT_FOUND,
+                exception
+        );
+    }
+
+    @ExceptionHandler(DrawOfferActionNotAllowedException.class)
+    public ProblemDetail handleDrawOfferActionNotAllowed(
+            DrawOfferActionNotAllowedException exception
+    ) {
+        return problem(
+                HttpStatus.CONFLICT,
+                "Draw offer action not allowed",
+                GameErrorCodes.DRAW_OFFER_ACTION_NOT_ALLOWED,
+                exception
+        );
+    }
+
     private static ProblemDetail problem(
             HttpStatusCode status,
             String title,

@@ -72,6 +72,9 @@ public class Game extends BaseEntity {
     @Column(name = "recorded_move_count", nullable = false)
     private long recordedMoveCount;
 
+    @Column(name = "draw_offered_by_player_id")
+    private Long drawOfferedByPlayerId;
+
     public Game(
             Long whitePlayerId,
             Long blackPlayerId,
@@ -116,6 +119,9 @@ public class Game extends BaseEntity {
         }
 
         currentFen = fen;
+        // Application policy: any accepted move ends the pending offer.
+        // Rejected proposals never reach this mutation.
+        drawOfferedByPlayerId = null;
     }
 
     /**
@@ -150,6 +156,43 @@ public class Game extends BaseEntity {
         this.terminationReason = reason;
         this.finishedAt = finishedAt;
         this.status = GameStatus.FINISHED;
+        // Every completion ends any pending negotiation.
+        this.drawOfferedByPlayerId = null;
+    }
+
+    /**
+     * Records one pending offer without changing the position or move count.
+     * The service owns authorization and application-specific rejection errors.
+     */
+    public void offerDraw(Long offeringPlayerId) {
+        requireInProgress();
+
+        boolean isParticipant =
+                whitePlayerId.equals(offeringPlayerId)
+                        || blackPlayerId.equals(offeringPlayerId);
+
+        if (!isParticipant) {
+            throw new IllegalArgumentException(
+                    "A draw offer requires a participating Player"
+            );
+        }
+
+        if (drawOfferedByPlayerId != null) {
+            throw new IllegalStateException(
+                    "A draw offer is already pending"
+            );
+        }
+
+        drawOfferedByPlayerId = offeringPlayerId;
+    }
+
+    /**
+     * Clears pending negotiation while leaving the game active.
+     * The service validates who may decline or withdraw the offer.
+     */
+    public void clearDrawOffer() {
+        requireInProgress();
+        drawOfferedByPlayerId = null;
     }
 
     private void requireInProgress() {
@@ -173,17 +216,17 @@ public class Game extends BaseEntity {
             GameTerminationReason reason
     ) {
         switch (reason) {
-            case CHECKMATE -> {
+            case CHECKMATE, RESIGNATION -> {
                 if (result == GameResult.DRAW) {
                     throw new IllegalArgumentException(
-                            "Checkmate requires a winner"
+                            "Checkmate or resignation requires a winner"
                     );
                 }
             }
-            case STALEMATE -> {
+            case STALEMATE, DRAW_AGREEMENT -> {
                 if (result != GameResult.DRAW) {
                     throw new IllegalArgumentException(
-                            "Stalemate requires a draw"
+                            "Stalemate or draw agreement requires a draw"
                     );
                 }
             }

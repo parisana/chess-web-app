@@ -228,6 +228,34 @@ public class GameService {
         return GameMoveResult.from(game, assessment);
     }
 
+    /**
+     * Ends an active game by voluntary resignation.
+     * Either participant may resign, regardless of the side to move.
+     */
+    @Transactional
+    public GameResponse resign(
+            Long gameId,
+            Long requestingPlayerId,
+            long expectedVersion
+    ) {
+        var game = loadActiveGameForCommand(
+                gameId,
+                requestingPlayerId,
+                expectedVersion
+        );
+
+        boolean isWhite =
+                game.getWhitePlayerId().equals(requestingPlayerId);
+
+        game.finish(
+                isWhite ? GameResult.BLACK_WIN : GameResult.WHITE_WIN,
+                GameTerminationReason.RESIGNATION,
+                clock.instant().truncatedTo(ChronoUnit.MICROS)
+        );
+
+        return persistLifecycleChange(game);
+    }
+
     @Transactional(readOnly = true)
     public GameHistoryResponse getHistory(
             Long gameId,
@@ -264,6 +292,102 @@ public class GameService {
                 recordedMoveCount,
                 moves
         );
+    }
+
+    /**
+     * Creates one pending offer without changing the board or move history.
+     * Offering is permitted regardless of whose turn it is.
+     */
+    @Transactional
+    public GameResponse offerDraw(
+            Long gameId,
+            Long requestingPlayerId,
+            long expectedVersion
+    ) {
+        var game = loadActiveGameForCommand(
+                gameId,
+                requestingPlayerId,
+                expectedVersion
+        );
+
+        if (game.getDrawOfferedByPlayerId() != null) {
+            throw new DrawOfferAlreadyPendingException();
+        }
+
+        game.offerDraw(requestingPlayerId);
+
+        return persistLifecycleChange(game);
+    }
+
+    /**
+     * Accepts the opponent's pending offer and releases both reservations
+     * in the same transaction as completion.
+     */
+    @Transactional
+    public GameResponse acceptDraw(
+            Long gameId,
+            Long requestingPlayerId,
+            long expectedVersion
+    ) {
+        var game = loadActiveGameForCommand(
+                gameId,
+                requestingPlayerId,
+                expectedVersion
+        );
+
+        requireDrawOfferActor(game, requestingPlayerId, false);
+
+        game.finish(
+                GameResult.DRAW,
+                GameTerminationReason.DRAW_AGREEMENT,
+                clock.instant().truncatedTo(ChronoUnit.MICROS)
+        );
+
+        return persistLifecycleChange(game);
+    }
+
+    /**
+     * Declines the opponent's offer while keeping the game active.
+     */
+    @Transactional
+    public GameResponse declineDraw(
+            Long gameId,
+            Long requestingPlayerId,
+            long expectedVersion
+    ) {
+        var game = loadActiveGameForCommand(
+                gameId,
+                requestingPlayerId,
+                expectedVersion
+        );
+
+        requireDrawOfferActor(game, requestingPlayerId, false);
+
+        game.clearDrawOffer();
+
+        return persistLifecycleChange(game);
+    }
+
+    /**
+     * Withdraws the acting Player's own offer while keeping the game active.
+     */
+    @Transactional
+    public GameResponse withdrawDraw(
+            Long gameId,
+            Long requestingPlayerId,
+            long expectedVersion
+    ) {
+        var game = loadActiveGameForCommand(
+                gameId,
+                requestingPlayerId,
+                expectedVersion
+        );
+
+        requireDrawOfferActor(game, requestingPlayerId, true);
+
+        game.clearDrawOffer();
+
+        return persistLifecycleChange(game);
     }
 
     /**
@@ -344,5 +468,81 @@ public class GameService {
                         type
                 )
         );
+    }
+
+    /**
+     * Shared preconditions for explicit lifecycle commands.
+     * Membership is checked before revealing lifecycle or version failures.
+     */
+    private Game loadActiveGameForCommand(
+            Long gameId,
+            Long requestingPlayerId,
+            long expectedVersion
+    ) {
+        Objects.requireNonNull(gameId, "Game ID is required");
+        Objects.requireNonNull(
+                requestingPlayerId,
+                "Requesting player is required"
+        );
+
+        if (expectedVersion < 0) {
+            throw new IllegalArgumentException(
+                    "Expected version must not be negative"
+            );
+        }
+
+        var game = gameRepository.findById(gameId)
+                .orElseThrow(GameNotFoundException::new);
+
+        boolean isParticipant =
+                game.getWhitePlayerId().equals(requestingPlayerId)
+                        || game.getBlackPlayerId().equals(requestingPlayerId);
+
+        if (!isParticipant) {
+            throw new GameAccessDeniedException();
+        }
+
+        if (game.getStatus() != GameStatus.IN_PROGRESS) {
+            throw new GameAlreadyFinishedException();
+        }
+
+        if (game.getVersion() != expectedVersion) {
+            throw new StaleGameVersionException();
+        }
+
+        return game;
+    }
+
+    /**
+     * Flushes a lifecycle change before releasing reservations or publishing.
+     * The public command owns the transaction; this helper does not commit.
+     */
+    private GameResponse persistLifecycleChange(Game game) {
+        flushGameOrRejectConflict();
+        releaseReservationsIfFinished(game);
+        publishGameChanged(game, GameChangedEvent.Type.GAME_UPDATED);
+
+        return GameResponse.from(game);
+    }
+
+    /**
+     * Requires an existing offer and the correct participant for the action.
+     */
+    private void requireDrawOfferActor(
+            Game game,
+            Long requestingPlayerId,
+            boolean mustBeSender
+    ) {
+        Long offeringPlayerId = game.getDrawOfferedByPlayerId();
+
+        if (offeringPlayerId == null) {
+            throw new DrawOfferNotFoundException();
+        }
+
+        boolean isSender = offeringPlayerId.equals(requestingPlayerId);
+
+        if (isSender != mustBeSender) {
+            throw new DrawOfferActionNotAllowedException();
+        }
     }
 }

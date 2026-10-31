@@ -606,6 +606,279 @@ class GameMoveHttpIntegrationTest {
                 .andExpect(jsonPath("$.moves[0].to").value("e4"));
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "true, BLACK_WIN",
+            "false, WHITE_WIN"
+    })
+    void resignationReturnsThePersistedOutcome(
+            boolean whiteResigns,
+            String expectedResult
+    ) throws Exception {
+        Long actor = whiteResigns ? white() : black();
+
+        resign(actor, game.version())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(game.id()))
+                .andExpect(jsonPath("$.status").value("FINISHED"))
+                .andExpect(jsonPath("$.result").value(expectedResult))
+                .andExpect(jsonPath("$.terminationReason").value("RESIGNATION"))
+                .andExpect(jsonPath("$.finishedAt").isNotEmpty())
+                .andExpect(jsonPath("$.version").value(game.version() + 1))
+                .andExpect(jsonPath("$.currentFen").value(INITIAL));
+
+        // Both participants can read the same committed outcome.
+        for (Long participant : List.of(white(), black())) {
+            mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
+                            .header(
+                                    HttpHeaders.AUTHORIZATION,
+                                    bearerToken(participant)
+                            ))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("FINISHED"))
+                    .andExpect(jsonPath("$.result").value(expectedResult))
+                    .andExpect(jsonPath("$.terminationReason")
+                            .value("RESIGNATION"));
+        }
+
+        readHistory(white())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(game.version() + 1))
+                .andExpect(jsonPath("$.recordedMoveCount").value(0))
+                .andExpect(jsonPath("$.moves").isEmpty());
+
+        assertTrue(gameService.findActiveGameId(white()).isEmpty());
+        assertTrue(gameService.findActiveGameId(black()).isEmpty());
+    }
+
+    @Test
+    void resignationRequiresAuthentication() throws Exception {
+        mockMvc.perform(post(
+                        "/api/v1/games/{gameId}/resignation",
+                        game.id()
+                )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {"expectedVersion": 0}
+                            """))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post(
+                        "/api/v1/games/{gameId}/resignation",
+                        game.id()
+                )
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                "Bearer definitely-not-a-jwt"
+                        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {"expectedVersion": 0}
+                            """))
+                .andExpect(status().isUnauthorized());
+
+        assertUnchanged(INITIAL, 0, 2);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "{}",
+            "{\"expectedVersion\": null}",
+            "{\"expectedVersion\": -1}"
+    })
+    void invalidResignationVersionReturnsValidationFailure(String body)
+            throws Exception {
+        mockMvc.perform(post(
+                        "/api/v1/games/{gameId}/resignation",
+                        game.id()
+                )
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(white())
+                        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+
+        assertUnchanged(INITIAL, 0, 2);
+    }
+
+    @Test
+    void resignationPreservesFailurePrecedence() throws Exception {
+        mockMvc.perform(post(
+                        "/api/v1/games/{gameId}/resignation",
+                        -1L
+                )
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(outsider())
+                        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {"expectedVersion": 99}
+                            """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("GAME_NOT_FOUND"));
+
+        resign(outsider(), 99)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GAME_ACCESS_DENIED"));
+
+        resign(white(), 99)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("STALE_GAME_VERSION"));
+
+        assertUnchanged(INITIAL, 0, 2);
+
+        resign(white(), 0)
+                .andExpect(status().isOk());
+
+        // Membership still takes precedence after completion.
+        resign(outsider(), 0)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GAME_ACCESS_DENIED"));
+
+        // Lifecycle takes precedence over the now-stale version.
+        resign(black(), 0)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("GAME_ALREADY_FINISHED"));
+    }
+
+    @Test
+    void resignationPreservesPreviouslyRecordedMoves() throws Exception {
+        submit(white(), 0, "e2", "e4", null)
+                .andExpect(status().isOk());
+
+        resign(black(), 1)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result").value("WHITE_WIN"))
+                .andExpect(jsonPath("$.version").value(2))
+                .andExpect(jsonPath("$.currentFen").value(AFTER_E4));
+
+        // Two state changes, but only one chess move.
+        readHistory(white())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(2))
+                .andExpect(jsonPath("$.recordedMoveCount").value(1))
+                .andExpect(jsonPath("$.moves.length()").value(1))
+                .andExpect(jsonPath("$.moves[0].san").value("e4"))
+                .andExpect(jsonPath("$.moves[0].resultingFen").value(AFTER_E4));
+    }
+
+    @Test
+    void drawWorkflowExposesPendingOffersAndAgreedCompletion()
+            throws Exception {
+        drawCommand(white(), "", 0)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.drawOfferedByPlayerId").value(white()))
+                .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+
+        // The opponent discovers the offer through the regular snapshot GET.
+        mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(black())
+                        ))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(1))
+                .andExpect(jsonPath("$.drawOfferedByPlayerId").value(white()));
+
+        drawCommand(black(), "/decline", 1)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(2))
+                .andExpect(jsonPath("$.drawOfferedByPlayerId").value(nullValue()))
+                .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+
+        drawCommand(black(), "", 2)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(3));
+
+        drawCommand(black(), "/withdraw", 3)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(4))
+                .andExpect(jsonPath("$.drawOfferedByPlayerId").value(nullValue()));
+
+        drawCommand(white(), "", 4)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(5));
+
+        drawCommand(black(), "/accept", 5)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(6))
+                .andExpect(jsonPath("$.status").value("FINISHED"))
+                .andExpect(jsonPath("$.result").value("DRAW"))
+                .andExpect(jsonPath("$.terminationReason").value("DRAW_AGREEMENT"))
+                .andExpect(jsonPath("$.finishedAt").isNotEmpty())
+                .andExpect(jsonPath("$.drawOfferedByPlayerId").value(nullValue()))
+                .andExpect(jsonPath("$.currentFen").value(INITIAL));
+
+        readHistory(black())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(6))
+                .andExpect(jsonPath("$.recordedMoveCount").value(0))
+                .andExpect(jsonPath("$.moves").isEmpty());
+
+        assertTrue(gameService.findActiveGameId(white()).isEmpty());
+        assertTrue(gameService.findActiveGameId(black()).isEmpty());
+
+        // Completion blocks subsequent moves.
+        submit(white(), 6, "e2", "e4", null)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("GAME_ALREADY_FINISHED"));
+    }
+
+    @Test
+    void drawOfferConflictsExposeTheirApplicationCodes() throws Exception {
+        for (String action : List.of("/accept", "/decline", "/withdraw")) {
+            drawCommand(black(), action, 0)
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("DRAW_OFFER_NOT_FOUND"));
+        }
+
+        drawCommand(white(), "", 0)
+                .andExpect(status().isOk());
+
+        drawCommand(black(), "", 1)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DRAW_OFFER_ALREADY_PENDING"));
+
+        drawCommand(white(), "/accept", 1)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DRAW_OFFER_ACTION_NOT_ALLOWED"));
+
+        drawCommand(white(), "/decline", 1)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DRAW_OFFER_ACTION_NOT_ALLOWED"));
+
+        drawCommand(black(), "/withdraw", 1)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DRAW_OFFER_ACTION_NOT_ALLOWED"));
+    }
+
+    // action will be "", "/accept", "/decline" or "/withdraw"
+    private ResultActions drawCommand(
+            Long actor,
+            String action,
+            long expectedVersion
+    ) throws Exception {
+        return mockMvc.perform(
+                post(
+                        "/api/v1/games/{gameId}/draw-offer" + action,
+                        game.id()
+                )
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(actor)
+                        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {"expectedVersion": %d}
+                            """.formatted(expectedVersion))
+        );
+    }
+
     private ResultActions submit(
             Long actor,
             long expectedVersion,
@@ -623,6 +896,23 @@ class GameMoveHttpIntegrationTest {
                         .content(moveBody(
                                 expectedVersion, from, to, promotion
                         ))
+        );
+    }
+
+    private ResultActions resign(
+            Long actor,
+            long expectedVersion
+    ) throws Exception {
+        return mockMvc.perform(
+                post("/api/v1/games/{gameId}/resignation", game.id())
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(actor)
+                        )
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                            {"expectedVersion": %d}
+                            """.formatted(expectedVersion))
         );
     }
 

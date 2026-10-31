@@ -26,6 +26,15 @@ public final class GameErrorCodes {
     public static final String ILLEGAL_GAME_MOVE =
             "ILLEGAL_GAME_MOVE";
 
+    public static final String DRAW_OFFER_ALREADY_PENDING =
+            "DRAW_OFFER_ALREADY_PENDING";
+
+    public static final String DRAW_OFFER_NOT_FOUND =
+            "DRAW_OFFER_NOT_FOUND";
+
+    public static final String DRAW_OFFER_ACTION_NOT_ALLOWED =
+            "DRAW_OFFER_ACTION_NOT_ALLOWED";
+
     private GameErrorCodes() {
     }
 }

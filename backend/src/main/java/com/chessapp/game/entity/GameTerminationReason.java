@@ -5,5 +5,7 @@ package com.chessapp.game.entity;
  */
 public enum GameTerminationReason {
     CHECKMATE,
-    STALEMATE
+    STALEMATE,
+    RESIGNATION,
+    DRAW_AGREEMENT
 }

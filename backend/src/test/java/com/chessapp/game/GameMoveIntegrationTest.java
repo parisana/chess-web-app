@@ -4,6 +4,7 @@ import com.chessapp.BoardTestRenderer;
 import com.chessapp.game.dto.GameMoveResult;
 import com.chessapp.game.dto.GameResponse;
 import com.chessapp.game.entity.*;
+import com.chessapp.game.event.GameChangedEvent;
 import com.chessapp.game.exception.*;
 import com.chessapp.game.repository.GameMoveRepository;
 import com.chessapp.game.repository.GameRepository;
@@ -797,19 +798,619 @@ class GameMoveIntegrationTest {
         assertEquals(2, history().size());
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "true, BLACK_WIN",
+            "false, WHITE_WIN"
+    })
+    void eitherParticipantCanResignWithoutRecordingAMove(
+            boolean whiteResigns,
+            GameResult expectedResult
+    ) {
+        // The initial position has White to move.
+        // Black resignation therefore also verifies resignation out of turn.
+        Long resigningPlayer = whiteResigns ? white() : black();
+
+        var result = service.resign(
+                game.id(),
+                resigningPlayer,
+                game.version()
+        );
+
+        var persisted = reload();
+
+        assertAll(
+                () -> assertEquals(GameStatus.FINISHED, result.status()),
+                () -> assertEquals(expectedResult, result.result()),
+                () -> assertEquals(
+                        GameTerminationReason.RESIGNATION,
+                        result.terminationReason()
+                ),
+                () -> assertNotNull(result.finishedAt()),
+                () -> assertEquals(
+                        Long.valueOf(game.version() + 1),
+                        result.version()
+                ),
+                () -> assertEquals(
+                        result.version(),
+                        persisted.getVersion()
+                ),
+                () -> assertEquals(expectedResult, persisted.getResult()),
+                () -> assertEquals(
+                        GameTerminationReason.RESIGNATION,
+                        persisted.getTerminationReason()
+                ),
+                () -> assertEquals(
+                        result.finishedAt(),
+                        persisted.getFinishedAt()
+                ),
+                () -> assertEquals(INITIAL, persisted.getCurrentFen()),
+                () -> assertEquals(INITIAL, persisted.getHistoryStartFen()),
+                () -> assertTrue(persisted.isHistoryComplete()),
+                () -> assertEquals(0L, persisted.getRecordedMoveCount()),
+                () -> assertTrue(history().isEmpty()),
+                () -> assertEquals(0, reservationCount()),
+                () -> assertTrue(
+                        service.findActiveGameId(white()).isEmpty()
+                ),
+                () -> assertTrue(
+                        service.findActiveGameId(black()).isEmpty()
+                )
+        );
+    }
+
+    @Test
+    void resignationRejectsOutsidersAndStaleVersionsWithoutMutation() {
+        Long outsider = players.get(2).id();
+
+        // Membership takes precedence over a stale version.
+        assertThrows(
+                GameAccessDeniedException.class,
+                () -> service.resign(game.id(), outsider, 99)
+        );
+
+        assertThrows(
+                StaleGameVersionException.class,
+                () -> service.resign(game.id(), white(), 99)
+        );
+
+        assertUnchanged(INITIAL);
+        assertReservations();
+    }
+
+    @Test
+    void finishedGameRejectsAnotherResignationBeforeVersionCheck() {
+        service.resign(game.id(), white(), game.version());
+
+        var completed = service.getGame(game.id(), black());
+
+        assertThrows(
+                GameAlreadyFinishedException.class,
+                () -> service.resign(game.id(), black(), game.version())
+        );
+
+        assertEquals(completed, service.getGame(game.id(), black()));
+        assertEquals(0, reservationCount());
+        assertTrue(history().isEmpty());
+    }
+
+    @Test
+    void laterFailureRollsBackResignationAndReservationRelease() {
+        // Ignore creation notifications when checking this transaction.
+        clearInvocations(outboundMessages);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> new TransactionTemplate(transactionManager)
+                        .executeWithoutResult(status -> {
+                            var result = service.resign(
+                                    game.id(),
+                                    white(),
+                                    game.version()
+                            );
+
+                            assertEquals(
+                                    GameStatus.FINISHED,
+                                    result.status()
+                            );
+                            assertEquals(0, reservationCount());
+
+                            throw new IllegalStateException(
+                                    "Simulated later transaction failure"
+                            );
+                        })
+        );
+
+        assertUnchanged(INITIAL);
+        assertReservations();
+
+        // The enclosing transaction rolled back, so no hint is delivered.
+        verifyNoInteractions(outboundMessages);
+    }
+
+    @Test
+    void incompleteReservationReleaseRollsBackResignation() {
+        // Deliberately inconsistent fixture: Black's reservation is absent.
+        jdbc.update(
+                "DELETE FROM active_game_players WHERE player_id = ?",
+                black()
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> service.resign(game.id(), white(), game.version())
+        );
+
+        assertUnchanged(INITIAL);
+
+        // White's deletion must also have rolled back.
+        assertEquals(1, reservationCount());
+        assertEquals(
+                game.id(),
+                service.findActiveGameId(white()).orElseThrow()
+        );
+    }
+
+    @Test
+    void moveAndResignationCannotBothCommitFromTheSameVersion()
+            throws Exception {
+        race(
+                () -> service.submitMove(
+                        game.id(),
+                        white(),
+                        0,
+                        move("e2", "e4")
+                ),
+                () -> service.resign(game.id(), black(), 0)
+        );
+
+        var persisted = reload();
+
+        assertEquals(Long.valueOf(1), persisted.getVersion());
+
+        if (persisted.getStatus() == GameStatus.FINISHED) {
+            // Black's resignation won; the competing move rolled back.
+            assertEquals(GameResult.WHITE_WIN, persisted.getResult());
+            assertEquals(
+                    GameTerminationReason.RESIGNATION,
+                    persisted.getTerminationReason()
+            );
+            assertNotNull(persisted.getFinishedAt());
+            assertEquals(INITIAL, persisted.getCurrentFen());
+            assertEquals(0L, persisted.getRecordedMoveCount());
+            assertTrue(history().isEmpty());
+            assertEquals(0, reservationCount());
+        } else {
+            // White's move won; the competing resignation rolled back.
+            assertEquals(GameStatus.IN_PROGRESS, persisted.getStatus());
+            assertNull(persisted.getResult());
+            assertNull(persisted.getTerminationReason());
+            assertNull(persisted.getFinishedAt());
+            assertEquals(
+                    "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR"
+                            + " b KQkq e3 0 1",
+                    persisted.getCurrentFen()
+            );
+            assertExactlyOneRecordedMove(persisted);
+            assertReservations();
+        }
+    }
+
+    @Test
+    void resignationNotifiesBothPlayersOnlyAfterTheOuterCommit() {
+        clearInvocations(outboundMessages);
+
+        var result = new TransactionTemplate(transactionManager)
+                .execute(status -> {
+                    var response = service.resign(
+                            game.id(),
+                            white(),
+                            game.version()
+                    );
+
+                    // Flush and reservation release have happened,
+                    // but the enclosing transaction has not committed.
+                    verifyNoInteractions(outboundMessages);
+                    return response;
+                });
+
+        assertNotNull(result);
+
+        var expectedUpdate = new PlayerUpdate(
+                GameChangedEvent.Type.GAME_UPDATED.name(),
+                game.id(),
+                result.version()
+        );
+
+        verify(outboundMessages).convertAndSendToUser(
+                white().toString(),
+                webSocketProperties.updatesDestination(),
+                expectedUpdate
+        );
+
+        verify(outboundMessages).convertAndSendToUser(
+                black().toString(),
+                webSocketProperties.updatesDestination(),
+                expectedUpdate
+        );
+
+        verifyNoMoreInteractions(outboundMessages);
+    }
+
+    @Test
+    void agreedDrawFinishesWithoutRecordingAMove() {
+        var offered = service.offerDraw(game.id(), white(), 0);
+
+        assertEquals(Long.valueOf(1), offered.version());
+        assertEquals(white(), offered.drawOfferedByPlayerId());
+        assertEquals(GameStatus.IN_PROGRESS, offered.status());
+        assertReservations();
+
+        var accepted = service.acceptDraw(
+                game.id(),
+                black(),
+                offered.version()
+        );
+
+        var persisted = reload();
+
+        assertAll(
+                () -> assertEquals(Long.valueOf(2), accepted.version()),
+                () -> assertEquals(GameStatus.FINISHED, persisted.getStatus()),
+                () -> assertEquals(GameResult.DRAW, persisted.getResult()),
+                () -> assertEquals(
+                        GameTerminationReason.DRAW_AGREEMENT,
+                        persisted.getTerminationReason()
+                ),
+                () -> assertNotNull(persisted.getFinishedAt()),
+                () -> assertNull(persisted.getDrawOfferedByPlayerId()),
+                () -> assertEquals(INITIAL, persisted.getCurrentFen()),
+                () -> assertEquals(0L, persisted.getRecordedMoveCount()),
+                () -> assertTrue(history().isEmpty()),
+                () -> assertEquals(0, reservationCount())
+        );
+
+        // History follows the game version even when no chess move was added.
+        var recorded = service.getHistory(game.id(), white());
+
+        assertEquals(accepted.version().longValue(), recorded.version());
+        assertEquals(0L, recorded.recordedMoveCount());
+        assertTrue(recorded.moves().isEmpty());
+    }
+
+    @Test
+    void decliningAndWithdrawingOffersKeepReservations() {
+        var offered = service.offerDraw(game.id(), white(), 0);
+
+        var declined = service.declineDraw(
+                game.id(),
+                black(),
+                offered.version()
+        );
+
+        assertEquals(Long.valueOf(2), declined.version());
+        assertNull(declined.drawOfferedByPlayerId());
+        assertEquals(GameStatus.IN_PROGRESS, declined.status());
+        assertReservations();
+
+        var secondOffer = service.offerDraw(
+                game.id(),
+                black(),
+                declined.version()
+        );
+
+        var withdrawn = service.withdrawDraw(
+                game.id(),
+                black(),
+                secondOffer.version()
+        );
+
+        assertEquals(Long.valueOf(4), withdrawn.version());
+        assertNull(withdrawn.drawOfferedByPlayerId());
+        assertEquals(GameStatus.IN_PROGRESS, withdrawn.status());
+        assertEquals(INITIAL, withdrawn.currentFen());
+        assertEquals(0L, reload().getRecordedMoveCount());
+        assertTrue(history().isEmpty());
+        assertReservations();
+    }
+
+    @Test
+    void acceptedMoveClearsPendingOfferAndRecordsOnlyTheMove() {
+        var offered = service.offerDraw(game.id(), black(), 0);
+
+        var moved = submit(
+                white(),
+                offered.version(),
+                "e2",
+                "e4"
+        );
+
+        var persisted = reload();
+
+        assertEquals(Long.valueOf(2), moved.version());
+        assertNull(persisted.getDrawOfferedByPlayerId());
+        assertEquals(1L, persisted.getRecordedMoveCount());
+        assertEquals(1, history().size());
+        assertEquals("e4", history().getFirst().getSan());
+        assertReservations();
+
+        assertThrows(
+                DrawOfferNotFoundException.class,
+                () -> service.acceptDraw(
+                        game.id(),
+                        white(),
+                        moved.version()
+                )
+        );
+
+        assertEquals(moved.version(), reload().getVersion());
+    }
+
+    @Test
+    void rejectedMovePreservesPendingOffer() {
+        var offered = service.offerDraw(game.id(), black(), 0);
+
+        assertThrows(
+                IllegalGameMoveException.class,
+                () -> submit(
+                        white(),
+                        offered.version(),
+                        "e2",
+                        "e5"
+                )
+        );
+
+        var persisted = reload();
+
+        assertEquals(offered.version(), persisted.getVersion());
+        assertEquals(black(), persisted.getDrawOfferedByPlayerId());
+        assertEquals(INITIAL, persisted.getCurrentFen());
+        assertEquals(0L, persisted.getRecordedMoveCount());
+        assertTrue(history().isEmpty());
+        assertReservations();
+    }
+
+    @Test
+    void drawCommandsRequireAnOfferAndTheCorrectActor() {
+        // No pending offer.
+        assertThrows(
+                DrawOfferNotFoundException.class,
+                () -> service.acceptDraw(game.id(), black(), 0)
+        );
+        assertThrows(
+                DrawOfferNotFoundException.class,
+                () -> service.declineDraw(game.id(), black(), 0)
+        );
+        assertThrows(
+                DrawOfferNotFoundException.class,
+                () -> service.withdrawDraw(game.id(), white(), 0)
+        );
+
+        var offered = service.offerDraw(game.id(), white(), 0);
+        long version = offered.version();
+
+        assertThrows(
+                DrawOfferAlreadyPendingException.class,
+                () -> service.offerDraw(game.id(), black(), version)
+        );
+
+        // The sender cannot accept or decline their own offer.
+        assertThrows(
+                DrawOfferActionNotAllowedException.class,
+                () -> service.acceptDraw(game.id(), white(), version)
+        );
+        assertThrows(
+                DrawOfferActionNotAllowedException.class,
+                () -> service.declineDraw(game.id(), white(), version)
+        );
+
+        // The recipient cannot withdraw someone else's offer.
+        assertThrows(
+                DrawOfferActionNotAllowedException.class,
+                () -> service.withdrawDraw(game.id(), black(), version)
+        );
+
+        var persisted = reload();
+
+        assertEquals(offered.version(), persisted.getVersion());
+        assertEquals(white(), persisted.getDrawOfferedByPlayerId());
+        assertEquals(GameStatus.IN_PROGRESS, persisted.getStatus());
+        assertEquals(INITIAL, persisted.getCurrentFen());
+        assertTrue(history().isEmpty());
+        assertReservations();
+    }
+
+    @Test
+    void acceptingDrawRollsBackWithTheEnclosingTransaction() {
+        var offered = service.offerDraw(game.id(), white(), 0);
+        clearInvocations(outboundMessages);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> new TransactionTemplate(transactionManager)
+                        .executeWithoutResult(status -> {
+                            service.acceptDraw(
+                                    game.id(),
+                                    black(),
+                                    offered.version()
+                            );
+
+                            assertEquals(0, reservationCount());
+
+                            throw new IllegalStateException(
+                                    "Simulated later transaction failure"
+                            );
+                        })
+        );
+
+        var persisted = reload();
+
+        assertEquals(offered.version(), persisted.getVersion());
+        assertEquals(white(), persisted.getDrawOfferedByPlayerId());
+        assertEquals(GameStatus.IN_PROGRESS, persisted.getStatus());
+        assertNull(persisted.getResult());
+        assertNull(persisted.getTerminationReason());
+        assertNull(persisted.getFinishedAt());
+        assertEquals(0L, persisted.getRecordedMoveCount());
+        assertTrue(history().isEmpty());
+        assertReservations();
+        verifyNoInteractions(outboundMessages);
+    }
+
+    @Test
+    void incompleteReservationReleaseRollsBackDrawAcceptance() {
+        var offered = service.offerDraw(game.id(), white(), 0);
+        clearInvocations(outboundMessages);
+
+        jdbc.update(
+                "DELETE FROM active_game_players WHERE player_id = ?",
+                black()
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> service.acceptDraw(
+                        game.id(),
+                        black(),
+                        offered.version()
+                )
+        );
+
+        var persisted = reload();
+
+        assertEquals(offered.version(), persisted.getVersion());
+        assertEquals(white(), persisted.getDrawOfferedByPlayerId());
+        assertEquals(GameStatus.IN_PROGRESS, persisted.getStatus());
+        assertNull(persisted.getResult());
+        assertNull(persisted.getTerminationReason());
+        assertNull(persisted.getFinishedAt());
+        assertTrue(history().isEmpty());
+
+        // The failed completion must restore White's deleted reservation.
+        assertEquals(1, reservationCount());
+        assertEquals(
+                game.id(),
+                service.findActiveGameId(white()).orElseThrow()
+        );
+        verifyNoInteractions(outboundMessages);
+    }
+
+    @Test
+    void drawAcceptanceAndMoveCannotBothCommitFromTheSameVersion()
+            throws Exception {
+        var offered = service.offerDraw(game.id(), white(), 0);
+        long version = offered.version();
+
+        clearInvocations(outboundMessages);
+
+        race(
+                version,
+                () -> service.acceptDraw(game.id(), black(), version),
+                () -> service.submitMove(
+                        game.id(),
+                        white(),
+                        version,
+                        move("e2", "e4")
+                )
+        );
+
+        var persisted = reload();
+
+        assertEquals(
+                Long.valueOf(version + 1),
+                persisted.getVersion()
+        );
+        assertNull(persisted.getDrawOfferedByPlayerId());
+
+        if (persisted.getStatus() == GameStatus.FINISHED) {
+            // Acceptance won; the competing move and history insert rolled back.
+            assertEquals(GameResult.DRAW, persisted.getResult());
+            assertEquals(
+                    GameTerminationReason.DRAW_AGREEMENT,
+                    persisted.getTerminationReason()
+            );
+            assertNotNull(persisted.getFinishedAt());
+            assertEquals(INITIAL, persisted.getCurrentFen());
+            assertEquals(0L, persisted.getRecordedMoveCount());
+            assertTrue(history().isEmpty());
+            assertEquals(0, reservationCount());
+        } else {
+            // The move won; acceptance and reservation release rolled back.
+            assertEquals(GameStatus.IN_PROGRESS, persisted.getStatus());
+            assertNull(persisted.getResult());
+            assertNull(persisted.getTerminationReason());
+            assertNull(persisted.getFinishedAt());
+            assertEquals(
+                    "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR"
+                            + " b KQkq e3 0 1",
+                    persisted.getCurrentFen()
+            );
+            assertExactlyOneRecordedMove(persisted);
+            assertReservations();
+        }
+
+        // Only the committed command delivers a change hint.
+        var update = new PlayerUpdate(
+                "GAME_UPDATED",
+                game.id(),
+                version + 1
+        );
+
+        verify(outboundMessages).convertAndSendToUser(
+                white().toString(),
+                webSocketProperties.updatesDestination(),
+                update
+        );
+        verify(outboundMessages).convertAndSendToUser(
+                black().toString(),
+                webSocketProperties.updatesDestination(),
+                update
+        );
+        verifyNoMoreInteractions(outboundMessages);
+    }
+
     private void race(Move firstMove, Move secondMove)
             throws Exception {
+        race(
+                () -> service.submitMove(
+                        game.id(), white(), 0, firstMove
+                ),
+                () -> service.submitMove(
+                        game.id(), white(), 0, secondMove
+                )
+        );
+    }
 
+    private void race(Runnable firstCommand, Runnable secondCommand)
+            throws Exception {
+        race(0, firstCommand, secondCommand);
+    }
+
+    private void race(
+            long expectedVersion,
+            Runnable firstCommand,
+            Runnable secondCommand
+    ) throws Exception {
         var bothLoaded = new CountDownLatch(2);
         var start = new CountDownLatch(1);
         var executor = Executors.newFixedThreadPool(2);
 
         try {
             var first = executor.submit(
-                    attempt(firstMove, bothLoaded, start)
+                    attempt(
+                            firstCommand,
+                            expectedVersion,
+                            bothLoaded,
+                            start
+                    )
             );
             var second = executor.submit(
-                    attempt(secondMove, bothLoaded, start)
+                    attempt(
+                            secondCommand,
+                            expectedVersion,
+                            bothLoaded,
+                            start
+                    )
             );
 
             assertTrue(bothLoaded.await(10, TimeUnit.SECONDS));
@@ -827,21 +1428,23 @@ class GameMoveIntegrationTest {
     }
 
     private Callable<Boolean> attempt(
-            Move proposal,
+            Runnable command,
+            long expectedVersion,
             CountDownLatch bothLoaded,
             CountDownLatch start
     ) {
         return () -> {
             try {
-                return new TransactionTemplate(transactionManager)
+                Boolean committed = new TransactionTemplate(transactionManager)
                         .execute(status -> {
-                            // Each transaction retains its own version-zero
-                            // entity before either command starts writing.
+                            // Both transactions load the same version before
+                            // either starts mutating its managed game.
                             var loaded = repository.findById(game.id())
                                     .orElseThrow();
 
                             assertEquals(
-                                    Long.valueOf(0), loaded.getVersion()
+                                    Long.valueOf(expectedVersion),
+                                    loaded.getVersion()
                             );
 
                             bothLoaded.countDown();
@@ -857,12 +1460,11 @@ class GameMoveIntegrationTest {
                                 throw new IllegalStateException(exception);
                             }
 
-                            service.submitMove(
-                                    game.id(), white(), 0, proposal
-                            );
-
+                            command.run();
                             return true;
                         });
+
+                return Boolean.TRUE.equals(committed);
             } catch (StaleGameVersionException exception) {
                 return false;
             }

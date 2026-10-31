@@ -143,4 +143,138 @@ class GameTest {
 
         assertEquals(0L, game.getRecordedMoveCount());
     }
+
+    @Test
+    void drawOfferPreservesPositionAndRecordedMoveCount() {
+        var game = new Game(1L, 2L, BEFORE_MATE);
+
+        // Black may offer even though the position has White to move.
+        game.offerDraw(2L);
+
+        assertAll(
+                () -> assertEquals(
+                        Long.valueOf(2),
+                        game.getDrawOfferedByPlayerId()
+                ),
+                () -> assertEquals(BEFORE_MATE, game.getCurrentFen()),
+                () -> assertEquals(0L, game.getRecordedMoveCount()),
+                () -> assertEquals(
+                        GameStatus.IN_PROGRESS,
+                        game.getStatus()
+                )
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> game.offerDraw(1L)
+        );
+
+        assertEquals(
+                Long.valueOf(2),
+                game.getDrawOfferedByPlayerId()
+        );
+    }
+
+    @Test
+    void outsiderCannotCreateDrawOffer() {
+        var game = new Game(1L, 2L, BEFORE_MATE);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> game.offerDraw(3L)
+        );
+
+        assertNull(game.getDrawOfferedByPlayerId());
+    }
+
+    @Test
+    void clearingDrawOfferAllowsAnotherOffer() {
+        var game = new Game(1L, 2L, BEFORE_MATE);
+
+        game.offerDraw(1L);
+        game.clearDrawOffer();
+
+        assertNull(game.getDrawOfferedByPlayerId());
+
+        game.offerDraw(2L);
+
+        assertEquals(
+                Long.valueOf(2),
+                game.getDrawOfferedByPlayerId()
+        );
+    }
+
+    @Test
+    void acceptedPositionUpdateClearsPendingDrawOffer() {
+        var game = new Game(1L, 2L, BEFORE_MATE);
+
+        game.offerDraw(2L);
+        game.updatePosition(AFTER_MATE);
+
+        assertNull(game.getDrawOfferedByPlayerId());
+        assertEquals(AFTER_MATE, game.getCurrentFen());
+    }
+
+    @Test
+    void invalidPositionUpdatePreservesPendingDrawOffer() {
+        var game = new Game(1L, 2L, BEFORE_MATE);
+
+        game.offerDraw(1L);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> game.updatePosition(" ")
+        );
+
+        assertEquals(BEFORE_MATE, game.getCurrentFen());
+        assertEquals(
+                Long.valueOf(1),
+                game.getDrawOfferedByPlayerId()
+        );
+    }
+
+    @Test
+    void drawAgreementRequiresDrawAndClearsPendingOffer() {
+        var game = new Game(1L, 2L, BEFORE_MATE);
+        var finishedAt = Instant.parse("2026-10-30T10:00:00Z");
+
+        game.offerDraw(1L);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> game.finish(
+                        GameResult.WHITE_WIN,
+                        GameTerminationReason.DRAW_AGREEMENT,
+                        finishedAt
+                )
+        );
+
+        // Failed validation must preserve the active game and pending offer.
+        assertEquals(GameStatus.IN_PROGRESS, game.getStatus());
+        assertEquals(
+                Long.valueOf(1),
+                game.getDrawOfferedByPlayerId()
+        );
+
+        game.finish(
+                GameResult.DRAW,
+                GameTerminationReason.DRAW_AGREEMENT,
+                finishedAt
+        );
+
+        assertEquals(GameStatus.FINISHED, game.getStatus());
+        assertEquals(GameResult.DRAW, game.getResult());
+        assertEquals(
+                GameTerminationReason.DRAW_AGREEMENT,
+                game.getTerminationReason()
+        );
+        assertNull(game.getDrawOfferedByPlayerId());
+        assertEquals(BEFORE_MATE, game.getCurrentFen());
+        assertEquals(0L, game.getRecordedMoveCount());
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> game.offerDraw(2L)
+        );
+    }
 }

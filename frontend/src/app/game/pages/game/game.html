@@ -44,12 +44,20 @@
       } @else {
       <p role="status">
         {{ resultText(current) }}
-        @if (current.terminationReason === 'CHECKMATE') {
+
+        @switch (current.terminationReason) {
+        @case ('CHECKMATE') {
         — checkmate.
-        } @else if (
-        current.terminationReason === 'STALEMATE'
-        ) {
+        }
+        @case ('STALEMATE') {
         — stalemate.
+        }
+        @case ('RESIGNATION') {
+        — resignation.
+        }
+        @case ('DRAW_AGREEMENT') {
+        — draw by agreement.
+        }
         }
       </p>
 
@@ -68,9 +76,11 @@
 
       @if (current.status === 'IN_PROGRESS') {
       @if (submitting()) {
-      <p role="status">Submitting move…</p>
+      <p role="status">Submitting action…</p>
       } @else if (needsRefresh()) {
-      <p role="status">Refresh the game before moving.</p>
+      <p role="status">Synchronizing the game before further actions.</p>
+      } @else if (pendingLifecycleConfirmation() !== null) {
+      <p>Confirm or cancel the game action below.</p>
       } @else if (canSubmitMove() && pendingPromotion() === null) {
       <p>Select one of your pieces, then its destination.</p>
       } @else if (pendingPromotion() === null) {
@@ -97,7 +107,82 @@
         </div>
       </section>
       }
+      @if (current.status === 'IN_PROGRESS') {
+      <section class="game-actions" aria-labelledby="game-actions-title">
+        <h2 id="game-actions-title">Game actions</h2>
 
+        @if (pendingLifecycleConfirmation(); as action) {
+        <div class="action-confirmation">
+          @if (action === 'resign') {
+          <p>Resign this game? Your opponent will win.</p>
+          } @else {
+          <p>Accept the draw offer? This game will end in a draw.</p>
+          }
+
+          <div class="lifecycle-buttons">
+            <button mat-flat-button type="button" [disabled]="!canSubmitLifecycleAction()"
+              (click)="confirmLifecycleAction()">
+              {{ action === 'resign' ? 'Confirm resignation' : 'Confirm draw' }}
+            </button>
+
+            <button mat-button type="button" (click)="cancelLifecycleConfirmation()">
+              Cancel
+            </button>
+          </div>
+        </div>
+        } @else {
+        @if (current.drawOfferedByPlayerId === null) {
+        <p>No draw offer is pending.</p>
+        } @else if (
+        current.drawOfferedByPlayerId === auth.currentPlayer()?.id
+        ) {
+        <p role="status">You offered a draw. Waiting for your opponent.</p>
+        } @else {
+        <p role="status">Your opponent offered a draw.</p>
+        }
+
+        <div class="lifecycle-buttons">
+          @if (current.drawOfferedByPlayerId === null) {
+          <button mat-button type="button" [disabled]="!canSubmitLifecycleAction()"
+            (click)="requestLifecycleAction('offer-draw')">
+            Offer draw
+          </button>
+          } @else if (
+          current.drawOfferedByPlayerId === auth.currentPlayer()?.id
+          ) {
+          <button mat-button type="button" [disabled]="!canSubmitLifecycleAction()"
+            (click)="requestLifecycleAction('withdraw-draw')">
+            Withdraw offer
+          </button>
+          } @else {
+          <button mat-flat-button type="button" [disabled]="!canSubmitLifecycleAction()"
+            (click)="requestLifecycleAction('accept-draw')">
+            Accept draw
+          </button>
+
+          <button mat-button type="button" [disabled]="!canSubmitLifecycleAction()"
+            (click)="requestLifecycleAction('decline-draw')">
+            Decline
+          </button>
+          }
+
+          <button mat-button type="button" [disabled]="!canSubmitLifecycleAction()"
+            (click)="requestLifecycleAction('resign')">
+            Resign
+          </button>
+        </div>
+
+        <p class="action-help">
+          Play continues while an offer is pending.
+          Any accepted move clears the offer.
+        </p>
+
+        @if (pendingPromotion() !== null) {
+        <p>Choose or cancel promotion before using game actions.</p>
+        }
+        }
+      </section>
+      }
       <section class="move-history" aria-labelledby="move-history-title">
         <h2 id="move-history-title">Moves</h2>
 
