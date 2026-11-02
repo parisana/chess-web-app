@@ -22,6 +22,7 @@ import { MatchmakingApiService } from '../../../matchmaking/services/matchmaking
 import { ProfileEditor } from '../../../player/components/profile-editor/profile-editor';
 import { REALTIME_CONFIG } from '../../../notification/config/realtime.config';
 import { RealtimeService } from '../../../notification/services/realtime.service';
+import { PlayerStatistics } from '../../../player/components/player-statistics/player-statistics';
 
 @Component({
   selector: 'app-home',
@@ -32,7 +33,8 @@ import { RealtimeService } from '../../../notification/services/realtime.service
     MatButtonModule,
     MatCardModule,
     MatProgressBarModule,
-    ProfileEditor
+    ProfileEditor,
+    PlayerStatistics
   ],
   templateUrl: './home.html',
   styleUrl: './home.css',

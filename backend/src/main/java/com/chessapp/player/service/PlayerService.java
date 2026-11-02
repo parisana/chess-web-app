@@ -2,9 +2,11 @@ package com.chessapp.player.service;
 
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.entity.Player;
+import com.chessapp.player.entity.PlayerStatistics;
 import com.chessapp.player.exception.DuplicatePlayerException;
 import com.chessapp.player.exception.PlayerErrorCodes;
 import com.chessapp.player.repository.PlayerRepository;
+import com.chessapp.player.repository.PlayerStatisticsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,7 +21,9 @@ import java.util.Optional;
 public class PlayerService {
 
     private final PlayerRepository playerRepository;
+    private final PlayerStatisticsRepository playerStatisticsRepository;
 
+    @Transactional
     public PlayerResponse createPlayer(String username, String email) {
         if (playerRepository.existsByUsername(username)) {
             throw new DuplicatePlayerException(
@@ -36,6 +40,13 @@ public class PlayerService {
         }
         Player player = playerRepository.save(
                 new Player(username, email)
+        );
+        // Ensure the parent row exists before inserting statistics.
+        // Both inserts remain part of the registration/caller transaction.
+        playerRepository.flush();
+
+        playerStatisticsRepository.saveAndFlush(
+                new PlayerStatistics(player.getId())
         );
 
         return toPlayerResponse(player);

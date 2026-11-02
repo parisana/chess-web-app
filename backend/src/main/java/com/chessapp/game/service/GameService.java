@@ -5,6 +5,7 @@ import com.chessapp.game.dto.GameMoveResponse;
 import com.chessapp.game.dto.GameMoveResult;
 import com.chessapp.game.dto.GameResponse;
 import com.chessapp.game.entity.*;
+import com.chessapp.game.event.GameFinishedEvent;
 import com.chessapp.game.exception.*;
 import com.chessapp.game.repository.GameMoveRepository;
 import com.chessapp.game.repository.GameRepository;
@@ -220,7 +221,7 @@ public class GameService {
         );
 
         releaseReservationsIfFinished(game);
-
+        publishGameFinishedIfNecessary(game); // handles updating of ratings synchronously
         publishGameChanged(game, GameChangedEvent.Type.GAME_UPDATED);
 
         // All writes still belong to this transaction.
@@ -520,6 +521,7 @@ public class GameService {
     private GameResponse persistLifecycleChange(Game game) {
         flushGameOrRejectConflict();
         releaseReservationsIfFinished(game);
+        publishGameFinishedIfNecessary(game); // handles updating player ratings synchronously using spring-events
         publishGameChanged(game, GameChangedEvent.Type.GAME_UPDATED);
 
         return GameResponse.from(game);
@@ -544,5 +546,24 @@ public class GameService {
         if (isSender != mustBeSender) {
             throw new DrawOfferActionNotAllowedException();
         }
+    }
+
+    /**
+     * Publishes only after the game writes and reservation release succeed.
+     * Synchronous statistics listeners still participate in this transaction.
+     */
+    private void publishGameFinishedIfNecessary(Game game) {
+        if (game.getStatus() != GameStatus.FINISHED) {
+            return;
+        }
+
+        eventPublisher.publishEvent(
+                new GameFinishedEvent(
+                        game.getId(),
+                        game.getWhitePlayerId(),
+                        game.getBlackPlayerId(),
+                        game.getResult()
+                )
+        );
     }
 }

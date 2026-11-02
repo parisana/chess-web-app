@@ -101,18 +101,30 @@ class GameMoveHttpIntegrationTest {
                             """, ids);
 
                     jdbc.update("""
-                            DELETE FROM game_moves
-                            WHERE game_id IN (
-                                SELECT id
-                                FROM games
-                                WHERE white_player_id IN (?, ?, ?)
-                            )
-                            """, ids);
-                    // Every game created here belongs to fixture players.
+                        DELETE FROM player_statistics_processed_games
+                        WHERE game_id IN (
+                            SELECT id
+                            FROM games
+                            WHERE white_player_id IN (?, ?, ?)
+                        )
+                        """, ids);
+                    jdbc.update("""
+                        DELETE FROM game_moves
+                        WHERE game_id IN (
+                            SELECT id FROM games
+                            WHERE white_player_id IN (?, ?, ?)
+                        )
+                        """, ids);
+                    // All games created here use only these fixture players.
                     jdbc.update("""
                             DELETE FROM games
                             WHERE white_player_id IN (?, ?, ?)
                             """, ids);
+
+                    jdbc.update("""
+                        DELETE FROM player_statistics
+                        WHERE player_id IN (?, ?, ?)
+                        """, ids);
 
                     jdbc.update("""
                             DELETE FROM players

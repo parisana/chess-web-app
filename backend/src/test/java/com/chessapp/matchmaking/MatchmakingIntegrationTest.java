@@ -6,6 +6,7 @@ import com.chessapp.matchmaking.repository.MatchmakingQueueRepository;
 import com.chessapp.matchmaking.service.MatchmakingService;
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.repository.PlayerRepository;
+import com.chessapp.player.repository.PlayerStatisticsRepository;
 import com.chessapp.player.service.PlayerService;
 import com.chessapp.security.service.JwtTokenService;
 import org.junit.jupiter.api.AfterEach;
@@ -40,6 +41,8 @@ class MatchmakingIntegrationTest {
 
     @Autowired
     private MatchmakingService matchmakingService;
+    @Autowired
+    private PlayerStatisticsRepository playerStatisticsRepository;
 
     @Autowired
     private MatchmakingQueueRepository queueRepository;
@@ -97,6 +100,10 @@ class MatchmakingIntegrationTest {
 
         transactions.executeWithoutResult(status -> {
             queueRepository.deleteEntryByPlayerId(player.id());
+
+            playerStatisticsRepository.deleteById(player.id());
+            playerStatisticsRepository.flush();
+
             playerRepository.deleteById(player.id());
         });
     }
@@ -182,9 +189,13 @@ class MatchmakingIntegrationTest {
 
     @Test
     void operations_rejectPlayerThatNoLongerExists() {
-        transactions.executeWithoutResult(status ->
-                playerRepository.deleteById(player.id())
-        );
+        transactions.executeWithoutResult(status -> {
+            playerStatisticsRepository.deleteById(player.id());
+            playerStatisticsRepository.flush();
+
+            playerRepository.deleteById(player.id());
+            playerRepository.flush();
+        });
 
         assertThrows(
                 MatchmakingPlayerUnavailableException.class,
@@ -308,9 +319,13 @@ class MatchmakingIntegrationTest {
     void queueEndpoint_rejectsTokenForDeletedPlayer() throws Exception {
         String authorization = bearerToken();
 
-        transactions.executeWithoutResult(transaction ->
-                playerRepository.deleteById(player.id())
-        );
+        transactions.executeWithoutResult(status -> {
+            playerStatisticsRepository.deleteById(player.id());
+            playerStatisticsRepository.flush();
+
+            playerRepository.deleteById(player.id());
+            playerRepository.flush();
+        });
 
         mockMvc.perform(get("/api/v1/matchmaking/queue/me")
                         .header(HttpHeaders.AUTHORIZATION, authorization))

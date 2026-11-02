@@ -103,33 +103,46 @@ class GameMoveIntegrationTest {
         new TransactionTemplate(transactionManager)
                 .executeWithoutResult(status -> {
                     jdbc.update("""
-                            DELETE FROM matchmaking_queue
-                            WHERE player_id IN (?, ?, ?)
-                            """, ids);
+                        DELETE FROM matchmaking_queue
+                        WHERE player_id IN (?, ?, ?)
+                        """, ids);
 
                     jdbc.update("""
-                            DELETE FROM active_game_players
-                            WHERE player_id IN (?, ?, ?)
-                            """, ids);
+                        DELETE FROM active_game_players
+                        WHERE player_id IN (?, ?, ?)
+                        """, ids);
+
                     jdbc.update("""
-                            DELETE FROM game_moves
-                            WHERE game_id IN (
-                                SELECT id
-                                FROM games
-                                WHERE white_player_id IN (?, ?, ?)
-                            )
-                            """, ids);
-                    // All games created here use only these fixture players.
-                    jdbc.update("""
-                            DELETE FROM games
+                        DELETE FROM player_statistics_processed_games
+                        WHERE game_id IN (
+                            SELECT id FROM games
                             WHERE white_player_id IN (?, ?, ?)
-                            """, ids);
+                        )
+                        """, ids);
 
                     jdbc.update("""
-                            DELETE FROM players
-                            WHERE id IN (?, ?, ?)
-                            """, ids);
-                });
+                        DELETE FROM game_moves
+                        WHERE game_id IN (
+                            SELECT id FROM games
+                            WHERE white_player_id IN (?, ?, ?)
+                        )
+                        """, ids);
+
+                    jdbc.update("""
+                        DELETE FROM games
+                        WHERE white_player_id IN (?, ?, ?)
+                        """, ids);
+
+                    jdbc.update("""
+                        DELETE FROM player_statistics
+                        WHERE player_id IN (?, ?, ?)
+                        """, ids);
+
+                    jdbc.update("""
+                        DELETE FROM players
+                        WHERE id IN (?, ?, ?)
+                        """, ids);
+                                });
     }
 
     @Test

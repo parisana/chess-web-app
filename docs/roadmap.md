@@ -6,6 +6,19 @@ Working Days 1–24 identify actual sessions, not a revised promise about the or
 
 The custom board remains the MVP choice. Home discovers pairing and offers explicit Open game. Replay Start/Previous/Next/history entries remain read-only until Latest is selected; live state continues updating.
 
+## Deferred: authentication session continuity
+
+Access-token expiry currently clears the frontend session and requires login.
+Review the configured access-token lifetime for normal gameplay sessions.
+
+A longer lifetime is a configuration/policy option. Refresh tokens are a
+separate feature requiring secure storage, rotation, revocation, logout behavior
+and handling of concurrent refresh attempts. Neither change is implemented
+as part of the ratings/statistics milestone.
+
+Frontend token/Player state remains in memory; increasing token lifetime alone
+does not preserve login across a browser reload.
+
 ## Deferred: PGN download UI
 
 Backend PGN export and focused formatter/HTTP tests are implemented. Connecting an Angular download button is deferred by user decision. Replay uses the existing history API and does not depend on PGN export. Future integration should include authenticated Blob retrieval, availability feedback and cancellation on route changes. Do not remove or rebuild the existing backend endpoint merely because the UI is deferred.

@@ -1,0 +1,58 @@
+<mat-card [attr.aria-busy]="loading()">
+  <mat-card-header>
+    <mat-card-title>Your chess statistics</mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content>
+    @if (statistics(); as current) {
+    <dl>
+      <div>
+        <dt>Elo rating</dt>
+        <dd>{{ current.rating }}</dd>
+      </div>
+      <div>
+        <dt>Games played</dt>
+        <dd>{{ current.gamesPlayed }}</dd>
+      </div>
+      <div>
+        <dt>Wins</dt>
+        <dd>{{ current.wins }}</dd>
+      </div>
+      <div>
+        <dt>Draws</dt>
+        <dd>{{ current.draws }}</dd>
+      </div>
+      <div>
+        <dt>Losses</dt>
+        <dd>{{ current.losses }}</dd>
+      </div>
+    </dl>
+    } @else if (!loading() && !errorMessage()) {
+    <p>Statistics have not been loaded.</p>
+    }
+
+    <p>
+      Statistics count games completed since ratings were introduced.
+      Earlier completed games are excluded.
+    </p>
+
+    @if (errorMessage(); as message) {
+    <p role="alert">
+      {{ message }}
+      @if (statistics()) {
+      Previously loaded values are shown.
+      }
+    </p>
+    }
+  </mat-card-content>
+
+  <mat-card-actions>
+    <button mat-button type="button" [disabled]="loading()" (click)="refresh()">
+      Refresh statistics
+    </button>
+  </mat-card-actions>
+
+  @if (loading()) {
+  <mat-progress-bar mode="indeterminate" aria-label="Loading statistics" />
+  }
+</mat-card>

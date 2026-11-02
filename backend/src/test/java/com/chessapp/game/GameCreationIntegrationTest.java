@@ -4,6 +4,7 @@ import com.chessapp.game.entity.GameStatus;
 import com.chessapp.game.repository.GameRepository;
 import com.chessapp.game.service.GameService;
 import com.chessapp.player.dto.PlayerResponse;
+import com.chessapp.player.repository.PlayerStatisticsRepository;
 import com.chessapp.player.service.PlayerService;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +28,9 @@ class GameCreationIntegrationTest {
 
     @Autowired
     private GameRepository gameRepository;
+
+    @Autowired
+    private PlayerStatisticsRepository playerStatisticsRepository;
 
     @Autowired
     private PlayerService playerService;
@@ -112,6 +116,8 @@ class GameCreationIntegrationTest {
     @Test
     void createGame_rejectsPlayerThatNoLongerExists() {
         Long deletedPlayerId = black.id();
+        playerStatisticsRepository.deleteById(deletedPlayerId);
+        playerStatisticsRepository.flush();
 
         entityManager.remove(
                 entityManager.getReference(

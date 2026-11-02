@@ -2,6 +2,7 @@ package com.chessapp.player;
 
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.repository.PlayerRepository;
+import com.chessapp.player.repository.PlayerStatisticsRepository;
 import com.chessapp.player.service.PlayerService;
 import com.chessapp.security.service.JwtTokenService;
 import jakarta.persistence.EntityManager;
@@ -40,6 +41,9 @@ class PlayerUpdateIntegrationTest {
 
     @Autowired
     private PlayerService playerService;
+
+    @Autowired
+    private PlayerStatisticsRepository playerStatisticsRepository;
 
     @Autowired
     private PlayerRepository playerRepository;
@@ -196,6 +200,10 @@ class PlayerUpdateIntegrationTest {
 
     @Test
     void update_deletedPlayerReturnsUnauthorized() throws Exception {
+        // Remove dependent statistics before deleting the fixture account.
+        playerStatisticsRepository.deleteById(player.id());
+        playerStatisticsRepository.flush();
+
         playerRepository.deleteById(player.id());
         playerRepository.flush();
         entityManager.clear();

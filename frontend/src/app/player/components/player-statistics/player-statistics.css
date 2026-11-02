@@ -1,0 +1,28 @@
+:host {
+  display: block;
+  margin-bottom: 1.5rem;
+}
+
+mat-card-content {
+  padding-top: 1rem;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 1rem;
+}
+
+dt {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+dd {
+  margin: 0.25rem 0 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+[role='alert'] {
+  color: var(--mat-sys-error);
+}

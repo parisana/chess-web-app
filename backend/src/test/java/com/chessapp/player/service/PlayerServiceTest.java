@@ -2,6 +2,7 @@ package com.chessapp.player.service;
 
 import com.chessapp.player.exception.DuplicatePlayerException;
 import com.chessapp.player.repository.PlayerRepository;
+import com.chessapp.player.repository.PlayerStatisticsRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -19,6 +20,9 @@ class PlayerServiceTest {
 
     @Mock
     private PlayerRepository playerRepository;
+
+    @Mock
+    private PlayerStatisticsRepository playerStatisticsRepository;
 
     @InjectMocks
     private PlayerService playerService;

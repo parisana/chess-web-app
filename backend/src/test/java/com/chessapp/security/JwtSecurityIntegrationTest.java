@@ -2,6 +2,7 @@ package com.chessapp.security;
 
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.repository.PlayerRepository;
+import com.chessapp.player.repository.PlayerStatisticsRepository;
 import com.chessapp.player.service.PlayerService;
 import com.chessapp.security.service.JwtTokenService;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,9 @@ class JwtSecurityIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private PlayerStatisticsRepository playerStatisticsRepository;
 
     @Autowired
     private JwtTokenService tokenService;
@@ -224,6 +228,10 @@ class JwtSecurityIntegrationTest {
 
         String token = tokenService.issueAccessToken(player.id())
                 .getTokenValue();
+
+        // Remove dependent statistics before deleting the fixture account.
+        playerStatisticsRepository.deleteById(player.id());
+        playerStatisticsRepository.flush();
 
         playerRepository.deleteById(player.id());
         playerRepository.flush();

@@ -2,11 +2,15 @@ package com.chessapp.player.controller;
 
 
 import com.chessapp.player.dto.PlayerResponse;
+import com.chessapp.player.dto.PlayerStatisticsResponse;
 import com.chessapp.player.dto.UpdatePlayerRequest;
 import com.chessapp.player.service.PlayerService;
+import com.chessapp.player.service.PlayerStatisticsService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +27,7 @@ import java.util.Objects;
 public class PlayerController {
 
     private final PlayerService playerService;
+    private final PlayerStatisticsService playerStatisticsService;
 
     @GetMapping("/me")
     public PlayerResponse currentPlayer(
@@ -53,5 +58,24 @@ public class PlayerController {
                 HttpStatus.UNAUTHORIZED,
                 "Authenticated player no longer exists"
         ));
+    }
+
+    @GetMapping("/me/statistics")
+    public ResponseEntity<PlayerStatisticsResponse> currentPlayerStatistics(
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        long playerId = Long.parseLong(
+                Objects.requireNonNull(jwt.getSubject())
+        );
+
+        var statistics = playerStatisticsService.findByPlayerId(playerId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Authenticated player no longer exists"
+                ));
+
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(statistics);
     }
 }

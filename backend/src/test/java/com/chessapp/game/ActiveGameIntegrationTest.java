@@ -84,11 +84,24 @@ class ActiveGameIntegrationTest {
                             WHERE player_id IN (?, ?, ?)
                             """, ids);
 
-                    // Every game in this class uses only these fixtures.
+                    jdbcTemplate.update("""
+                        DELETE FROM player_statistics_processed_games
+                        WHERE game_id IN (
+                            SELECT id
+                            FROM games
+                            WHERE white_player_id IN (?, ?, ?)
+                        )
+                        """, ids);
+                    // All games created here use only these fixture players.
                     jdbcTemplate.update("""
                             DELETE FROM games
                             WHERE white_player_id IN (?, ?, ?)
                             """, ids);
+
+                    jdbcTemplate.update("""
+                        DELETE FROM player_statistics
+                        WHERE player_id IN (?, ?, ?)
+                        """, ids);
 
                     jdbcTemplate.update("""
                             DELETE FROM players

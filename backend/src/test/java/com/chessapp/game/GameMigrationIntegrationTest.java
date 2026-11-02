@@ -362,6 +362,116 @@ class GameMigrationIntegrationTest {
                 """));
     }
 
+    @Test
+    void upgradesV10WithInitialStatisticsAndHistoricalExclusions() {
+        migrateTo("10");
+        seedPlayers();
+
+        // Game 101 is active at migration time and must remain eligible.
+        insertActiveGame(INITIAL, 4);
+
+        isolatedTemplate.update("""
+            INSERT INTO games (
+                id,
+                white_player_id,
+                black_player_id,
+                status,
+                current_fen,
+                version,
+                history_start_fen,
+                history_complete,
+                recorded_move_count,
+                result,
+                termination_reason,
+                finished_at
+            )
+            VALUES (
+                102,
+                1,
+                2,
+                'FINISHED',
+                ?,
+                8,
+                ?,
+                TRUE,
+                0,
+                'WHITE_WIN',
+                'RESIGNATION',
+                CURRENT_TIMESTAMP
+            )
+            """, INITIAL, INITIAL);
+
+        var gamesBefore = isolatedTemplate.queryForList("""
+            SELECT *
+            FROM games
+            ORDER BY id
+            """);
+
+        var reservationsBefore = isolatedTemplate.queryForList("""
+            SELECT *
+            FROM active_game_players
+            ORDER BY player_id
+            """);
+
+        migrateTo("11");
+
+        // Migration must not rewrite game state or release active reservations.
+        assertEquals(
+                gamesBefore,
+                isolatedTemplate.queryForList("""
+                    SELECT *
+                    FROM games
+                    ORDER BY id
+                    """)
+        );
+        assertEquals(
+                reservationsBefore,
+                isolatedTemplate.queryForList("""
+                    SELECT *
+                    FROM active_game_players
+                    ORDER BY player_id
+                    """)
+        );
+
+        assertEquals(3L, count("""
+            SELECT count(*)
+            FROM player_statistics
+            """));
+
+        assertEquals(3L, count("""
+            SELECT count(*)
+            FROM player_statistics
+            WHERE player_id IN (1, 2, 3)
+              AND rating = 1200
+              AND wins = 0
+              AND draws = 0
+              AND losses = 0
+              AND version = 0
+              AND created_at IS NOT NULL
+              AND updated_at IS NOT NULL
+            """));
+
+        assertEquals(1L, count("""
+            SELECT count(*)
+            FROM player_statistics_processed_games
+            """));
+
+        assertEquals(
+                Boolean.FALSE,
+                isolatedTemplate.queryForObject("""
+                    SELECT statistics_applied
+                    FROM player_statistics_processed_games
+                    WHERE game_id = 102
+                    """, Boolean.class)
+        );
+
+        assertEquals(0L, count("""
+            SELECT count(*)
+            FROM player_statistics_processed_games
+            WHERE game_id = 101
+            """));
+    }
+
     private void migrateTo(String version) {
         Flyway flyway = Flyway.configure()
                 .dataSource(dataSource)
