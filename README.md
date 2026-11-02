@@ -4,15 +4,17 @@ A backend-focused chess portfolio project built as a modular monolith with conve
 
 ## Current checkpoint
 
-Day 24 adds recorded-position replay and a participant-protected backend PGN export endpoint. Source-reviewed on 31 October 2026 against the actual user `chess-web-app-day24-end.zip`, compared with the Day 23 source including its documentation replacements. No blocking issue was found in inspected changes.
+Day 25 adds transactional Elo ratings/statistics and a self-statistics API/Home card. Source-reviewed on 2 November 2026 against actual user chess-web-app-day25-end.zip, compared with the Day 24 source and documentation baseline. No blocking issue was found in inspected changes. See [Day 25 review](docs/day25-ratings-statistics-review.md) and [statistics flow](docs/player-statistics-flow.md).
 
-The user reports the increments working; tests are treated as green under the standing agreement unless a failure is reported. The assistant ran no tests, builds, migrations or browser checks. Route-switch replay reset was not manually verified by the user. See [Day 24 review](docs/day24-replay-pgn-review.md).
+The user reports tests green after fixture corrections; later increments follow the standing green-unless-reported agreement. No assistant tests/builds/migrations/database/browser checks ran. Manual statistics-card acceptance and Day 24 replay route-switch verification are not established.
 
-**The Angular PGN download UI is deferred.** The backend endpoint and tests remain implemented. Replay uses the existing history API and does not depend on PGN.
+**Angular PGN download UI remains deferred.** Backend PGN export and replay are implemented. Session duration/refresh-token improvements are tracked without configuration changes.
 
 ## Capabilities
 
 - Registration/login, BCrypt password handling, JWT authentication and self-profile GET/username PATCH.
+- Player Elo/statistics initialized at registration; all supported game completions update both Players atomically with duplicate protection.
+- JWT-derived self-statistics GET and a Home card with manual/live-hint/reconnect refresh.
 - Persistent matchmaking with atomic pairing, oldest-first eligibility and one active-game reservation per Player.
 - Immutable chess rules: all pieces, king safety, explicit promotion, en passant, standard castling and normal/check/checkmate/stalemate assessment.
 - Participant-protected game GET and versioned HTTP move commands with optimistic concurrency protection.
@@ -32,7 +34,7 @@ Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, JPA, Flyway, Sprin
 
 ## Run locally
 
-Keep database and JWT configuration user-managed in `backend/src/main/resources/application.yaml`. Flyway migrations V1–V10 provide the schema; Hibernate validates it.
+Keep database and JWT configuration user-managed in `backend/src/main/resources/application.yaml`. Flyway migrations V1–V11 provide the schema; Hibernate validates it.
 
 From `backend/`:
 
@@ -52,6 +54,17 @@ Open http://localhost:4200. The development proxy forwards `/api/**`, including 
 Backend WebSocket routing is configured under `app.websocket`; matching frontend addresses and timing are in `frontend/src/app/notification/config/realtime.config.ts`. See [configuration and protocol](docs/api-contracts.md#real-time-updates).
 
 ## Verification
+
+Day 25 suggested focused commands, not assistant-executed results:
+
+```bash
+# No database:
+./gradlew test --tests 'com.chessapp.player.rating.EloCalculatorTest' --tests 'com.chessapp.player.entity.PlayerStatisticsTest'
+
+# Configured PostgreSQL test database:
+./gradlew test --tests 'com.chessapp.player.PlayerStatisticsIntegrationTest' --tests 'com.chessapp.player.PlayerStatisticsHttpIntegrationTest' --tests 'com.chessapp.game.GameMigrationIntegrationTest'
+```
+
 
 Suggested commands, not assistant-executed results:
 
@@ -86,6 +99,8 @@ Existing games record forward from their migration-time FEN; earlier moves canno
 
 ## Documentation
 
+- [Day 25 source review](docs/day25-ratings-statistics-review.md), [Player statistics and Elo flow](docs/player-statistics-flow.md) and [next-session handoff](docs/day25-handoff.md).
+
 - [Architecture](docs/architecture.md): current ownership and boundaries.
 - [API and real-time contracts](docs/api-contracts.md).
 - [Frontend gameplay flow](docs/frontend-gameplay-flow.md): Angular and board coordination.
@@ -101,3 +116,9 @@ Existing games record forward from their migration-time FEN; earlier moves canno
 ## Lifecycle policy
 
 Either participant may resign or offer a draw regardless of turn. Only the recipient can accept/decline; only the sender can withdraw. Play continues during an offer, and any accepted move clears it. Resignation awards the opponent a win. Offers, responses and resignation advance the concurrency version without adding move-history rows. Angular confirms resignation/draw acceptance and shares one POST lock with moves. See [contracts](docs/api-contracts.md#explicit-lifecycle-commands).
+
+## Rating policy and limits
+
+Initial Elo is 1200, K=32 and scale=400; each completion applies one rounded delta oppositely. V11 excludes already finished games and initializes existing Players at zero counts; active games count when they later finish. No historical backfill, rating floor, provisional/rated modes, leaderboard, audit ledger or rating-aware pairing is implemented. Counts include zero-move resignation/agreement. The game-ID processing record prevents duplicate counting; it is not an event queue.
+
+Statistics failures roll back completion; messaging failures after commit cannot. Home statistics use ordinary GETs and no polling. Missed hints can leave values stale until manual refresh, reconnection or reopening Home. Token lifetime/refresh tokens remain a separate deferred choice; increasing token lifetime alone cannot preserve in-memory login across reload.

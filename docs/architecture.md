@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the Day 24 checkpoint, source-reviewed on 31 October 2026 against actual user `chess-web-app-day24-end.zip`. Day 24 adds backend PGN export and Angular replay without schema, dependency or configuration changes. Earlier main documents are preserved in [history](history/main-documents-through-day23.md). See [Day 24 review](day24-replay-pgn-review.md) for evidence and limits; no assistant application execution is claimed.
+This document describes Day 25, source-reviewed on 2 November 2026 against actual user `chess-web-app-day25-end.zip`, compared with the Day 24 source and documentation baseline. Day 25 adds transactional Elo/statistics, V11 and a Home statistics card. No assistant tests/builds/migrations/browser checks ran. See [review](day25-ratings-statistics-review.md), [statistics flow](player-statistics-flow.md) and [historical main documents](history/main-documents-through-day24.md).
 
 ## Application structure
 
@@ -9,7 +9,7 @@ One Spring Boot application, organized by feature with conventional controller/s
 | Feature | Responsibility |
 | --- | --- |
 | auth | Registration, local credentials and login orchestration |
-| player | Player creation/lookup, self-profile and username updates |
+| player | Player creation/lookup, self-profile, username updates, statistics and Elo completion reaction |
 | security | HTTP security, password encoding, JWT signing/validation |
 | matchmaking | Persistent queue, eligibility and transactional pairing |
 | game | Game creation/read/move commands, reservations, lifecycle, immutable rules and game events |
@@ -52,6 +52,7 @@ PostgreSQL is durable storage. Applied Flyway migrations are immutable; future s
 | V8 | Nullable SAN for pre-SAN records; new application records require SAN |
 | V9 | Completion constraint permits resignation with a winner |
 | V10 | Pending participant offer on active games; completion permits draw agreement |
+| V11 | Player statistics and per-game processing/exclusion markers |
 
 BaseEntity timestamps use JPA callbacks. SQL defaults support non-JPA insertion; direct SQL updates do not automatically advance `updated_at`. Identity sequences need not rewind after rollback.
 
@@ -122,7 +123,7 @@ The simple broker and session registry are in-process. Current delivery assumes 
 
 ## Deferred scope
 
-The PGN download UI, pre-SAN backfill, clocks, extra rule-based draws, acceptance, abandonment/disconnect completion, ratings and statistics remain separate choices. Replay and backend PGN export are implemented. Promotion chooser legality gating is intentionally deferred. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](roadmap.md) and the two flow companions for details.
+The PGN download UI, pre-SAN backfill, clocks, extra rule-based draws, acceptance, abandonment/disconnect completion, session continuity and rating extensions remain separate choices. Replay and backend PGN export are implemented. Promotion chooser legality gating is intentionally deferred. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](roadmap.md) and the two flow companions for details.
 
 ## Persisted history and SAN
 
@@ -152,7 +153,7 @@ Angular executeGameCommand coordinates all POST types through one submission loc
 
 WebSocketPropertiesTest uses an isolated binding context. WebSocketIntegrationTest starts the real server on a random port and uses actual STOMP clients, the configured JWT decoder, simple broker, listener and database transactions. A private probe establishes subscription readiness before application assertions. Resignation delivery waits for outer commit, reaches both participants and excludes an independently ready outsider. Rollback preserves active state and reservations and produces no update during the bounded observation windows.
 
-GameMigrationIntegrationTest applies the real migrations to uniquely named PostgreSQL schemas. It tests V6-to-V10 legacy metadata and V7/V8/V9/V10 history/resignation continuity. It does not run JPA services against intermediate schemas or prove every deployment upgrade path. The reviewed upload names the source file G.java although its package-private class is GameMigrationIntegrationTest; the user subsequently reports the naming cleanup completed.
+GameMigrationIntegrationTest applies the real migrations to uniquely named PostgreSQL schemas. It tests V6-to-V10 legacy metadata and V7/V8/V9/V10 history/resignation continuity. It does not run JPA services against intermediate schemas or prove every deployment upgrade path. The current source filename is GameMigrationIntegrationTest.java; no naming cleanup remains.
 
 These tests do not introduce delivery guarantees, heartbeat/reconnection socket coverage or a frontend coordinator suite. The user reports passing tests; no assistant execution is claimed. See [review](day23-reliability-review.md).
 
@@ -168,3 +169,15 @@ The controller emits UTF-8 bytes, application/x-chess-pgn, an attachment filenam
 Game.replayIndex is a local display cursor: null follows game.currentFen; zero selects historyStartFen; a positive value selects a move's resultingFen. replayHistory checks game identity, version not ahead, row count and sequence continuity. An older accepted list remains usable during reconciliation. displayedFen drives both board and FEN details, while live status/offer/result remain sourced from game(). Numeric replay selection disables the shared command permission, including at the last recorded entry. Only Latest resumes live following; Next does not automatically do so.
 
 Replay navigation clears pending promotion/confirmation, is blocked during POST, preserves its cursor across live updates and resets on route initialization or history-clearing 403/404 responses. ChessBoard's existing FEN/enabled effect clears selection. No new board component, rules engine, migration or frontend test suite was introduced. See [replay/export flow](replay-pgn-flow.md).
+
+## Day 25 Player statistics and transaction ownership
+
+PlayerStatistics is a separate player-owned entity keyed by scalar playerId, with a database foreign key, rating, wins/draws/losses and optimistic version. gamesPlayed is derived. PlayerService.createPlayer is transactional and flushes the Player before saving statistics; AuthService registration provides the enclosing credentials transaction. V11 initializes existing Players at 1200 with zero counts. It marks already FINISHED games excluded (statistics_applied=false); existing active games remain eligible.
+
+GameService publishes GameFinishedEvent after a terminal move's history flush or a lifecycle game flush and after exact reservation release. The player.event.PlayerStatisticsGameFinishedEventListener is a regular synchronous @EventListener. It maps the game result and calls PlayerStatisticsService.recordFinishedGame with MANDATORY propagation. No @Async/custom asynchronous multicaster is introduced. Rating failure propagates and rolls back the game, history, reservations, marker and both statistics. A later outer failure rolls them back too. GameChangedEvent is published afterward; notification delivery remains AFTER_COMMIT and best-effort.
+
+PlayerStatisticsRepository owns both the JPA entity operations and native insertFinishedGameClaim, wrapped by default boolean claimFinishedGame. ON CONFLICT DO NOTHING uses the game primary key to reject repeated/excluded processing. Successful claims are transactional, not durable work queues. The service then locks statistics by ascending Player ID with PESSIMISTIC_WRITE, maps back to colors, calculates from both old ratings, updates and flushes. The event is a trusted internal contract; the consumer does not reload/verify game membership/result through another feature's repository.
+
+EloCalculator is pure Java in player.rating: initial 1200, K=32, scale 400, actual scores 1/0.5/0. One Math.round adjustment is applied oppositely to conserve the pair's total. There is no floor, provisional policy, time-control separation, backfill or rating audit ledger. Overflow checks fail rather than wrap. The /players/me/statistics read uses ordinary findById, checks account existence and maps a DTO. No rating-write lock is needed for display. The existing auth profile DTO/JWT are unchanged.
+
+Home embeds PlayerStatistics with separate TS/HTML/CSS. Initial/manual/live-hint/reconnect triggers switch to a fresh GET, guarded by captured token/Player ID. Inner tap updates signals; inner catchError returns EMPTY so later triggers remain active. Inner finalize handles completion/error/cancellation; downstream takeUntilDestroyed tears down active GETs. No polling, focus retry or new frontend test suite is added for this card. See [statistics flow](player-statistics-flow.md).

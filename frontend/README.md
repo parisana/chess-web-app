@@ -1,6 +1,6 @@
 # Chess Frontend
 
-Angular 21 standalone frontend with Angular Material, signals, RxJS, in-memory authentication and a custom board. Current source was reviewed against the Day 23 upload on 31 October 2026. Day 23 changes backend tests only; frontend code is unchanged. No assistant build/test/browser run is claimed; see [review](../docs/day23-reliability-review.md).
+Angular 21 standalone frontend with Angular Material, signals, RxJS, in-memory authentication and a custom board. Source-reviewed on 2 November 2026 against actual user chess-web-app-day25-end.zip. Day 25 adds the Home statistics card. No assistant build/test/browser run is claimed; see [review](../docs/day25-ratings-statistics-review.md).
 
 ## Run
 
@@ -17,7 +17,7 @@ Open http://localhost:4200. The start script enables proxy.conf.json, forwarding
 
 Login stores the token, fetches `/players/me` and establishes authentication when both token and Player exist. Sessions are in memory; browser reload requires login again. Protected 401 handling compares the request token with the current session before clearing it. Failed forms preserve passwords.
 
-Home supports profile editing and persistent matchmaking. It reads queue state on entry, private updates and successful connections. A single pending read is drained after a current command/read. Unknown/WAITING/MATCHED status has 30-second recovery checks; NOT_QUEUED is idle. Home’s signal is named queueStatusResponse in this checkpoint.
+Home supports profile editing, self-statistics and persistent matchmaking. It reads queue state on entry, private updates and successful connections. A single pending read is drained after a current command/read. Unknown/WAITING/MATCHED status has 30-second recovery checks; NOT_QUEUED is idle. Home’s signal is named queueStatusResponse in this checkpoint.
 
 **A match reveals Open game; it does not automatically navigate.** The Player clicks the link to open the guarded game route. Home now has separate home.ts, home.html and home.css files.
 
@@ -48,7 +48,7 @@ npm run build
 
 The existing five auth-flow.spec.ts tests are unchanged. There is no new notification/game coordinator suite in the ZIP. Suggested two-session scenarios are in the [review](../docs/day22-lifecycle-review.md).
 
-The move list has separate coordinate and SAN columns. Pre-SAN entries show “—” for SAN. There are no replay controls, PGN export, clocks, drag-and-drop or legal-move highlighting. Disconnecting never decides game completion or releases reservations. No durable notification replay, auto board navigation or persisted login session is supplied.
+The move list has separate coordinate and SAN columns. Pre-SAN entries show “—” for SAN. Recorded-position replay is implemented with explicit Latest return. Backend PGN export exists; its Angular download UI is deferred. There are no clocks, drag-and-drop or legal-move highlighting. Promotion selection may open before backend king-safety rejection; this known UI improvement remains intentionally deferred. Disconnecting never decides game completion or releases reservations. No durable notification replay, auto board navigation or persisted login session is supplied.
 
 See [gameplay coordination](../docs/frontend-gameplay-flow.md), [real-time diagrams](../docs/realtime-updates-flow.md), [contracts](../docs/api-contracts.md), [architecture](../docs/architecture.md) and [roadmap](../docs/roadmap.md).
 
@@ -71,3 +71,11 @@ Resignation and draw acceptance use inline confirmation; decline, withdrawal and
 executeGameCommand shares the existing submitting flag across moves and lifecycle commands. It cancels either GET stage before POST, ignores callbacks for replaced snapshots, applies the accepted response and queues board/history reconciliation. Conflicts and uncertain responses request fresh state without replay. The retained moveMessage signal now carries general action feedback.
 
 No new frontend tests are included. The lifecycle companion and Day 22 review record suggested two-session checks and the actual coverage limits.
+
+## Player statistics and refresh stream
+
+Home imports PlayerStatistics and renders app-player-statistics after app-profile-editor. PlayerApiService.currentStatistics calls GET /api/v1/players/me/statistics; statistics are not cached in AuthSessionStore. The component has separate TS/HTML/CSS and displays rating, played, wins, draws and losses.
+
+merge combines a manual Subject, RealtimeService.connections$ and updates$; startWith triggers the first GET. Any private hint can refresh statistics, even when counts did not change. switchMap cancels an older GET when another trigger arrives. The captured token/Player ID and response identity guard updates in tap. catchError is inside the HTTP branch and returns EMPTY, preserving future refreshes; previous values remain visible with error feedback. finalize resets loading on success, failure or cancellation. takeUntilDestroyed is downstream of switchMap and tears down the active request. No nested subscribe, rating-history API or periodic statistics polling is implemented.
+
+Opening Home loads current values after game completion. A missed hint may leave the card stale until manual refresh, reconnection or a new Home instance. No manual browser acceptance is established by source review. The existing frontend auth tests are unchanged. See [statistics flow](../docs/player-statistics-flow.md) for RxJS and transaction diagrams.

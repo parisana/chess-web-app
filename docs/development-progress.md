@@ -1,6 +1,16 @@
 # Development Progress
 
-## Current checkpoint — Day 24
+## Current checkpoint — Day 25
+
+Reviewed on 2 November 2026 against actual user chess-web-app-day25-end.zip, compared with Day 24 including documentation replacements. Eighteen added files, seventeen changed and none removed: thirty-four source/test paths plus roadmap.md. No blocking issue was found in inspected changes. Rules, dependencies and configuration are unchanged.
+
+Delivered: V11 statistics and game processing/exclusion markers; registration initialization; pure fixed-K Elo; synchronous GameFinishedEvent processing in the game transaction; ordered pessimistic locks and duplicate claim in the consolidated repository; self-statistics GET/no-store; Home statistics component with separate HTML/CSS and cancellable/session-guarded refresh pipeline. Listener name is PlayerStatisticsGameFinishedEventListener in player.event.
+
+Four new test classes contain twenty-three methods/thirty-five cases; the migration suite adds one V10-to-V11 fixture. Coverage includes terminal and lifecycle outcomes, duplicates, rating failure and outer rollback, nonterminal actions, HTTP authentication/identity and SQL exclusion policy. Existing fixture cleanup was updated for dependencies. User reports tests green after corrections; later work follows the standing agreement. No assistant application execution or manual UI acceptance is claimed.
+
+Session continuity, async/ledger/leaderboard/rating-aware pairing and the existing PGN UI/promotion/replay deferrals remain outside scope. See [Day 25 review](day25-ratings-statistics-review.md), [statistics flow](player-statistics-flow.md) and [handoff](day25-handoff.md).
+
+## Previous checkpoint — Day 24
 
 Source-reviewed on 31 October 2026 against actual user chess-web-app-day24-end.zip, compared by file bytes with the Day 23 baseline including documentation replacements. Four files are added and nine changed: seven backend production sources (three new), two backend test sources (one new), three Angular page files and roadmap.md. No files are removed. Core rules, GameService, repositories, migrations, configuration and dependencies are unchanged.
 
@@ -87,6 +97,7 @@ The user reports that the implementation looks good. Tests follow the standing a
 | Day 22 | Versioned resignation/draw negotiation, atomic completion/release, shared Angular commands and inline confirmation |
 | Day 23 | WebSocket property binding, real socket security/private after-commit delivery and real prior-schema migration fixtures |
 | Day 24 | Backend PGN export with focused formatter/HTTP tests and Angular recorded-position replay; download UI deferred |
+| Day 25 | Atomic Elo/statistics, V11, self-statistics API/Home card, duplicate/rollback/migration/HTTP coverage and dependency-aware fixture cleanup |
 
 
 ## Source-confirmed test coverage — historical Day 20
@@ -134,4 +145,4 @@ Historical checkpoint evidence is preserved in [the archive](history/main-docume
 
 ## Scope retained from Day 22
 
-Resignation, agreed draws, replay and backend PGN export are implemented. The PGN download UI, clocks, extra rule-based draws, ratings and abandonment remain separate decisions. No feature after Day 24 is authorized. The historical Day 20/21 sections above retain their checkpoint-specific evidence.
+Resignation, agreed draws, replay and backend PGN export are implemented. The PGN download UI, clocks, extra rule-based draws, ratings and abandonment remain separate decisions. Day 25 ratings/statistics are now implemented; no further feature is authorized by this checkpoint. The historical Day 20/21 sections above retain their checkpoint-specific evidence.

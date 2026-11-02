@@ -1,8 +1,8 @@
 # Roadmap
 
-## Current position — Day 24
+## Current position — Day 25
 
-Working Days 1–24 identify actual sessions, not a revised promise about the original 30-working-day estimate. Day 20 adds live hints/recovery, Day 21 persisted history/SAN, Day 22 resignation/draw negotiation, Day 23 reliability fixtures, and Day 24 recorded-position replay plus backend PGN export. See [progress](development-progress.md) and [Day 24 review](day24-replay-pgn-review.md).
+Working Days 1–25 identify actual sessions, not a revised promise about the original 30-working-day estimate. Day 20 adds live hints/recovery, Day 21 persisted history/SAN, Day 22 resignation/draw negotiation, Day 23 reliability fixtures, and Day 24 recorded-position replay plus backend PGN export, and Day 25 transactional Elo/statistics plus the self-statistics API/Home card. See [progress](development-progress.md) and [Day 25 review](day25-ratings-statistics-review.md).
 
 The custom board remains the MVP choice. Home discovers pairing and offers explicit Open game. Replay Start/Previous/Next/history entries remain read-only until Latest is selected; live state continues updating.
 
@@ -33,7 +33,7 @@ Automatically resuming live mode when Next reaches the synchronized final move w
 
 ## Next milestone selection
 
-Day 24 source review found no blocking issue in inspected changes. Tests follow the user's standing green-unless-reported agreement; replay is reported working apart from the unverified route-switch scenario. No assistant builds/tests/browser checks were run. Select the next milestone in a new chat before implementation. Ratings/statistics, clocks, additional rule-based draws, acceptance and abandonment are separate choices, not automatically authorized work.
+Day 25 source review found no blocking issue in inspected changes. User reports tests green after fixture corrections; later increments follow the standing agreement. No assistant tests/builds/migrations/browser checks ran, and manual statistics-card acceptance is not established. Select the next milestone in a new chat before implementation. Clocks, additional rule-based draws, acceptance/abandonment, session continuity and portfolio preparation are separate choices. Ratings/statistics are implemented; extensions are not automatically authorized.
 
 ## Remaining capabilities
 
@@ -47,7 +47,7 @@ Day 24 source review found no blocking issue in inspected changes. Tests follow 
 | Extra outcomes | Repetition, move-count and dead-position draws |
 | Disconnect policy | Grace periods, abandonment, reconnect behavior and reservation release |
 | Match lifecycle | Acceptance, cancellation, queue expiry and rating filters |
-| Player profile growth | Statistics, ELO, event-driven updates and account actions |
+| Rating/profile extensions | Optional leaderboard, rating-aware pairing, rated modes, audit/repair, account actions; Elo/statistics already implemented |
 | Delivery reliability | Whether durable outbox/replay or multi-instance routing is actually needed |
 | Board polish | Optional accessibility/interaction work or a justified library adapter |
 
@@ -61,4 +61,8 @@ Notifications are best-effort hints, not a durable move log or command channel. 
 
 ## Historical plan
 
-Earlier estimates and checkpoint narratives are preserved in [history](history/main-documents-through-day23.md) and existing Day documents. Historical pending-feature lists do not override the implemented Day 24 state.
+Earlier estimates and checkpoint narratives are preserved in [history](history/main-documents-through-day23.md) and existing Day documents. Historical pending-feature lists do not override the implemented Day 25 state. Current prior-document copies are in [Day 24 document archive](history/main-documents-through-day24.md).
+
+## Day 25 rating boundary
+
+All supported completions count from V11 onward, including active games that finish after migration and zero-move resignation/agreement. Already finished games are excluded. Initial rating 1200, fixed K=32, no floor or backfill. Synchronous listener processing shares the completion transaction; no async worker, outbox, full rating ledger or repair API exists. These may be considered only for a concrete requirement. A future async redesign must explicitly address durable work, per-Player ordering and correction propagation. Banking discussions were explanatory, not feature authorization.

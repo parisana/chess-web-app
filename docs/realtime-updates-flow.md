@@ -1,6 +1,6 @@
 # Real-time updates flow
 
-Day 24 source companion (Day 20 transport retained), reviewed on 31 October 2026 against actual user `chess-web-app-day24-end.zip`. Day 24 adds replay display state, not a transport change. No assistant application test/build/browser run is claimed.
+Source-reviewed through Day 25 on 2 November 2026 against actual user chess-web-app-day25-end.zip. Transport/security/configuration remain unchanged. Day 25 adds synchronous statistics processing before GameChangedEvent and another Home consumer of existing hints. No assistant application execution is claimed.
 
 ## Connection and subscription
 
@@ -49,7 +49,8 @@ Native Authorization removal changes the existing message’s mutable accessor. 
 
 ```mermaid
 flowchart TD
-    A["GameService validates and writes"] --> B["Publish immutable GameChangedEvent"]
+    A["GameService validates and writes"] --> S["If finished: synchronous statistics update"]
+    S --> B["Publish immutable GameChangedEvent"]
     B --> C{"Enclosing transaction"}
     C -->|Commit| D["AFTER_COMMIT listener"]
     C -->|Rollback| E["No notification"]
@@ -134,3 +135,9 @@ Seven rejection cases assert STOMP ERROR callbacks; two cases exercise real resi
 ## Day 24 live snapshots during replay
 
 Notifications still compare against the authoritative game().version, never the replay cursor or a displayed historical FEN. Relevant hints and periodic reads update live game/history while preserving numeric replay selection. Pending local promotion/confirmation can still be cleared by synchronization. Latest returns to the latest accepted game snapshot, subject to existing synchronization guards before commands. Replay does not pause the opponent, socket, database or game lifecycle. No PGN data is sent over WebSocket, and export performs no game mutation/event publication.
+
+## Day 25: two event contracts
+
+GameFinishedEvent belongs to game.event; PlayerStatisticsGameFinishedEventListener belongs to player.event. This ordinary synchronous listener must succeed within the publishing transaction and calls a MANDATORY service. It is not the AFTER_COMMIT notification listener. Its failure rolls back completion; delivery failure after commit cannot do so.
+
+PlayerUpdate stays type/gameId/version only. The Home statistics component responds to existing updates$ and connections$ with an ordinary statistics GET; it does not calculate from the hint or add another socket subscription. Changes to the simple broker, JWT lifetime, session expiry timer or refresh tokens are not part of Day 25. No durable outbox/event replay guarantee is introduced.

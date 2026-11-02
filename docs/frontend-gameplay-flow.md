@@ -1,6 +1,6 @@
 # Frontend gameplay flow
 
-This companion describes Day 24 gameplay source reviewed against actual user `chess-web-app-day24-end.zip` on 31 October 2026. Day 24 adds replay display state and command gating; existing HTTP/live reconciliation remains in place. The Angular PGN download UI is deferred. Review is not an assistant build/runtime acceptance result.
+This companion describes gameplay through Day 25, source-reviewed on 2 November 2026 against actual user chess-web-app-day25-end.zip. Day 25 adds Home statistics; game/replay coordination is retained. PGN download UI and promotion chooser legality gating remain deferred. No assistant application execution is claimed.
 
 ## Ownership
 
@@ -159,3 +159,7 @@ After piece selection, the existing backend must reject a move outside the legal
 A future extension can expose version-associated legal moves from the existing rules engine and open the chooser only for a matching legal promotion candidate. The work is moderate API/frontend integration; keeping legal data aligned with the current version matters more than adding another promotion-rank check. Backend legality/version validation remains authoritative. No legal-move endpoint or client chess engine is added now.
 
 Future checks: a promotion that fails king safety never opens the chooser; a legal promotion still offers explicit piece selection; stale legal data cannot authorize a command; rejected moves preserve position/version/history. Cancelling a chooser continues to send no POST.
+
+## Day 25 Home statistics
+
+Home adds app-player-statistics after the existing profile editor. The new component reads /players/me/statistics independently of queue/game state and the authentication profile. Initial/manual/reconnect/private-update triggers use switchMap, inner tap/catchError/finalize and downstream takeUntilDestroyed. Captured session checks reject stale responses. It does not subscribe manually inside an operator. A completed game updates statistics in the backend transaction before the ordinary after-commit hint. Returning Home requests the current totals. No game-board code, POST coordinator or frontend tests changed. No timer/focus-based recovery is added for the statistics card. See [Player statistics flow](player-statistics-flow.md).

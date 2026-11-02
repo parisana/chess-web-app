@@ -1,6 +1,6 @@
 # API Contracts
 
-Current contracts, source-reviewed on 31 October 2026 against actual user `chess-web-app-day24-end.zip`. Day 24 adds the PGN GET endpoint; existing command, history and real-time contracts are retained. The assistant ran no tests/builds or independent runtime checks. See [Day 24 review](day24-replay-pgn-review.md) and [historical main documents](history/main-documents-through-day23.md).
+Current contracts, source-reviewed on 2 November 2026 against actual user `chess-web-app-day25-end.zip`. Day 25 adds the self-statistics GET; game/history/PGN/lifecycle/notification contracts are retained. No assistant application execution is claimed. See [Day 25 review](day25-ratings-statistics-review.md).
 
 ## Shared conventions
 
@@ -9,7 +9,7 @@ Current contracts, source-reviewed on 31 October 2026 against actual user `chess
 - MVC validation returns Problem Detail with `code: VALIDATION_FAILED` and an `errors` array containing `field` and `message`. Rejected password values are omitted.
 - Duplicate-identity and feature-owned exceptions return Problem Detail with their application code.
 - Missing/invalid bearer credentials use Spring Security handling; no application code or uniform MVC error body is guaranteed.
-- Deleted-player failures from profile GET/PATCH use `ResponseStatusException` with 401; no application code is guaranteed. Matchmaking has its own `AUTHENTICATED_PLAYER_UNAVAILABLE` code.
+- Deleted-player failures from profile GET/PATCH and statistics GET use `ResponseStatusException` with 401; no application code is guaranteed. Matchmaking has its own `AUTHENTICATED_PLAYER_UNAVAILABLE` code.
 - Malformed JSON, incompatible field types, path conversion failures and unexpected server errors may have different bodies. Clients need a generic fallback.
 - The frontend handles protected 401 session cleanup centrally; action-specific UI handles known codes. A 403 does not invalidate the session.
 
@@ -20,6 +20,7 @@ Current contracts, source-reviewed on 31 October 2026 against actual user `chess
 | POST | `/api/v1/auth/register` | Public | 201; `playerId`, `username`, `email` |
 | POST | `/api/v1/auth/login` | Public | 200; `accessToken`, `tokenType`, `expiresIn` |
 | GET | `/api/v1/players/me` | Bearer JWT | 200; `id`, `username`, `email` |
+| GET | `/api/v1/players/me/statistics` | Bearer JWT | 200; `playerId`, `rating`, `wins`, `draws`, `losses`, `gamesPlayed`; no-store |
 | PATCH | `/api/v1/players/me` | Bearer JWT | 200; updated `id`, `username`, `email` |
 | POST | `/api/v1/matchmaking/queue` | Bearer JWT | 200; queue status |
 | GET | `/api/v1/matchmaking/queue/me` | Bearer JWT | 200; queue status |
@@ -67,6 +68,18 @@ No request body. Success returns the current database-backed `PlayerResponse` (`
 | --- | --- | --- |
 | Missing, invalid or expired token | 401 | Not guaranteed |
 | Authenticated player no longer exists | 401 | Not guaranteed |
+
+## Read self-statistics — GET `/api/v1/players/me/statistics`
+
+Player ID comes exclusively from the validated JWT subject. Success is 200 with Cache-Control: no-store:
+
+```json
+{"playerId":7,"rating":1200,"wins":0,"draws":0,"losses":0,"gamesPlayed":0}
+```
+
+No email or persistence version is included. gamesPlayed equals wins+draws+losses. Ratings can be negative; no floor is imposed. Missing/invalid authentication is rejected by security. A valid token for a deleted Player yields 401, matching self-profile policy. An existing Player missing statistics is an internal invariant failure, not a default zero response or a new structured feature error.
+
+V11 excludes games already finished at migration time; active games count when they later finish. All four supported completion reasons count, including zero-move resignation/agreement. Duplicate completion events do not apply a second update. Completion and statistics share one transaction; a failed rating update prevents the completion from committing. This GET performs ordinary reads and adds no mutation or retry behavior. No public leaderboard, rating-history or statistics-write endpoint exists.
 
 ## Update username — PATCH `/api/v1/players/me`
 
@@ -353,3 +366,7 @@ When changing an endpoint, update its owning DTO/service/controller, correspondi
 Both previously reported draw authentication/version-precedence HTTP tests are present and inspected. Binding tests cover configured paths, origin, routing overlap and duration validation. Real socket tests cover missing/malformed CONNECT credentials, four forbidden subscription forms and client SEND, plus participant-only resignation hints after commit and suppression on rollback. Bodyless ERROR frames are valid for this test fixture; no REST error-code shape is assumed.
 
 The socket client disables heartbeats and is not a browser/proxy test. Strict expiry, origin rejection and reconnection are not newly exercised over real sockets. The migration fixtures verify old rows and selected constraints using SQL, not application authorization or command atomicity. See [Day 23 review](day23-reliability-review.md).
+
+## Day 25 completion extension
+
+Registration creates Player and initial statistics within the enclosing credentials transaction. A successful game finish also commits both statistics and its processing marker. This adds no fields to GameResponse, GameMoveResult or PlayerUpdate. A statistics processing failure is an unexpected server failure, not a claim that a completed game was committed. Existing clients reconcile uncertain commands through GET rather than replaying POST. Longer access-token lifetime and refresh tokens remain deferred, with no configuration/security change in this milestone.

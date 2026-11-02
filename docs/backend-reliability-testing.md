@@ -1,6 +1,6 @@
 # Backend reliability testing
 
-Day 23 source companion, reviewed on 31 October 2026. The user reports passing tests; no assistant application execution is claimed. See [source review](day23-reliability-review.md) for exact limits.
+Source companion updated for Day 25 on 2 November 2026. The user reports tests green after fixture corrections; no assistant application execution is claimed. See [Day 25 review](day25-ratings-statistics-review.md) and the historical [Day 23 review](day23-reliability-review.md).
 
 ## Pick the boundary being tested
 
@@ -58,4 +58,16 @@ With the configured PostgreSQL test database:
 SPRING_PROFILES_ACTIVE=test ./gradlew test
 ```
 
-The broad notification.* pattern now includes the database-backed socket test. The migration class is declared GameMigrationIntegrationTest. The reviewed upload used G.java as its filename; the user subsequently reports the naming cleanup completed. Schema creation permission is required. These commands are suggestions, not assistant execution evidence.
+The broad notification.* pattern now includes the database-backed socket test. The current source filename and class are both GameMigrationIntegrationTest; no naming cleanup remains. Schema creation permission is required. These commands are suggestions, not assistant execution evidence.
+
+## Day 25 ratings and cleanup lessons
+
+PlayerStatisticsIntegrationTest omits test-level @Transactional: committed setup/service results are inspected by later JDBC reads, while explicit outer blocks establish rollback boundaries. Overflow is injected into a counter to fail rating processing after game flush/history insertion and reservation deletion. The tests check complete rollback, including marker removal. outerRollbackUndoesSuccessfulCompletionAndStatistics checks the reverse direction: a later outer failure undoes successful rating processing.
+
+concurrentCompletionEventsApplyStatisticsOnce constructs a finished-but-unprocessed game using controlled SQL, then submits the same event on two workers with separate transactions. This isolates duplicate processing rather than replaying an actual HTTP completion race. The gate permits concurrent submissions; it does not force/observe a specific PostgreSQL lock-wait schedule or test distinct games sharing a Player. HTTP statistics fixtures use normal rollback-managed @Transactional tests because they assert reads/formatting rather than commit delivery. GameMigrationIntegrationTest adds a V10-to-V11 isolated SQL migration fixture; its V6/V7-to-V10 cases intentionally remain targeted at V10.
+
+Foreign-key cleanup must delete processed markers and game_moves before games, and statistics before Players (also respect credentials, queue and reservations where present). Explicitly flush JPA child deletion before parent deletion. A failed @AfterEach marks the test failed even if assertions passed. Since cleanup itself is transactional, its failure rolls back earlier cleanup statements; previously committed setup/actions remain. Such residue can affect a later shared-database test. The earlier WebSocket failures' exact indirect cause is not established merely because a later suite passes. Never infer all failures share one cause from abbreviated stack traces; inspect the violated constraint.
+
+The auth rollback fixture's emergency finally-path was not extended in Day 25: if a future transaction regression leaves a Player committed, its best-effort deletion may itself need statistics-first cleanup. Normal successful rollback remains covered by the existing assertions; no explicit new registration-failure statistics assertion was added.
+
+Deep-read ratingFailureRollsBackTerminalMoveAndItsHistory, outerRollbackUndoesSuccessfulCompletionAndStatistics, concurrentCompletionEventsApplyStatisticsOnce, and upgradesV10WithInitialStatisticsAndHistoricalExclusions. No tests/builds are run by the assistant under the standing agreement.

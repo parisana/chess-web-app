@@ -1,6 +1,6 @@
 # Explicit game lifecycle flow
 
-Source-reviewed on 31 October 2026 against actual user chess-web-app-day24-end.zip. Backend lifecycle behavior is retained; Day 24 adds replay to Angular shared command permission. No assistant tests, builds, migrations or browser checks were run.
+Source-reviewed through Day 25 on 2 November 2026 against actual user chess-web-app-day25-end.zip. Game completion now synchronously updates Elo/statistics within the same transaction. Existing lifecycle policy and replay guards are retained. No assistant tests/builds/migrations/browser checks ran.
 
 ## Ownership and policy
 
@@ -39,11 +39,12 @@ flowchart TD
     D --> E{"Finished?"}
     E -->|Yes| F["Require exactly two reservation releases"]
     E -->|No| G["Retain reservations"]
-    F --> H["Publish GAME_UPDATED"]
+    F --> S["Publish GameFinishedEvent; claim and update both statistics"]
+    S --> H["Publish GAME_UPDATED"]
     G --> H
     H --> I{"Enclosing transaction commits?"}
     I -->|Yes| J["Notify both Players after commit"]
-    I -->|No| K["Restore state; no notification"]
+    I -->|No| K["Roll back game, history, statistics and reservations; no hint"]
 ```
 
 loadActiveGameForCommand checks missing game, membership, active status and expected version. Offer-specific presence/role checks follow. persistLifecycleChange flushes before release and publishes an immutable event. Public methods own the transaction; private helpers add no transaction boundaries. Resignation needs no offer check. Clock timestamps use microsecond precision.
@@ -86,3 +87,9 @@ Source includes controlled move-versus-resignation and move-versus-acceptance ra
 ## Day 24 replay boundary
 
 Every numeric replay selection disables shared command permission, including resignation and all draw actions. Entering replay clears a pending local lifecycle confirmation. Latest resumes live display; existing active/participant/version-refresh/promotion guards remain in force. Opponent offers or completion can update live status while an earlier position stays displayed. Replay is not a rollback of game state or a change to reservations. The PGN endpoint exports captured lifecycle results without inserting negotiation/resignation history rows. See [replay/PGN flow](replay-pgn-flow.md).
+
+## Day 25 atomic statistics
+
+submitMove and persistLifecycleChange call publishGameFinishedIfNecessary after reservation release. Active negotiation/ordinary moves return without a completion event. All supported finishes count: CHECKMATE, STALEMATE, RESIGNATION and DRAW_AGREEMENT. The player listener maps the immutable result and joins the current transaction through MANDATORY propagation. A rating failure rolls back any terminal history insert and processing claim; an enclosing failure after a successful listener also undoes both statistics rows. Existing optimistic game flush still arbitrates competing game commands before statistics processing.
+
+A processed-game primary key prevents duplicate counting. The record does not validate an arbitrary event against game state; game-owned publication supplies trusted details. Missing statistics cause failure rather than automatic recreation. V11 skips already completed games; existing active games remain eligible. Disconnect/logout still never finishes a game or updates statistics. No asynchronous worker or automatic command retry is added.
