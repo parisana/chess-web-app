@@ -1,6 +1,6 @@
 # Frontend gameplay flow
 
-This companion describes gameplay through Day 25, source-reviewed on 2 November 2026 against actual user chess-web-app-day25-end.zip. Day 25 adds Home statistics; game/replay coordination is retained. PGN download UI and promotion chooser legality gating remain deferred. No assistant application execution is claimed.
+Current companion through Day 26, source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Clock/timeout additions below supersede earlier checkpoint-specific statements. No assistant application execution is claimed. See [Day 26 review](day26-clocks-review.md) and [clock flow/pseudocode](game-clocks-flow.md).
 
 ## Ownership
 
@@ -163,3 +163,13 @@ Future checks: a promotion that fails king safety never opens the chooser; a leg
 ## Day 25 Home statistics
 
 Home adds app-player-statistics after the existing profile editor. The new component reads /players/me/statistics independently of queue/game state and the authentication profile. Initial/manual/reconnect/private-update triggers use switchMap, inner tap/catchError/finalize and downstream takeUntilDestroyed. Captured session checks reject stale responses. It does not subscribe manually inside an operator. A completed game updates statistics in the backend transaction before the ordinary after-commit hint. Returning Home requests the current totals. No game-board code, POST coordinator or frontend tests changed. No timer/focus-based recovery is added for the statistics card. See [Player statistics flow](player-statistics-flow.md).
+
+## Day 26 clocks and timeout extension
+
+Game accepts clock data on GET when its version is at least the displayed version, but replaces board identity only when needed. clockSnapshot is separate so equal-version clock refreshes preserve selection/promotion during nonblocking safety reads. Accepted move/lifecycle mappers replace clock data. Route initialization clears it; a 403/404 clears game and hides clocks, without an explicit clockSnapshot reset in that error branch.
+
+GameClocks has separate TS/HTML/CSS and pseudocode.txt. It anchors server-calculated remaining times to performance.now at receipt, estimates the running Player's time every 100ms, clamps zero and rounds displayed seconds upward. calculatedAt is response metadata, not used for network-age correction. Delivery delay and sleep/background behavior can affect display. Existing focus/reconnect/periodic reads recover state. Local zero only shows waiting; backend owns completion and command rejection. Finished clocks freeze. GAME_CLOCK_EXPIRED triggers existing reconciliation without command replay.
+
+Replay displays historical positions while clocks/status remain live. Latest remains explicit. Stronger banner/square-click behavior, sounds and new-live-move indicators are deferred until after MVP. No new frontend tests or assistant browser acceptance is claimed.
+
+See [clock flow and pseudocode](game-clocks-flow.md) for timing, configuration, transaction boundaries and remaining limits.

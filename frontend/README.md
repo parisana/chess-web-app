@@ -1,6 +1,6 @@
 # Chess Frontend
 
-Angular 21 standalone frontend with Angular Material, signals, RxJS, in-memory authentication and a custom board. Source-reviewed on 2 November 2026 against actual user chess-web-app-day25-end.zip. Day 25 adds the Home statistics card. No assistant build/test/browser run is claimed; see [review](../docs/day25-ratings-statistics-review.md).
+Angular 21 standalone frontend with Material, signals, RxJS, in-memory authentication, custom board and live clocks. Source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. No assistant build/test/browser run is claimed. See [review](../docs/day26-clocks-review.md) and [clock flow](../docs/game-clocks-flow.md).
 
 ## Run
 
@@ -48,7 +48,7 @@ npm run build
 
 The existing five auth-flow.spec.ts tests are unchanged. There is no new notification/game coordinator suite in the ZIP. Suggested two-session scenarios are in the [review](../docs/day22-lifecycle-review.md).
 
-The move list has separate coordinate and SAN columns. Pre-SAN entries show “—” for SAN. Recorded-position replay is implemented with explicit Latest return. Backend PGN export exists; its Angular download UI is deferred. There are no clocks, drag-and-drop or legal-move highlighting. Promotion selection may open before backend king-safety rejection; this known UI improvement remains intentionally deferred. Disconnecting never decides game completion or releases reservations. No durable notification replay, auto board navigation or persisted login session is supplied.
+The move list has separate coordinate and SAN columns. Pre-SAN entries show “—” for SAN. Recorded-position replay is implemented with explicit Latest return. Backend PGN export exists; its Angular download UI is deferred. Live clocks are implemented; drag-and-drop and legal-move highlighting remain absent. Promotion selection may open before backend king-safety rejection; this known UI improvement remains intentionally deferred. Disconnecting never decides game completion or releases reservations. No durable notification replay, auto board navigation or persisted login session is supplied.
 
 See [gameplay coordination](../docs/frontend-gameplay-flow.md), [real-time diagrams](../docs/realtime-updates-flow.md), [contracts](../docs/api-contracts.md), [architecture](../docs/architecture.md) and [roadmap](../docs/roadmap.md).
 
@@ -62,7 +62,7 @@ The table shows Entry, Player, Move and SAN. Entry is a recorded individual-move
 
 ## Day 22 lifecycle controls
 
-GameApiService maps typed actions to resignation and draw-offer POST routes. GameResponse adds nullable drawOfferedByPlayerId and termination reasons RESIGNATION/DRAW_AGREEMENT. Move responses remain unchanged; their accepted mapping explicitly clears the pending offer.
+GameApiService maps typed actions to resignation and draw-offer POST routes. GameResponse adds nullable drawOfferedByPlayerId and termination reasons RESIGNATION/DRAW_AGREEMENT. Move responses now also include clock; their accepted mapping explicitly clears the pending offer and maps the returned clock.
 
 canSubmitGameCommand checks active participant/session and synchronization/submission state. canSubmitMove additionally checks turn and absence of lifecycle confirmation. canSubmitLifecycleAction ignores turn but requires promotion to be resolved. An offer does not pause play.
 
@@ -79,3 +79,13 @@ Home imports PlayerStatistics and renders app-player-statistics after app-profil
 merge combines a manual Subject, RealtimeService.connections$ and updates$; startWith triggers the first GET. Any private hint can refresh statistics, even when counts did not change. switchMap cancels an older GET when another trigger arrives. The captured token/Player ID and response identity guard updates in tap. catchError is inside the HTTP branch and returns EMPTY, preserving future refreshes; previous values remain visible with error feedback. finalize resets loading on success, failure or cancellation. takeUntilDestroyed is downstream of switchMap and tears down the active request. No nested subscribe, rating-history API or periodic statistics polling is implemented.
 
 Opening Home loads current values after game completion. A missed hint may leave the card stale until manual refresh, reconnection or a new Home instance. No manual browser acceptance is established by source review. The existing frontend auth tests are unchanged. See [statistics flow](../docs/player-statistics-flow.md) for RxJS and transaction diagrams.
+
+## Day 26 clocks and timeout extension
+
+Game accepts clock data on GET when its version is at least the displayed version, but replaces board identity only when needed. clockSnapshot is separate so equal-version clock refreshes preserve selection/promotion during nonblocking safety reads. Accepted move/lifecycle mappers replace clock data. Route initialization clears it; a 403/404 clears game and hides clocks, without an explicit clockSnapshot reset in that error branch.
+
+GameClocks has separate TS/HTML/CSS and pseudocode.txt. It anchors server-calculated remaining times to performance.now at receipt, estimates the running Player's time every 100ms, clamps zero and rounds displayed seconds upward. calculatedAt is response metadata, not used for network-age correction. Delivery delay and sleep/background behavior can affect display. Existing focus/reconnect/periodic reads recover state. Local zero only shows waiting; backend owns completion and command rejection. Finished clocks freeze. GAME_CLOCK_EXPIRED triggers existing reconciliation without command replay.
+
+Replay displays historical positions while clocks/status remain live. Latest remains explicit. Stronger banner/square-click behavior, sounds and new-live-move indicators are deferred until after MVP. No new frontend tests or assistant browser acceptance is claimed.
+
+See [clock flow and pseudocode](../docs/game-clocks-flow.md) for timing, configuration, transaction boundaries and remaining limits.

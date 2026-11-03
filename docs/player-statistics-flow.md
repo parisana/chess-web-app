@@ -1,6 +1,6 @@
 # Player statistics and Elo flow
 
-Day 25 source companion, reviewed on 2 November 2026 against actual user chess-web-app-day25-end.zip. User reports tests green; no assistant application execution is claimed.
+Current companion through Day 26, source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Clock/timeout additions below supersede earlier checkpoint-specific statements. No assistant application execution is claimed. See [Day 26 review](day26-clocks-review.md) and [clock flow/pseudocode](game-clocks-flow.md).
 
 ## Ownership
 
@@ -90,3 +90,11 @@ Delete markers and moves before games, and statistics before Players, respecting
 Async ratings, banking commands, immutable ledgers and outboxes were educational discussions. They are not implemented. If ratings were decoupled, per-Player ordering and downstream Elo corrections would require a deliberate policy. An audit ledger alone would not make in-memory events durable. For this modular monolith, synchronous atomic completion is the chosen design.
 
 Access-token expiry cleanup remains in RealtimeService.armExpiryTimer. It schedules a browser timeout until expiry, rearms for very long delays, ignores stale sessions and clears the timer during connection cleanup. It does not refresh tokens or replace backend expiry enforcement. Session continuity is tracked separately in roadmap.md.
+
+## Day 26 clocks and timeout extension
+
+Game clock state and TIMEOUT are implemented. New games start White at configured 10m/no increment before commit/opening; old games remain untimed. Expired commands return GAME_CLOCK_EXPIRED; a separate scanAndExpireGames worker calls transactional expireGame, rechecks current state and completes at the stored deadline. Version conflicts arbitrate competing writes. Timeout uses existing reservation release, GameFinishedEvent synchronous statistics and AFTER_COMMIT best-effort hints. Rating failure rolls back frozen clocks and completion together. Timeout adds no move row; draw offers never pause clocks.
+
+Both response DTOs append projected clock with calculatedAt; read timestamps are not persisted completion events. Timeout currently always awards opponent win; the possible-mate draw exception is deferred. Disconnect/logout does not itself complete a game, but a timed game continues and can later expire. This scheduled worker does not make statistics asynchronous or introduce an outbox.
+
+See [clock flow and pseudocode](game-clocks-flow.md) for timing, configuration, transaction boundaries and remaining limits.

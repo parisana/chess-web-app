@@ -1,6 +1,6 @@
 # Replay and PGN flow
 
-Day 24 companion, source-reviewed on 31 October 2026 against actual user chess-web-app-day24-end.zip. No assistant application execution is claimed. The Angular download UI is deferred; backend PGN export and saved-position replay are implemented.
+Current companion through Day 26, source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Clock/timeout additions below supersede earlier checkpoint-specific statements. No assistant application execution is claimed. See [Day 26 review](day26-clocks-review.md) and [clock flow/pseudocode](game-clocks-flow.md).
 
 ## Distinct state meanings
 
@@ -69,3 +69,11 @@ The user reports increments working and tests follow the standing green-unless-r
 | Empty complete history | Baseline replays; PGN contains headers and marker |
 
 The promotion chooser may appear before legality validation, intentionally deferred for later user implementation. See [tracking note](frontend-gameplay-flow.md#deferred-improvement-promotion-chooser-before-legality-validation).
+
+## Day 26 clocks and timeout extension
+
+Replay and PGN algorithms remain unchanged. Clock display always reflects the live game, not the selected recorded move; GameMove rows contain no historical clock balances. Latest remains the explicit way back to play. Square-click return, stronger replay banners, sounds and new-live-move indicators are deferred until after MVP.
+
+GameResponse/GameMoveResult now include projected clock; GameExportService accepts Clock for snapshot mapping, but PgnFormatter does not emit clock tags. TIMEOUT uses the existing winning result marker. Expiry handling is independent of a browser replay cursor.
+
+See [clock flow and pseudocode](game-clocks-flow.md) for timing, configuration, transaction boundaries and remaining limits.

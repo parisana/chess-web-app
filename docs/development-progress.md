@@ -1,6 +1,12 @@
 # Development Progress
 
-## Current checkpoint — Day 25
+## Current checkpoint — Day 26
+
+Source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Twenty-one added files, twenty-two changed, none removed. Implemented V12/V13 clock persistence/constraints, pure arithmetic, 10m/no-increment creation, expiry command guards, transactional timeout completion, bounded fixed-delay scanning, calculatedAt clock responses and separate Angular countdowns/pseudocode. Old games remain untimed; timeout always awards opponent win under the current simplified policy.
+
+Seven new test classes contain 33 methods/39 cases; existing suites add nine methods/cases. Coverage includes both-color timeout, duplicate skip, rollback/retry, candidate recheck, controlled move-versus-timeout contention, HTTP clocks and SQL upgrades. User reports green after corrections; later increments follow standing agreement. No assistant application execution. No dedicated scheduled-trigger/restart/timeout-socket or new frontend tests. Shared test profile scanner is still enabled; recommended false remains unapplied. See [review](day26-clocks-review.md), [flow](game-clocks-flow.md) and [handoff](day26-handoff.md).
+
+## Previous checkpoint — Day 25
 
 Reviewed on 2 November 2026 against actual user chess-web-app-day25-end.zip, compared with Day 24 including documentation replacements. Eighteen added files, seventeen changed and none removed: thirty-four source/test paths plus roadmap.md. No blocking issue was found in inspected changes. Rules, dependencies and configuration are unchanged.
 
@@ -99,6 +105,7 @@ The user reports that the implementation looks good. Tests follow the standing a
 | Day 24 | Backend PGN export with focused formatter/HTTP tests and Angular recorded-position replay; download UI deferred |
 | Day 25 | Atomic Elo/statistics, V11, self-statistics API/Home card, duplicate/rollback/migration/HTTP coverage and dependency-aware fixture cleanup |
 
+| Day 26 | Server clocks, transactional TIMEOUT, V12/V13, projected clock API, live Angular countdowns and focused coverage |
 
 ## Source-confirmed test coverage — historical Day 20
 

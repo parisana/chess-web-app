@@ -4,13 +4,17 @@ A backend-focused chess portfolio project built as a modular monolith with conve
 
 ## Current checkpoint
 
-Day 25 adds transactional Elo ratings/statistics and a self-statistics API/Home card. Source-reviewed on 2 November 2026 against actual user chess-web-app-day25-end.zip, compared with the Day 24 source and documentation baseline. No blocking issue was found in inspected changes. See [Day 25 review](docs/day25-ratings-statistics-review.md) and [statistics flow](docs/player-statistics-flow.md).
+Day 26 adds server-authoritative clocks, transactional timeout completion and a live Angular countdown. Source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip, compared with the actual Day 25 baseline including its documentation replacements. See [Day 26 review](docs/day26-clocks-review.md), [clock flow and pseudocode](docs/game-clocks-flow.md) and [next-session handoff](docs/day26-handoff.md).
 
-The user reports tests green after fixture corrections; later increments follow the standing green-unless-reported agreement. No assistant tests/builds/migrations/database/browser checks ran. Manual statistics-card acceptance and Day 24 replay route-switch verification are not established.
+No production blocker was found in inspected changes. Shared test YAML still enables scanning: recommend disabling it for test isolation; this package changes no configuration. User reports green tests after fixes; later increments follow the standing agreement. No assistant tests/builds/migrations/database/browser checks ran. Frontend was reported to look good; detailed manual clock acceptance and historical replay route-switch verification are not independently established.
 
-**Angular PGN download UI remains deferred.** Backend PGN export and replay are implemented. Session duration/refresh-token improvements are tracked without configuration changes.
+**Angular PGN download and session continuity remain deferred.** Replay polish, sounds and new-live-move indicators are deferred until after MVP.
 
 ## Capabilities
+
+- New timed games start White with configured 10m/no increment; old games remain untimed.
+- Versioned timeout completion freezes clocks, releases reservations and updates ratings atomically.
+- Live countdowns remain live during replay; same-version GETs refresh clock estimates.
 
 - Registration/login, BCrypt password handling, JWT authentication and self-profile GET/username PATCH.
 - Player Elo/statistics initialized at registration; all supported game completions update both Players atomically with duplicate protection.
@@ -34,7 +38,7 @@ Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, JPA, Flyway, Sprin
 
 ## Run locally
 
-Keep database and JWT configuration user-managed in `backend/src/main/resources/application.yaml`. Flyway migrations V1–V11 provide the schema; Hibernate validates it.
+Keep database and JWT configuration user-managed in `backend/src/main/resources/application.yaml`. Flyway migrations V1–V13 provide the schema; Hibernate validates it.
 
 From `backend/`:
 
@@ -95,9 +99,11 @@ Backend reports are generated under `backend/build/reports/tests/test/`. Fronten
 
 Notifications are best-effort live hints. Accepted moves are separately persisted in the database; notification delivery is not guaranteed. HTTP reads recover current state; commands are never automatically replayed. Sessions are in memory, so browser reload requires login again.
 
-Existing games record forward from their migration-time FEN; earlier moves cannot be reconstructed. Entries recorded before SAN support retain null SAN, displayed as “—” beside their coordinates. Replay supports available legacy positions, but PGN requires complete history, contiguous records and SAN on every move. There is no Angular PGN download button, SAN backfill, clocks, repetition/move-count/dead-position draws, acceptance stage or abandonment policy. Closing the page, disconnecting or logging out does not finish a game or release its reservations. Spectators, chat, AI, external brokers and distributed deployment remain outside current scope. The custom board has no legal-move highlighting, drag-and-drop or persistent check indicator. Promotion selection may appear before a proposed promotion is rejected for king safety; this UI improvement is intentionally deferred. In-memory login state is distinct from PostgreSQL-persisted games/history.
+Existing games record forward from their migration-time FEN; earlier moves cannot be reconstructed. Entries recorded before SAN support retain null SAN, displayed as “—” beside their coordinates. Replay supports available legacy positions, but PGN requires complete history, contiguous records and SAN on every move. There is no Angular PGN download button, SAN backfill, repetition/move-count/dead-position draws, acceptance stage or abandonment policy. Closing the page, disconnecting or logging out does not directly finish a game or release reservations. Timed games continue counting and can later finish by TIMEOUT. Spectators, chat, AI, external brokers and distributed deployment remain outside current scope. The custom board has no legal-move highlighting, drag-and-drop or persistent check indicator. Promotion selection may appear before a proposed promotion is rejected for king safety; this UI improvement is intentionally deferred. In-memory login state is distinct from PostgreSQL-persisted games/history.
 
 ## Documentation
+
+- [Day 26 clock review](docs/day26-clocks-review.md), [clock flow/pseudocode](docs/game-clocks-flow.md) and [handoff](docs/day26-handoff.md).
 
 - [Day 25 source review](docs/day25-ratings-statistics-review.md), [Player statistics and Elo flow](docs/player-statistics-flow.md) and [next-session handoff](docs/day25-handoff.md).
 
@@ -122,3 +128,21 @@ Either participant may resign or offer a draw regardless of turn. Only the recip
 Initial Elo is 1200, K=32 and scale=400; each completion applies one rounded delta oppositely. V11 excludes already finished games and initializes existing Players at zero counts; active games count when they later finish. No historical backfill, rating floor, provisional/rated modes, leaderboard, audit ledger or rating-aware pairing is implemented. Counts include zero-move resignation/agreement. The game-ID processing record prevents duplicate counting; it is not an event queue.
 
 Statistics failures roll back completion; messaging failures after commit cannot. Home statistics use ordinary GETs and no polling. Missed hints can leave values stale until manual refresh, reconnection or reopening Home. Token lifetime/refresh tokens remain a separate deferred choice; increasing token lifetime alone cannot preserve in-memory login across reload.
+
+## Clock policy and limits
+
+Production uses app.game.clock initial-time=10m, timeout-scan-enabled=true and timeout-scan-interval=1s. Old games stay untimed. Exactly zero expires; no increment, pause, acceptance/grace stage or network-lag compensation exists. Current timeout policy always awards the opponent a win; full impossible-mate draw adjudication is deferred.
+
+Commands after expiry receive 409 GAME_CLOCK_EXPIRED; the scanner completes games separately through normal transactional statistics/release. Read-only calculatedAt clock projections do not advance game version. Browser countdowns estimate elapsed time from response receipt and may lag delivery; only the backend declares outcomes. A 100-candidate scan batch is not a strict one-second guarantee. Shared test YAML currently enables scans; recommend setting it false. See the review for failure-starvation and coverage limits.
+
+## Day 26 focused verification
+
+Suggested commands only; no assistant execution:
+
+```bash
+# From backend/, no database for these suites:
+./gradlew test --tests 'com.chessapp.game.clock.GameClockCalculatorTest' --tests 'com.chessapp.game.entity.GameClockEntityTest' --tests 'com.chessapp.game.config.GameClockPropertiesTest' --tests 'com.chessapp.game.dto.GameClockResponseTest' --tests 'com.chessapp.game.service.GameTimeoutScannerTest'
+
+# With configured PostgreSQL test database:
+./gradlew test --tests 'com.chessapp.game.GameClockPersistenceIntegrationTest' --tests 'com.chessapp.game.GameTimeoutIntegrationTest' --tests 'com.chessapp.game.GameMoveHttpIntegrationTest' --tests 'com.chessapp.game.GameMigrationIntegrationTest'
+```

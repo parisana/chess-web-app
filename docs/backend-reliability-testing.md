@@ -1,6 +1,6 @@
 # Backend reliability testing
 
-Source companion updated for Day 25 on 2 November 2026. The user reports tests green after fixture corrections; no assistant application execution is claimed. See [Day 25 review](day25-ratings-statistics-review.md) and the historical [Day 23 review](day23-reliability-review.md).
+Current companion through Day 26, source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Clock/timeout additions below supersede earlier checkpoint-specific statements. No assistant application execution is claimed. See [Day 26 review](day26-clocks-review.md) and [clock flow/pseudocode](game-clocks-flow.md).
 
 ## Pick the boundary being tested
 
@@ -71,3 +71,15 @@ Foreign-key cleanup must delete processed markers and game_moves before games, a
 The auth rollback fixture's emergency finally-path was not extended in Day 25: if a future transaction regression leaves a Player committed, its best-effort deletion may itself need statistics-first cleanup. Normal successful rollback remains covered by the existing assertions; no explicit new registration-failure statistics assertion was added.
 
 Deep-read ratingFailureRollsBackTerminalMoveAndItsHistory, outerRollbackUndoesSuccessfulCompletionAndStatistics, concurrentCompletionEventsApplyStatisticsOnce, and upgradesV10WithInitialStatisticsAndHistoricalExclusions. No tests/builds are run by the assistant under the standing agreement.
+
+## Day 26 clocks and timeout extension
+
+Seven new suites contain 33 methods/39 cases; existing suites add nine methods. See the review for source-count boundaries. Unit suites cover arithmetic/entity/config/DTO/scanner behavior; PostgreSQL suites cover flush-clear mapping, committed both-color timeout, claim/statistics/release rollback and retry, candidate query and controlled optimistic contention. HTTP adds switch/freeze/null serialization; migration tests add V11-to-V12 and V12-to-V13 SQL fixtures. No scheduled-trigger/restart/real-socket-timeout or new frontend test is added.
+
+Deep-read ratingFailureRollsBackTimeoutAndAllowsSuccessfulRetry and moveAndTimeoutCannotBothCommitFromTheSameVersion. The race preloads one version in both persistence contexts and uses per-thread test times, not sleeps. It proves one winning write in that fixture, not priority by request-arrival time. GameClockPersistenceIntegrationTest is rollback-managed; flush/clear/reload is not commit/restart verification.
+
+Direct synthetic FEN/legacy/finished-unprocessed SQL clears all four clock columns. Frozen response comparison ignores clock.calculatedAt only. Rejection tests require STOMP ERROR before marking rejectionObserved; cleanup skips graceful DISCONNECT for rejected peers but still stops clients. This targets the observed closed-session cleanup race.
+
+Configuration follow-up: shared application-test.yml currently enables scans. Recommend false; GameTimeoutIntegrationTest alone already overrides false. This package leaves configuration unchanged. Keep background scanning off for deterministic fixture tests unless the scheduled trigger is the boundary being tested.
+
+See [clock flow and pseudocode](game-clocks-flow.md) for timing, configuration, transaction boundaries and remaining limits.

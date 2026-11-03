@@ -1,10 +1,20 @@
 # Roadmap
 
-## Current position — Day 25
+## Current position — Day 26
 
 Working Days 1–25 identify actual sessions, not a revised promise about the original 30-working-day estimate. Day 20 adds live hints/recovery, Day 21 persisted history/SAN, Day 22 resignation/draw negotiation, Day 23 reliability fixtures, and Day 24 recorded-position replay plus backend PGN export, and Day 25 transactional Elo/statistics plus the self-statistics API/Home card. See [progress](development-progress.md) and [Day 25 review](day25-ratings-statistics-review.md).
 
 The custom board remains the MVP choice. Home discovers pairing and offers explicit Open game. Replay Start/Previous/Next/history entries remain read-only until Latest is selected; live state continues updating.
+
+## Day 26 delivered
+
+Server-authoritative clocks, V12/V13, transactional TIMEOUT and projected clock responses are implemented. New games start White with configured 10m/no increment; existing games remain untimed. Angular countdowns show live time during replay and refresh even at equal versions. See [review](day26-clocks-review.md) and [flow](game-clocks-flow.md).
+
+Uploaded shared test YAML still enables scanning; recommend false for isolation. Production remains enabled. No config is changed by this docs package. Timeout always awards opponent win; full possible-mate exception, increment/selectable controls, lag compensation and scheduler scaling remain separate choices.
+
+## Post-MVP replay polish
+
+Square-click return to live, a stronger replay banner/Return-to-live button, sounds and new-live-move indicators are explicitly deferred until after MVP. Existing Latest return and live-clock replay note remain implemented. These discussions authorize no new interaction now.
 
 ## Deferred: authentication session continuity
 
@@ -33,7 +43,7 @@ Automatically resuming live mode when Next reaches the synchronized final move w
 
 ## Next milestone selection
 
-Day 25 source review found no blocking issue in inspected changes. User reports tests green after fixture corrections; later increments follow the standing agreement. No assistant tests/builds/migrations/browser checks ran, and manual statistics-card acceptance is not established. Select the next milestone in a new chat before implementation. Clocks, additional rule-based draws, acceptance/abandonment, session continuity and portfolio preparation are separate choices. Ratings/statistics are implemented; extensions are not automatically authorized.
+Day 26 is complete in inspected scope with documented limits and the shared-test-profile follow-up. No assistant application execution is claimed. Select the next major milestone in a new chat: session continuity, additional draws, acceptance/abandonment or portfolio preparation are options, not authorized additions. Do not expand ratings or replay polish silently.
 
 ## Remaining capabilities
 
@@ -43,7 +53,7 @@ Day 25 source review found no blocking issue in inspected changes. User reports 
 | History extensions | Optional pre-SAN backfill, pagination and retention; missing pre-V7 moves stay unavailable |
 | Promotion interaction | Version-associated legal candidates before opening the chooser |
 | Replay polish | Optional Next-to-live behavior and later justified UI refinements |
-| Clocks | Time controls, authoritative timing and timeout results |
+| Clock extensions | Clocks/timeouts implemented; consider controls/increment, timeout draw exception or scaling only when selected |
 | Extra outcomes | Repetition, move-count and dead-position draws |
 | Disconnect policy | Grace periods, abandonment, reconnect behavior and reservation release |
 | Match lifecycle | Acceptance, cancellation, queue expiry and rating filters |

@@ -1,6 +1,6 @@
 # Real-time updates flow
 
-Source-reviewed through Day 25 on 2 November 2026 against actual user chess-web-app-day25-end.zip. Transport/security/configuration remain unchanged. Day 25 adds synchronous statistics processing before GameChangedEvent and another Home consumer of existing hints. No assistant application execution is claimed.
+Current companion through Day 26, source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Clock/timeout additions below supersede earlier checkpoint-specific statements. No assistant application execution is claimed. See [Day 26 review](day26-clocks-review.md) and [clock flow/pseudocode](game-clocks-flow.md).
 
 ## Connection and subscription
 
@@ -141,3 +141,11 @@ Notifications still compare against the authoritative game().version, never the 
 GameFinishedEvent belongs to game.event; PlayerStatisticsGameFinishedEventListener belongs to player.event. This ordinary synchronous listener must succeed within the publishing transaction and calls a MANDATORY service. It is not the AFTER_COMMIT notification listener. Its failure rolls back completion; delivery failure after commit cannot do so.
 
 PlayerUpdate stays type/gameId/version only. The Home statistics component responds to existing updates$ and connections$ with an ordinary statistics GET; it does not calculate from the hint or add another socket subscription. Changes to the simple broker, JWT lifetime, session expiry timer or refresh tokens are not part of Day 25. No durable outbox/event replay guarantee is introduced.
+
+## Day 26 clocks and timeout extension
+
+Timeout completion publishes the same GAME_UPDATED hint after the normal synchronous rating transaction commits. No clock ticks are broadcast. Angular advances its estimate locally and rereads projected clock data on existing recovery triggers, including equal-version GETs. Local zero is not a server completion.
+
+The scanner is a separate scheduled service, not an async statistics dispatcher. Notifications remain best-effort and single-instance routing assumptions remain. Socket rejection cleanup now observes ERROR before skipping graceful DISCONNECT on rejected peers; this does not establish scheduled-timeout delivery or a general transport-race guarantee.
+
+See [clock flow and pseudocode](game-clocks-flow.md) for timing, configuration, transaction boundaries and remaining limits.

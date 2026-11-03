@@ -1,6 +1,6 @@
 # API Contracts
 
-Current contracts, source-reviewed on 2 November 2026 against actual user `chess-web-app-day25-end.zip`. Day 25 adds the self-statistics GET; game/history/PGN/lifecycle/notification contracts are retained. No assistant application execution is claimed. See [Day 25 review](day25-ratings-statistics-review.md).
+Current contracts, source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Day 26 adds nullable clock projections to GameResponse/GameMoveResult, TIMEOUT and GAME_CLOCK_EXPIRED. Other routes remain. No assistant application execution is claimed. See [review](day26-clocks-review.md).
 
 ## Shared conventions
 
@@ -214,7 +214,7 @@ GameHistoryResponse fields:
 
 Each move contains sequenceNumber, playerId, from, to, promotion, resultingFen, playedAt and san. Sequence begins at 1 relative to the baseline, not the chess fullmove number. Promotion is null or QUEEN/ROOK/BISHOP/KNIGHT. New application writes require nonblank SAN of at most 32 characters; old pre-SAN rows may return null. Castling/en passant each occupy one entry. playedAt and terminal finishedAt use the same timestamp for a completing move. Internal move-row IDs are not exposed.
 
-The baseline and resulting FENs supply Angular replay. The separate PGN endpoint below uses this stored history; its Angular download UI is deferred. There is no SAN backfill or reconstruction of missing pre-V7 moves. Reads currently return the full recorded list; pagination/retention limits are not implemented. History and move POST response shapes are unchanged; GameResponse adds nullable drawOfferedByPlayerId in Day 22.
+The baseline and resulting FENs supply Angular replay. The separate PGN endpoint below uses this stored history; its Angular download UI is deferred. There is no SAN backfill or reconstruction of missing pre-V7 moves. Reads currently return the full recorded list; pagination/retention limits are not implemented. History shape is unchanged; move POST adds clock in Day 26; GameResponse adds nullable drawOfferedByPlayerId in Day 22.
 
 ## Export PGN — GET `/api/v1/games/{gameId}/pgn`
 
@@ -263,7 +263,7 @@ Resignation uses ResignGameRequest; the four draw endpoints share DrawOfferReque
 
 Play continues during an offer. Any accepted move by either side clears it. A rejected move preserves it. Every completion clears it. This is the application's negotiation policy, not a claim of tournament draw-offer procedure. No expiry, minimum move requirement, offer throttling or negotiation audit is implemented.
 
-Well-formed command precedence is missing game, participant membership, active lifecycle, expected version, then offer presence/role. For offering, pending-offer detection follows the common checks. Field validation happens before service lookup.
+Well-formed command precedence is missing game, participant membership, active lifecycle, expected version, clock expiry, then offer presence/role. For offering, pending-offer detection follows the common checks. Field validation happens before service lookup.
 
 | Failure | HTTP | Application code |
 | --- | --- | --- |
@@ -370,3 +370,13 @@ The socket client disables heartbeats and is not a browser/proxy test. Strict ex
 ## Day 25 completion extension
 
 Registration creates Player and initial statistics within the enclosing credentials transaction. A successful game finish also commits both statistics and its processing marker. This adds no fields to GameResponse, GameMoveResult or PlayerUpdate. A statistics processing failure is an unexpected server failure, not a claim that a completed game was committed. Existing clients reconcile uncertain commands through GET rather than replaying POST. Longer access-token lifetime and refresh tokens remain deferred, with no configuration/security change in this milestone.
+
+## Day 26 clocks and timeout extension
+
+GameResponse and GameMoveResult append nullable clock. Untimed games return null. Timed responses carry whiteRemainingMillis, blackRemainingMillis, runningColor and calculatedAt (server Instant serialized as an ISO timestamp). Balances are projected at calculatedAt; they are not necessarily the turn-boundary balances stored in games. Finished clocks have runningColor=null and frozen balances. Reads do not change version; equal versions can carry different remaining times/calculatedAt. Historical JSON examples above omit this additive field.
+
+TIMEOUT is an additional termination reason, currently requiring WHITE_WIN/BLACK_WIN. Expired well-formed commands return 409 GAME_CLOCK_EXPIRED after access/lifecycle/version checks. They do not themselves complete the game; scanner completion is separate. Existing offer/turn/legal guards remain. IN_PROGRESS with a zero projected running balance is possible while scanning is pending. No client timestamp or timeout POST route is added.
+
+Timeout completion uses the existing GAME_UPDATED hint and synchronous statistics transaction. There is no per-tick WebSocket payload. PGN format is unchanged, using the persisted winning result without clock tags or timeout-specific SAN. Full impossible-mate timeout draw adjudication is deferred.
+
+See [clock flow and pseudocode](game-clocks-flow.md) for timing, configuration, transaction boundaries and remaining limits.

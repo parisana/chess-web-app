@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes Day 25, source-reviewed on 2 November 2026 against actual user `chess-web-app-day25-end.zip`, compared with the Day 24 source and documentation baseline. Day 25 adds transactional Elo/statistics, V11 and a Home statistics card. No assistant tests/builds/migrations/browser checks ran. See [review](day25-ratings-statistics-review.md), [statistics flow](player-statistics-flow.md) and [historical main documents](history/main-documents-through-day24.md).
+This document describes Day 26, source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Clocks, V12/V13, timeout completion and Angular countdowns extend the Day 25 statistics baseline. No assistant application execution is claimed. See [review](day26-clocks-review.md), [clock flow](game-clocks-flow.md) and [historical main documents](history/main-documents-through-day25.md).
 
 ## Application structure
 
@@ -53,6 +53,8 @@ PostgreSQL is durable storage. Applied Flyway migrations are immutable; future s
 | V9 | Completion constraint permits resignation with a winner |
 | V10 | Pending participant offer on active games; completion permits draw agreement |
 | V11 | Player statistics and per-game processing/exclusion markers |
+| V12 | Nullable game clocks; active/frozen/untimed shape constraint |
+| V13 | TIMEOUT with a winning outcome |
 
 BaseEntity timestamps use JPA callbacks. SQL defaults support non-JPA insertion; direct SQL updates do not automatically advance `updated_at`. Identity sequences need not rewind after rollback.
 
@@ -81,7 +83,7 @@ The facade does not own authorization, persistence, version checks or transactio
 
 Both participants may read a game, including after completion. Commands derive the acting Player from the JWT, never from request-supplied identity.
 
-For a well-formed move command, GameService checks existence, membership, lifecycle, expected version, turn and legal membership. It applies and evaluates the move through ChessRules before mutating the managed game. SAN is formatted from the original position, accepted move, complete legal set and resulting assessment before managed state changes. The recorded sequence advances on the versioned Game row. Flush advances the optimistic version and detects competing writes before history insertion. A losing optimistic update becomes STALE_GAME_VERSION.
+For a well-formed move command, GameService checks existence, membership, lifecycle, expected version, clock expiry, turn and legal membership. It applies and evaluates the move through ChessRules before mutating the managed game. SAN is formatted from the original position, accepted move, complete legal set and resulting assessment before managed state changes. The recorded sequence advances on the versioned Game row. Flush advances the optimistic version and detects competing writes before history insertion. A losing optimistic update becomes STALE_GAME_VERSION.
 
 Checkmate sets the mover’s winning result; stalemate sets DRAW. Position, recorded count, move record including SAN, result/reason/time and deletion of both reservations commit or roll back together. The move and any completion share a Clock-derived timestamp truncated to microseconds. History is explicitly flushed before reservation release and event publication. Flush is not commit. Version is a concurrency token, not a separately defined move number.
 
@@ -123,7 +125,7 @@ The simple broker and session registry are in-process. Current delivery assumes 
 
 ## Deferred scope
 
-The PGN download UI, pre-SAN backfill, clocks, extra rule-based draws, acceptance, abandonment/disconnect completion, session continuity and rating extensions remain separate choices. Replay and backend PGN export are implemented. Promotion chooser legality gating is intentionally deferred. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](roadmap.md) and the two flow companions for details.
+The PGN download UI, pre-SAN backfill, clock extensions, extra rule-based draws, acceptance, abandonment/disconnect completion, session continuity and rating extensions remain separate choices. Replay and backend PGN export are implemented. Promotion chooser legality gating is intentionally deferred. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](roadmap.md) and the two flow companions for details.
 
 ## Persisted history and SAN
 
@@ -181,3 +183,11 @@ PlayerStatisticsRepository owns both the JPA entity operations and native insert
 EloCalculator is pure Java in player.rating: initial 1200, K=32, scale 400, actual scores 1/0.5/0. One Math.round adjustment is applied oppositely to conserve the pair's total. There is no floor, provisional policy, time-control separation, backfill or rating audit ledger. Overflow checks fail rather than wrap. The /players/me/statistics read uses ordinary findById, checks account existence and maps a DTO. No rating-write lock is needed for display. The existing auth profile DTO/JWT are unchanged.
 
 Home embeds PlayerStatistics with separate TS/HTML/CSS. Initial/manual/live-hint/reconnect triggers switch to a fresh GET, guarded by captured token/Player ID. Inner tap updates signals; inner catchError returns EMPTY so later triggers remain active. Inner finalize handles completion/error/cancellation; downstream takeUntilDestroyed tears down active GETs. No polling, focus retry or new frontend test suite is added for this card. See [statistics flow](player-statistics-flow.md).
+
+## Day 26 clocks and timeout extension
+
+Game clock state and TIMEOUT are implemented. New games start White at configured 10m/no increment before commit/opening; old games remain untimed. Expired commands return GAME_CLOCK_EXPIRED; a separate scanAndExpireGames worker calls transactional expireGame, rechecks current state and completes at the stored deadline. Version conflicts arbitrate competing writes. Timeout uses existing reservation release, GameFinishedEvent synchronous statistics and AFTER_COMMIT best-effort hints. Rating failure rolls back frozen clocks and completion together. Timeout adds no move row; draw offers never pause clocks.
+
+Both response DTOs append projected clock with calculatedAt; read timestamps are not persisted completion events. Timeout currently always awards opponent win; the possible-mate draw exception is deferred. Disconnect/logout does not itself complete a game, but a timed game continues and can later expire. This scheduled worker does not make statistics asynchronous or introduce an outbox.
+
+See [clock flow and pseudocode](game-clocks-flow.md) for timing, configuration, transaction boundaries and remaining limits.
