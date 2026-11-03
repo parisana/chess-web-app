@@ -14,3 +14,8 @@ spring:
 app:
   jwt:
     secret: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+  game:
+    clock:
+      initial-time: 10m
+      timeout-scan-enabled: true
+      timeout-scan-interval: 1s

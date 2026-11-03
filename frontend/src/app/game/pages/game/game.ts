@@ -46,6 +46,8 @@ import { REALTIME_CONFIG } from '../../../notification/config/realtime.config';
 import { RealtimeService } from '../../../notification/services/realtime.service';
 import { GameHistoryResponse } from '../../models/game-history';
 import { GameLifecycleAction } from '../../models/game-lifecycle';
+import { GameClockResponse } from '../../models/game-clock';
+import { GameClocks } from '../../components/game-clocks/game-clocks';
 
 @Component({
   selector: 'app-game',
@@ -56,7 +58,8 @@ import { GameLifecycleAction } from '../../models/game-lifecycle';
     MatButtonModule,
     MatCardModule,
     MatProgressBarModule,
-    ChessBoard
+    ChessBoard,
+    GameClocks
   ],
   templateUrl: './game.html',
   styleUrl: './game.css',
@@ -121,6 +124,8 @@ export class Game implements OnInit {
  * Numeric selections remain read-only until Latest is clicked.
  */
   readonly replayIndex = signal<number | null>(null);
+
+  readonly clockSnapshot = signal<GameClockResponse | null>(null);
 
   readonly isReplaying = computed(() => this.replayIndex() !== null);
 
@@ -253,6 +258,7 @@ export class Game implements OnInit {
 
         this.replayIndex.set(null);
         this.game.set(null);
+        this.clockSnapshot.set(null);
         this.history.set(null);
         this.historyError.set(null);
         this.pendingPromotion.set(null);
@@ -608,7 +614,7 @@ export class Game implements OnInit {
         result: result.result,
         terminationReason: result.terminationReason,
         finishedAt: result.finishedAt,
-
+        clock: result.clock,
         // Every accepted move clears any pending offer.
         drawOfferedByPlayerId: null,
       }),
@@ -656,7 +662,10 @@ export class Game implements OnInit {
           return;
         }
 
-        this.game.set(toSnapshot(result));
+        const snapshot = toSnapshot(result);
+
+        this.clockSnapshot.set(snapshot.clock);
+        this.game.set(snapshot);
 
         // Lifecycle changes also advance history's captured game version,
         // even when the recorded move list itself has not changed.
@@ -729,6 +738,15 @@ export class Game implements OnInit {
         tap(snapshot => {
           const current = this.game();
 
+          // Refresh clock estimates even when the game version is unchanged.
+          // Older game responses must not replace the accepted clock.
+          if (
+            current === null ||
+            current.id !== snapshot.id ||
+            snapshot.version >= current.version
+          ) {
+            this.clockSnapshot.set(snapshot.clock);
+          }
           // Never replace a newer accepted snapshot with an older read.
           // Preserve object identity for an unchanged version.
           if (
@@ -868,6 +886,7 @@ export class Game implements OnInit {
       const code: unknown = error.error?.code;
 
       if (
+        code === 'GAME_CLOCK_EXPIRED' ||
         code === 'STALE_GAME_VERSION' ||
         code === 'NOT_PLAYERS_TURN' ||
         code === 'GAME_ALREADY_FINISHED' ||

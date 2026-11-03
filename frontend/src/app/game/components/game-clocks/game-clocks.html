@@ -1,0 +1,25 @@
+@if (display(); as current) {
+<section class="clocks" aria-label="Live game clocks">
+  <div class="clock" [class.running]="current.runningColor === 'WHITE'">
+    <span class="color-label">White</span>
+    <span class="time">{{ current.white }}</span>
+    <span class="clock-state">
+      {{ current.runningColor === 'WHITE' ? 'Running' : 'Stopped' }}
+    </span>
+  </div>
+
+  <div class="clock" [class.running]="current.runningColor === 'BLACK'">
+    <span class="color-label">Black</span>
+    <span class="time">{{ current.black }}</span>
+    <span class="clock-state">
+      {{ current.runningColor === 'BLACK' ? 'Running' : 'Stopped' }}
+    </span>
+  </div>
+</section>
+
+@if (current.awaitingResult) {
+<p role="status">
+  Time appears to have expired. Waiting for the server result.
+</p>
+}
+}

@@ -12,6 +12,9 @@ import com.chessapp.player.service.PlayerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Clock;
+
 /**
  * @author pari on 10/31/26
  */
@@ -23,6 +26,7 @@ public class GameExportService {
     private final GameMoveRepository gameMoveRepository;
     private final PlayerService playerService;
     private final PgnFormatter pgnFormatter;
+    private final Clock clock;
 
     @Transactional(readOnly = true)
     public String exportPgn(Long gameId, Long requestingPlayerId) {
@@ -40,7 +44,7 @@ public class GameExportService {
         }
 
         // Capture result/version and the matching move boundary together.
-        var snapshot = GameResponse.from(game);
+        var snapshot = GameResponse.from(game, clock.instant());
         long recordedMoveCount = game.getRecordedMoveCount();
 
         var moves = gameMoveRepository.findHistoryThrough(

@@ -22,9 +22,10 @@ public record GameResponse(
         GameResult result,
         GameTerminationReason terminationReason,
         Instant finishedAt,
-        Long drawOfferedByPlayerId
+        Long drawOfferedByPlayerId,
+        GameClockResponse clock
 ) {
-    public static GameResponse from(Game game) {
+    public static GameResponse from(Game game, Instant capturedAt) {
         return new GameResponse(
                 game.getId(),
                 game.getWhitePlayerId(),
@@ -36,7 +37,8 @@ public record GameResponse(
                 game.getResult(),
                 game.getTerminationReason(),
                 game.getFinishedAt(),
-                game.getDrawOfferedByPlayerId()
+                game.getDrawOfferedByPlayerId(),
+                GameClockResponse.from(game, capturedAt)
         );
     }
 }

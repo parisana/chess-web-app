@@ -35,6 +35,7 @@ import com.chessapp.notification.dto.PlayerUpdate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 import java.util.List;
@@ -745,7 +746,11 @@ class GameMoveIntegrationTest {
                     UPDATE games
                     SET current_fen = ?,
                         history_start_fen = ?,
-                        history_complete = FALSE
+                        history_complete = FALSE,
+                        white_remaining_millis = NULL,
+                        black_remaining_millis = NULL,
+                        clock_running_color = NULL,
+                        clock_turn_started_at = NULL
                     WHERE id = ?
                     """,
                         baseline,
@@ -902,7 +907,10 @@ class GameMoveIntegrationTest {
                 () -> service.resign(game.id(), black(), game.version())
         );
 
-        assertEquals(completed, service.getGame(game.id(), black()));
+        assertThat(completed)
+                .usingRecursiveComparison()
+                .ignoringFields("clock.calculatedAt")
+                .isEqualTo(service.getGame(game.id(), black()));
         assertEquals(0, reservationCount());
         assertTrue(history().isEmpty());
     }
@@ -1502,10 +1510,14 @@ class GameMoveIntegrationTest {
         assertEquals(
                 1,
                 jdbc.update("""
-                    UPDATE games
-                    SET current_fen = ?,
-                        history_start_fen = ?
-                    WHERE id = ?
+                                UPDATE games
+                                SET current_fen = ?,
+                                    history_start_fen = ?,
+                                    white_remaining_millis = NULL,
+                                    black_remaining_millis = NULL,
+                                    clock_running_color = NULL,
+                                    clock_turn_started_at = NULL
+                                WHERE id = ?
                     """,
                         fen,
                         fen,

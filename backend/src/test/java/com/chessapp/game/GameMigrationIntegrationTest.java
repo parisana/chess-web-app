@@ -472,6 +472,226 @@ class GameMigrationIntegrationTest {
             """));
     }
 
+    @Test
+    void upgradesV11GamesWithoutStartingClocksAndEnforcesClockShape() {
+        migrateTo("11");
+        seedPlayers();
+        insertActiveGame(INITIAL, 4);
+
+        isolatedTemplate.update("""
+            INSERT INTO games (
+                id, white_player_id, black_player_id,
+                status, current_fen, version,
+                history_start_fen, history_complete,
+                recorded_move_count,
+                result, termination_reason, finished_at
+            )
+            VALUES (
+                102, 1, 2,
+                'FINISHED', ?, 8,
+                ?, TRUE, 0,
+                'WHITE_WIN', 'RESIGNATION', CURRENT_TIMESTAMP
+            )
+            """, INITIAL, INITIAL);
+
+        // Capture every old game column. JSONB provides a stable textual
+        // representation while allowing the new columns to be excluded later.
+        var gamesBefore = isolatedTemplate.queryForList("""
+            SELECT to_jsonb(g)::text AS snapshot
+            FROM games g
+            ORDER BY id
+            """);
+
+        var reservationsBefore = isolatedTemplate.queryForList("""
+            SELECT player_id, game_id
+            FROM active_game_players
+            ORDER BY player_id
+            """);
+
+        migrateTo("12");
+
+        assertEquals(
+                gamesBefore,
+                isolatedTemplate.queryForList("""
+                    SELECT (
+                        to_jsonb(g)
+                        - 'white_remaining_millis'
+                        - 'black_remaining_millis'
+                        - 'clock_running_color'
+                        - 'clock_turn_started_at'
+                    )::text AS snapshot
+                    FROM games g
+                    ORDER BY id
+                    """)
+        );
+
+        assertEquals(
+                reservationsBefore,
+                isolatedTemplate.queryForList("""
+                    SELECT player_id, game_id
+                    FROM active_game_players
+                    ORDER BY player_id
+                    """)
+        );
+
+        assertEquals(2L, count("""
+            SELECT count(*)
+            FROM games
+            WHERE white_remaining_millis IS NULL
+              AND black_remaining_millis IS NULL
+              AND clock_running_color IS NULL
+              AND clock_turn_started_at IS NULL
+            """));
+
+        // An incomplete timed state must fail rather than pass as UNKNOWN.
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> isolatedTemplate.update("""
+                    UPDATE games
+                    SET white_remaining_millis = 600000
+                    WHERE id = 101
+                    """)
+        );
+
+        // A complete running clock is valid for an active game.
+        assertEquals(1, isolatedTemplate.update("""
+            UPDATE games
+            SET white_remaining_millis = 600000,
+                black_remaining_millis = 600000,
+                clock_running_color = 'WHITE',
+                clock_turn_started_at = CURRENT_TIMESTAMP
+            WHERE id = 101
+            """));
+
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> isolatedTemplate.update("""
+                    UPDATE games
+                    SET black_remaining_millis = -1
+                    WHERE id = 101
+                    """)
+        );
+
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> isolatedTemplate.update("""
+                    UPDATE games
+                    SET clock_running_color = 'RED'
+                    WHERE id = 101
+                    """)
+        );
+
+        // Active timed games cannot silently lose their running timestamp.
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> isolatedTemplate.update("""
+                    UPDATE games
+                    SET clock_turn_started_at = NULL
+                    WHERE id = 101
+                    """)
+        );
+
+        // Finished games may retain balances, but not a running clock.
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> isolatedTemplate.update("""
+                    UPDATE games
+                    SET white_remaining_millis = 590000,
+                        black_remaining_millis = 600000,
+                        clock_running_color = 'WHITE',
+                        clock_turn_started_at = CURRENT_TIMESTAMP
+                    WHERE id = 102
+                    """)
+        );
+
+        assertEquals(1, isolatedTemplate.update("""
+            UPDATE games
+            SET white_remaining_millis = 590000,
+                black_remaining_millis = 600000
+            WHERE id = 102
+            """));
+    }
+
+    @Test
+    void upgradesV12ToAllowWinningTimeoutCompletionOnly() {
+        migrateTo("12");
+        seedPlayers();
+        insertActiveGame(INITIAL, 0);
+
+        isolatedTemplate.update("""
+            UPDATE games
+            SET white_remaining_millis = 0,
+                black_remaining_millis = 1000,
+                clock_running_color = 'WHITE',
+                clock_turn_started_at = CURRENT_TIMESTAMP
+            WHERE id = 101
+            """);
+
+        var before = isolatedTemplate.queryForMap("""
+            SELECT * FROM games WHERE id = 101
+            """);
+
+        String finishTimeout = """
+            UPDATE games
+            SET status = 'FINISHED',
+                result = ?,
+                termination_reason = 'TIMEOUT',
+                finished_at = CURRENT_TIMESTAMP,
+                clock_running_color = NULL,
+                clock_turn_started_at = NULL
+            WHERE id = 101
+            """;
+
+        // V12 has clock storage but does not yet permit TIMEOUT outcomes.
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> isolatedTemplate.update(
+                        finishTimeout,
+                        "BLACK_WIN"
+                )
+        );
+
+        migrateTo("13");
+
+        assertEquals(
+                before,
+                isolatedTemplate.queryForMap("""
+                    SELECT * FROM games WHERE id = 101
+                    """)
+        );
+
+        // Current application policy requires a winner for TIMEOUT.
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> isolatedTemplate.update(
+                        finishTimeout,
+                        "DRAW"
+                )
+        );
+
+        assertEquals(
+                1,
+                isolatedTemplate.update(
+                        finishTimeout,
+                        "BLACK_WIN"
+                )
+        );
+
+        assertEquals(1L, count("""
+            SELECT count(*)
+            FROM games
+            WHERE id = 101
+              AND status = 'FINISHED'
+              AND result = 'BLACK_WIN'
+              AND termination_reason = 'TIMEOUT'
+              AND finished_at IS NOT NULL
+              AND white_remaining_millis = 0
+              AND black_remaining_millis = 1000
+              AND clock_running_color IS NULL
+              AND clock_turn_started_at IS NULL
+            """));
+    }
+
     private void migrateTo(String version) {
         Flyway flyway = Flyway.configure()
                 .dataSource(dataSource)

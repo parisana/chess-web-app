@@ -57,6 +57,7 @@ class GameMoveServiceTest {
     @Mock private FenParser parser;
     @Mock private FenSerializer serializer;
     @Mock private Clock clock;
+    @Mock private com.chessapp.game.config.GameClockProperties gameClockProperties;
 
     @InjectMocks
     private GameService service;
@@ -247,6 +248,165 @@ class GameMoveServiceTest {
         );
 
         // Mock-only tests establish ordering, not database rollback.
+    }
+
+    @Test
+    void expiredMoveIsRejectedBeforeRulesOrPersistence() {
+        var startedAt = Instant.parse("2026-11-02T08:00:00Z");
+        game.startClock(1_000, startedAt);
+        var before = game.runningClockState();
+
+        found();
+        when(clock.instant()).thenReturn(startedAt.plusSeconds(1));
+
+        assertThrows(
+                GameClockExpiredException.class,
+                () -> service.submitMove(10L, 1L, 0, E4)
+        );
+
+        assertEquals(before, game.runningClockState());
+        assertEquals(INITIAL, game.getCurrentFen());
+        assertEquals(0L, game.getRecordedMoveCount());
+
+        verifyNoInteractions(
+                parser,
+                rules,
+                serializer,
+                reservations,
+                gameMoveRepository,
+                eventPublisher
+        );
+        verify(gameRepository, never()).flush();
+    }
+
+    @Test
+    void moveThatExpiresDuringRulesProcessingIsRejectedBeforeMutation() {
+        var startedAt = Instant.parse("2026-11-02T08:00:00Z");
+        game.startClock(1_000, startedAt);
+        var before = game.runningClockState();
+
+        found();
+        var position = parsedPosition();
+        var next = new FenParser().parse(AFTER_E4);
+
+        when(rules.legalMoves(position)).thenReturn(Set.of(E4));
+        when(rules.applyMove(position, E4)).thenReturn(next);
+        when(rules.evaluate(next)).thenReturn(PositionStatus.NORMAL);
+        when(serializer.serialize(next)).thenReturn(AFTER_E4);
+
+        // The first guard passes; the acceptance-time guard reaches expiry.
+        when(clock.instant()).thenReturn(
+                startedAt.plusMillis(999),
+                startedAt.plusMillis(1_000)
+        );
+
+        assertThrows(
+                GameClockExpiredException.class,
+                () -> service.submitMove(10L, 1L, 0, E4)
+        );
+
+        assertEquals(before, game.runningClockState());
+        assertEquals(INITIAL, game.getCurrentFen());
+        assertEquals(0L, game.getRecordedMoveCount());
+
+        verify(gameRepository, never()).flush();
+        verifyNoInteractions(
+                reservations,
+                gameMoveRepository,
+                eventPublisher
+        );
+    }
+
+    @Test
+    void timeoutUsesDeadlineAndExistingCompletionPipeline() {
+        var startedAt = Instant.parse("2026-11-02T08:00:00Z");
+        game.startClock(1_000, startedAt);
+
+        found();
+        when(clock.instant()).thenReturn(startedAt.plusSeconds(5));
+        when(reservations.releasePlayers(10L)).thenReturn(2);
+
+        assertTrue(service.expireGame(10L));
+
+        assertEquals(
+                com.chessapp.game.entity.GameStatus.FINISHED,
+                game.getStatus()
+        );
+        assertEquals(GameResult.BLACK_WIN, game.getResult());
+        assertEquals(
+                GameTerminationReason.TIMEOUT,
+                game.getTerminationReason()
+        );
+        assertEquals(startedAt.plusSeconds(1), game.getFinishedAt());
+        assertEquals(0L, game.getWhiteRemainingMillis().longValue());
+        assertEquals(1_000L, game.getBlackRemainingMillis().longValue());
+        assertNull(game.getClockRunningColor());
+        assertNull(game.getClockTurnStartedAt());
+        assertEquals(INITIAL, game.getCurrentFen());
+        assertEquals(0L, game.getRecordedMoveCount());
+
+        verify(gameRepository).flush();
+        verify(reservations).releasePlayers(10L);
+        verifyNoInteractions(gameMoveRepository);
+
+        var finished = org.mockito.ArgumentCaptor.forClass(
+                com.chessapp.game.event.GameFinishedEvent.class
+        );
+        verify(eventPublisher).publishEvent(finished.capture());
+
+        var changed = org.mockito.ArgumentCaptor.forClass(
+                com.chessapp.game.event.GameChangedEvent.class
+        );
+        verify(eventPublisher).publishEvent(changed.capture());
+    }
+
+    @Test
+    void timeoutCandidateIsRecheckedAgainstItsCurrentClock() {
+        var startedAt = Instant.parse("2026-11-02T08:00:00Z");
+        game.startClock(10_000, startedAt);
+
+        found();
+        when(clock.instant()).thenReturn(startedAt.plusSeconds(2));
+
+        assertFalse(service.expireGame(10L));
+
+        assertEquals(
+                com.chessapp.game.entity.GameStatus.IN_PROGRESS,
+                game.getStatus()
+        );
+        verify(gameRepository, never()).flush();
+        verifyNoInteractions(
+                reservations,
+                gameMoveRepository,
+                eventPublisher
+        );
+    }
+
+    @Test
+    void timeoutConflictStopsBeforeReservationReleaseOrEvents() {
+        var startedAt = Instant.parse("2026-11-02T08:00:00Z");
+        game.startClock(1_000, startedAt);
+
+        found();
+        when(clock.instant()).thenReturn(startedAt.plusSeconds(2));
+
+        doThrow(new OptimisticLockingFailureException(
+                "A competing move committed"
+        )).when(gameRepository).flush();
+
+        assertThrows(
+                StaleGameVersionException.class,
+                () -> service.expireGame(10L)
+        );
+
+        verifyNoInteractions(
+                reservations,
+                gameMoveRepository,
+                eventPublisher
+        );
+
+        // This mock test proves ordering. Database rollback is established
+        // separately through transactional integration tests.
     }
 
     private void found() {

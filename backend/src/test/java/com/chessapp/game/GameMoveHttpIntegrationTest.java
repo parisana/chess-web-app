@@ -537,7 +537,11 @@ class GameMoveHttpIntegrationTest {
             UPDATE games
             SET current_fen = ?,
                 history_start_fen = ?,
-                history_complete = FALSE
+                history_complete = FALSE,
+                white_remaining_millis = NULL,
+                black_remaining_millis = NULL,
+                clock_running_color = NULL,
+                clock_turn_started_at = NULL
             WHERE id = ?
             """,
                 AFTER_E4,
@@ -942,6 +946,83 @@ class GameMoveHttpIntegrationTest {
                 .andExpect(jsonPath("$.code").value("GAME_ALREADY_FINISHED"));
     }
 
+    @Test
+    void clockResponsesSwitchAfterMoveAndFreezeAfterResignation()
+            throws Exception {
+        mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(white())
+                        ))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clock.runningColor").value("WHITE"))
+                .andExpect(jsonPath("$.clock.whiteRemainingMillis").isNumber())
+                .andExpect(jsonPath("$.clock.blackRemainingMillis").isNumber())
+                .andExpect(jsonPath("$.clock.calculatedAt").isNotEmpty());
+
+        submit(white(), game.version(), "e2", "e4", null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clock.runningColor").value("BLACK"))
+                .andExpect(jsonPath("$.clock.calculatedAt").isNotEmpty());
+
+        String finishedBody = resign(black(), game.version() + 1)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("FINISHED"))
+                .andExpect(jsonPath("$.terminationReason").value("RESIGNATION"))
+                .andExpect(jsonPath("$.clock.runningColor").value(nullValue()))
+                .andExpect(jsonPath("$.clock.calculatedAt").isNotEmpty())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String readBody = mockMvc.perform(
+                        get("/api/v1/games/{gameId}", game.id())
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        bearerToken(black())
+                                ))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clock.runningColor").value(nullValue()))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // Response calculation timestamps may differ.
+        // Frozen balances must remain identical.
+        for (String path : List.of(
+                "$.clock.whiteRemainingMillis",
+                "$.clock.blackRemainingMillis"
+        )) {
+            assertEquals(
+                    JsonPath.<Number>read(finishedBody, path).longValue(),
+                    JsonPath.<Number>read(readBody, path).longValue()
+            );
+        }
+
+        assertEquals(
+                Instant.parse(JsonPath.<String>read(
+                        finishedBody, "$.finishedAt"
+                )),
+                Instant.parse(JsonPath.<String>read(
+                        readBody, "$.finishedAt"
+                ))
+        );
+    }
+
+    @Test
+    void untimedGameExposesNullClock() throws Exception {
+        // This helper now clears all four clock columns.
+        seedFen(INITIAL);
+
+        mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                bearerToken(white())
+                        ))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clock").value(nullValue()));
+    }
+
     // action will be "", "/accept", "/decline" or "/withdraw"
     private ResultActions drawCommand(
             Long actor,
@@ -1121,10 +1202,14 @@ class GameMoveHttpIntegrationTest {
         assertEquals(
                 1,
                 jdbc.update("""
-                    UPDATE games
-                    SET current_fen = ?,
-                        history_start_fen = ?
-                    WHERE id = ?
+                                UPDATE games
+                                            SET current_fen = ?,
+                                                history_start_fen = ?,
+                                                white_remaining_millis = NULL,
+                                                black_remaining_millis = NULL,
+                                                clock_running_color = NULL,
+                                                clock_turn_started_at = NULL
+                                            WHERE id = ?
                     """,
                         fen,
                         fen,

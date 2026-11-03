@@ -143,6 +143,18 @@ public class GameExceptionHandler {
         );
     }
 
+    @ExceptionHandler(GameClockExpiredException.class)
+    public ProblemDetail handleGameClockExpired(
+            GameClockExpiredException exception
+    ) {
+        return problem(
+                HttpStatus.CONFLICT,
+                "Game clock expired",
+                GameErrorCodes.GAME_CLOCK_EXPIRED,
+                exception
+        );
+    }
+
     private static ProblemDetail problem(
             HttpStatusCode status,
             String title,

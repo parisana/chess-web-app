@@ -59,6 +59,9 @@
         @case ('DRAW_AGREEMENT') {
         — draw by agreement.
         }
+        @case ('TIMEOUT') {
+        — time expired.
+        }
         }
       </p>
 
@@ -68,7 +71,17 @@
       }
 
       <p>Live version: {{ current.version }}</p>
+      @if (clockSnapshot(); as clock) {
+      <app-game-clocks [clock]="clock" />
 
+      @if (isReplaying()) {
+      <p class="replay-help">
+        Clocks show the live game, not the selected replay position.
+      </p>
+      }
+      } @else {
+      <p>This game is untimed.</p>
+      }
       <section class="replay-controls" aria-labelledby="replay-title">
         <h2 id="replay-title">Replay</h2>
 

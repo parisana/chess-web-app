@@ -1,5 +1,7 @@
 package com.chessapp.game.service;
 
+import com.chessapp.game.clock.GameClockCalculator;
+import com.chessapp.game.config.GameClockProperties;
 import com.chessapp.game.dto.GameHistoryResponse;
 import com.chessapp.game.dto.GameMoveResponse;
 import com.chessapp.game.dto.GameMoveResult;
@@ -50,7 +52,51 @@ public class GameService {
     private final SanFormatter sanFormatter;
     private final Clock clock;
 
+    private final GameClockProperties gameClockProperties;
+
     private final ApplicationEventPublisher eventPublisher;
+
+    /**
+     * Rechecks and completes one expired game in its own service transaction.
+
+     * Candidate selection is only a hint: a move may have changed the clock
+     * since selection, or another worker may already have finished the game.
+     */
+    @Transactional
+    public boolean expireGame(Long gameId) {
+        var game = gameRepository.findById(gameId)
+                .orElseThrow(GameNotFoundException::new);
+
+        if (game.getStatus() != GameStatus.IN_PROGRESS
+                || !game.hasClock()) {
+            return false;
+        }
+
+        var state = game.runningClockState();
+        Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
+
+        if (!GameClockCalculator.isExpired(state, now)) {
+            return false;
+        }
+
+        GameResult result = state.runningColor() == PieceColor.WHITE
+                ? GameResult.BLACK_WIN
+                : GameResult.WHITE_WIN;
+
+        // Record the actual expiry instant rather than the later scan time.
+        // finish() freezes the expired balance at zero.
+        game.finish(
+                result,
+                GameTerminationReason.TIMEOUT,
+                GameClockCalculator.deadline(state)
+        );
+
+        // Reuses optimistic conflict detection, reservation release,
+        // synchronous statistics and after-commit notification publication.
+        persistLifecycleChange(game);
+
+        return true;
+    }
 
     @Transactional(readOnly = true)
     public GameResponse getGame(Long gameId, Long requestingPlayerId) {
@@ -67,7 +113,7 @@ public class GameService {
             throw new GameAccessDeniedException();
         }
 
-        return GameResponse.from(game);
+        return GameResponse.from(game, clock.instant());
     }
 
     @Transactional
@@ -87,6 +133,11 @@ public class GameService {
         requirePlayer(whitePlayerId);
         requirePlayer(blackPlayerId);
 
+        game.startClock(
+                gameClockProperties.initialTimeMillis(),
+                clock.instant().truncatedTo(ChronoUnit.MICROS)
+        );
+
         // saveAndFlush ensures the game row exists before JDBC inserts rows referencing it. Flushing does not commit.
         // With our shared datasource and JPA transaction manager, JdbcTemplate participates in the same transaction.
         var savedGame = gameRepository.saveAndFlush(game);
@@ -104,7 +155,7 @@ public class GameService {
                 savedGame,
                 GameChangedEvent.Type.GAME_CREATED
         );
-        return GameResponse.from(savedGame);
+        return GameResponse.from(savedGame, clock.instant());
     }
 
     @Transactional(readOnly = true)
@@ -165,7 +216,18 @@ public class GameService {
             throw new StaleGameVersionException();
         }
 
+        // Access, lifecycle and version have now been checked.
+        if (game.hasClock()) {
+            captureCommandTimeAndCheckExpiry(game);
+        }
+
         var position = fenParser.parse(game.getCurrentFen());
+
+        if (game.hasClock() && game.getClockRunningColor() != position.sideToMove()) {
+            throw new IllegalStateException(
+                    "Running clock must match the position's side to move"
+            );
+        }
 
         var playerColor = isWhite
                 ? PieceColor.WHITE
@@ -187,7 +249,7 @@ public class GameService {
         var assessment = chessRules.evaluate(nextPosition);
         var nextFen = fenSerializer.serialize(nextPosition);
         // Obtain one timestamp for the accepted move and any resulting completion.
-        var playedAt = clock.instant().truncatedTo(ChronoUnit.MICROS);
+        var playedAt = captureCommandTimeAndCheckExpiry(game);
         // Notation needs the original position and complete legal alternatives.
         // Generate it before mutating the managed game.
         var san = sanFormatter.format(
@@ -226,7 +288,7 @@ public class GameService {
 
         // All writes still belong to this transaction.
         // Notifications are delivered only after its enclosing transaction commits.
-        return GameMoveResult.from(game, assessment);
+        return GameMoveResult.from(game, assessment, clock.instant());
     }
 
     /**
@@ -251,7 +313,7 @@ public class GameService {
         game.finish(
                 isWhite ? GameResult.BLACK_WIN : GameResult.WHITE_WIN,
                 GameTerminationReason.RESIGNATION,
-                clock.instant().truncatedTo(ChronoUnit.MICROS)
+                captureCommandTimeAndCheckExpiry(game)
         );
 
         return persistLifecycleChange(game);
@@ -341,7 +403,7 @@ public class GameService {
         game.finish(
                 GameResult.DRAW,
                 GameTerminationReason.DRAW_AGREEMENT,
-                clock.instant().truncatedTo(ChronoUnit.MICROS)
+                captureCommandTimeAndCheckExpiry(game)
         );
 
         return persistLifecycleChange(game);
@@ -403,6 +465,8 @@ public class GameService {
             PieceColor movingColor,
             Instant playedAt
     ) {
+        // Use the same timestamp for clock transition, history and completion.
+        game.advanceClockAfterAcceptedMove(playedAt);
         // Complete rules processing before mutating the managed entity.
         long sequenceNumber = game.advanceRecordedMoveCount();
         game.updatePosition(nextFen);
@@ -511,6 +575,10 @@ public class GameService {
             throw new StaleGameVersionException();
         }
 
+        if (game.hasClock()) { // check clock not expired for current player
+            captureCommandTimeAndCheckExpiry(game);
+        }
+
         return game;
     }
 
@@ -519,12 +587,18 @@ public class GameService {
      * The public command owns the transaction; this helper does not commit.
      */
     private GameResponse persistLifecycleChange(Game game) {
+        // Negotiation does not pause or reset the running clock.
+        // Recheck before accepting a non-terminal change.
+        if (game.getStatus() == GameStatus.IN_PROGRESS
+                && game.hasClock()) {
+            captureCommandTimeAndCheckExpiry(game);
+        }
         flushGameOrRejectConflict();
         releaseReservationsIfFinished(game);
         publishGameFinishedIfNecessary(game); // handles updating player ratings synchronously using spring-events
         publishGameChanged(game, GameChangedEvent.Type.GAME_UPDATED);
 
-        return GameResponse.from(game);
+        return GameResponse.from(game, clock.instant());
     }
 
     /**
@@ -545,6 +619,28 @@ public class GameService {
 
         if (isSender != mustBeSender) {
             throw new DrawOfferActionNotAllowedException();
+        }
+    }
+
+    /**
+     * Captures server time for a command and rejects an expired timed game.
+     * Rejection does not finish the game; the timeout worker owns that path.
+     */
+    private Instant captureCommandTimeAndCheckExpiry(Game game) {
+        Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
+
+        requireClockNotExpired(game, now);
+
+        return now;
+    }
+
+    private void requireClockNotExpired(Game game, Instant now) {
+        if (game.hasClock()
+                && GameClockCalculator.isExpired(
+                game.runningClockState(),
+                now
+        )) {
+            throw new GameClockExpiredException();
         }
     }
 

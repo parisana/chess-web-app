@@ -1,0 +1,46 @@
+WHEN a game response arrives:
+    if its version is older than the accepted game version:
+        ignore its clock data
+
+    otherwise:
+        accept its clock snapshot
+        even when the game version is unchanged
+
+
+WHEN the clock component receives an accepted snapshot:
+    remember each Player's server-calculated remaining time
+    remember which Player's clock is running
+    record the local receipt time using performance.now()
+
+
+EVERY display tick:
+    calculate elapsed time since receiving the snapshot
+
+    for each Player:
+        if their clock is running:
+            displayed remaining time =
+                server-calculated remaining time - elapsed time
+        otherwise:
+            displayed remaining time =
+                server-calculated remaining time
+
+        clamp displayed remaining time to zero
+        format it as minutes and seconds
+
+    if the running Player's displayed time reaches zero:
+        show "Waiting for the server result"
+        do not declare a result locally
+
+
+WHEN a fresh clock snapshot arrives:
+    replace the remembered remaining times
+    reset the local receipt-time reference
+
+
+WHEN the server reports completion:
+    neither Player's clock is running
+    display the frozen remaining times
+
+
+WHEN the component is destroyed:
+    unsubscribe from the display timer

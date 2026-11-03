@@ -89,7 +89,9 @@ class WebSocketIntegrationTest {
         try {
             for (Peer peer : peers) {
                 try {
-                    if (peer.session != null && peer.session.isConnected()) {
+                    if (!peer.rejectionObserved
+                            && peer.session != null
+                            && peer.session.isConnected()) {
                         peer.session.disconnect();
                     }
                 } finally {
@@ -197,6 +199,8 @@ class WebSocketIntegrationTest {
                 peer.protocolErrors.poll(WAIT_SECONDS, TimeUnit.SECONDS),
                 "Expected a STOMP ERROR for subscription to " + forbidden
         );
+
+        peer.rejectionObserved = true;
     }
 
     @Test
@@ -215,6 +219,7 @@ class WebSocketIntegrationTest {
         );
 
         assertNoUpdate(recipient);
+        sender.rejectionObserved = true;
     }
 
     @Test
@@ -527,8 +532,8 @@ class WebSocketIntegrationTest {
     }
 
     private static final class Peer {
-
         private final WebSocketStompClient client;
+        private boolean rejectionObserved;
         private final String probe = "READY-" + UUID.randomUUID();
         private final CountDownLatch ready = new CountDownLatch(1);
 

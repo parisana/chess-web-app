@@ -38,6 +38,9 @@ public final class GameErrorCodes {
     public static final String PGN_EXPORT_UNAVAILABLE =
             "PGN_EXPORT_UNAVAILABLE";
 
+    public static final String GAME_CLOCK_EXPIRED =
+            "GAME_CLOCK_EXPIRED";
+
     private GameErrorCodes() {
     }
 }

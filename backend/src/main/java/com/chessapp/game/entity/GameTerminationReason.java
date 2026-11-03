@@ -7,5 +7,6 @@ public enum GameTerminationReason {
     CHECKMATE,
     STALEMATE,
     RESIGNATION,
-    DRAW_AGREEMENT
+    DRAW_AGREEMENT,
+    TIMEOUT
 }

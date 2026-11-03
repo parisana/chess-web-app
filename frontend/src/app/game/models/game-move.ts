@@ -1,3 +1,4 @@
+import { GameClockResponse } from './game-clock';
 import {
   GameResult,
   GameStatus,
@@ -25,4 +26,5 @@ export interface GameMoveResult {
   result: GameResult | null;
   terminationReason: GameTerminationReason | null;
   finishedAt: string | null;
+  clock: GameClockResponse | null;
 }

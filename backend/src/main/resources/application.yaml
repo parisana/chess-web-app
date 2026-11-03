@@ -29,3 +29,8 @@ app:
     updates-path: /updates
     time-to-first-message: 10s
     heartbeat-interval: 10s
+  game:
+    clock:
+      initial-time: 10m
+      timeout-scan-enabled: true
+      timeout-scan-interval: 1s

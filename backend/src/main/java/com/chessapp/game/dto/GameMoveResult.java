@@ -18,12 +18,14 @@ public record GameMoveResult(Long gameId,
                              GameStatus status,
                              GameResult result,
                              GameTerminationReason terminationReason,
-                             Instant finishedAt
+                             Instant finishedAt,
+                             GameClockResponse clock
 ) {
 
     public static GameMoveResult from(
             Game game,
-            PositionStatus assessment
+            PositionStatus assessment,
+            Instant calculatedAt
     ) {
         return new GameMoveResult(
                 game.getId(),
@@ -33,7 +35,8 @@ public record GameMoveResult(Long gameId,
                 game.getStatus(),
                 game.getResult(),
                 game.getTerminationReason(),
-                game.getFinishedAt()
+                game.getFinishedAt(),
+                GameClockResponse.from(game, calculatedAt)
         );
     }
 }

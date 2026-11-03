@@ -325,7 +325,11 @@ class PlayerStatisticsIntegrationTest {
                             result = 'WHITE_WIN',
                             termination_reason = 'RESIGNATION',
                             finished_at = CURRENT_TIMESTAMP,
-                            version = version + 1
+                            version = version + 1,
+                            white_remaining_millis = NULL,
+                            black_remaining_millis = NULL,
+                            clock_running_color = NULL,
+                            clock_turn_started_at = NULL
                         WHERE id = ?
                         """, game.id())
             );
@@ -552,10 +556,14 @@ class PlayerStatisticsIntegrationTest {
         assertEquals(
                 1,
                 jdbc.update("""
-                    UPDATE games
-                    SET current_fen = ?,
-                        history_start_fen = ?
-                    WHERE id = ?
+                        UPDATE games
+                                    SET current_fen = ?,
+                                        history_start_fen = ?,
+                                        white_remaining_millis = NULL,
+                                        black_remaining_millis = NULL,
+                                        clock_running_color = NULL,
+                                        clock_turn_started_at = NULL
+                                    WHERE id = ?
                     """, fen, fen, game.id())
         );
     }
