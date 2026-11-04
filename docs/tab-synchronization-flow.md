@@ -33,7 +33,7 @@ sequenceDiagram
     S->>D: Save authenticated session context
     D-->>S: Session persisted
     S-->>A: Player profile and session cookie
-    Note over A,B: Browser cookie jar is shared; local profiles are separate
+    Note over A,B: Shared browser cookie jar, separate local profiles
     A->>C: Publish SESSION_CHANGED
     C-->>B: Deliver session-change hint
     B->>B: Start receiver flow below
