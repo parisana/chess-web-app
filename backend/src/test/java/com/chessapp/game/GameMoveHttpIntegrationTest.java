@@ -37,7 +37,7 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static com.chessapp.support.TestCsrf.cookieCsrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -180,12 +180,13 @@ class GameMoveHttpIntegrationTest {
         String body = moveBody(0, "e2", "e4", null);
 
         mockMvc.perform(post("/api/v1/games/{gameId}/moves", game.id())
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(post("/api/v1/games/{gameId}/moves", game.id())
-                        .with(csrf().asHeader())
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnauthorized());
@@ -200,8 +201,7 @@ class GameMoveHttpIntegrationTest {
         // Lookup precedes participant membership.
         mockMvc.perform(post("/api/v1/games/{gameId}/moves", -1L)
                         .cookie(sessions.forPlayer(outsider()))
-                        .with(csrf().asHeader())
-                        .with(csrf().asHeader())
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(moveBody(99, "e2", "e5", null)))
                 .andExpect(status().isNotFound())
@@ -266,7 +266,7 @@ class GameMoveHttpIntegrationTest {
 
         mockMvc.perform(post("/api/v1/games/{gameId}/moves", game.id())
                         .cookie(sessions.forPlayer(white()))
-                        .with(csrf().asHeader())
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -287,7 +287,7 @@ class GameMoveHttpIntegrationTest {
 
         mockMvc.perform(post("/api/v1/games/{gameId}/moves", game.id())
                         .cookie(sessions.forPlayer(white()))
-                        .with(csrf().asHeader())
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());
@@ -529,7 +529,7 @@ class GameMoveHttpIntegrationTest {
         mockMvc.perform(
                         get("/api/v1/games/{gameId}/moves", -1L)
                                 .cookie(sessions.forPlayer(white()))
-//                                .with(csrf().asHeader())
+//                                .with(cookieCsrf())
                 )
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("GAME_NOT_FOUND"));
@@ -651,7 +651,7 @@ class GameMoveHttpIntegrationTest {
         for (Long participant : List.of(white(), black())) {
             mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
                     .cookie(sessions.forPlayer(participant))
-//                            .with(csrf().asHeader())
+//                            .with(cookieCsrf())
                     )
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("FINISHED"))
@@ -676,6 +676,7 @@ class GameMoveHttpIntegrationTest {
                         "/api/v1/games/{gameId}/resignation",
                         game.id()
                 )
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {"expectedVersion": 0}
@@ -690,7 +691,7 @@ class GameMoveHttpIntegrationTest {
                                 HttpHeaders.AUTHORIZATION,
                                 "Bearer randomstr"
                         )
-                        .with(csrf().asHeader())
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {"expectedVersion": 0}
@@ -713,7 +714,7 @@ class GameMoveHttpIntegrationTest {
                         game.id()
                 )
                         .cookie(sessions.forPlayer(white()))
-                        .with(csrf().asHeader())
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -729,7 +730,7 @@ class GameMoveHttpIntegrationTest {
                         -1L
                 )
                         .cookie(sessions.forPlayer(outsider()))
-                        .with(csrf().asHeader())
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {"expectedVersion": 99}
@@ -794,7 +795,7 @@ class GameMoveHttpIntegrationTest {
         // The opponent discovers the offer through the regular snapshot GET.
         mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
                         .cookie(sessions.forPlayer(black()))
-//                        .with(csrf().asHeader())
+//                        .with(cookieCsrf())
                         )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.version").value(1))
@@ -879,6 +880,7 @@ class GameMoveHttpIntegrationTest {
                         "/api/v1/games/{gameId}/draw-offer" + action,
                         game.id()
                 )
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {"expectedVersion": 0}
@@ -903,7 +905,7 @@ class GameMoveHttpIntegrationTest {
                             game.id()
                     )
                             .cookie(sessions.forPlayer(white()))
-                            .with(csrf().asHeader())
+                            .with(cookieCsrf())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isBadRequest())
@@ -915,7 +917,7 @@ class GameMoveHttpIntegrationTest {
                         -1L
                 )
                         .cookie(sessions.forPlayer(outsider()))
-                        .with(csrf().asHeader())
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {"expectedVersion": 99}
@@ -946,7 +948,7 @@ class GameMoveHttpIntegrationTest {
             throws Exception {
         mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
                 .cookie(sessions.forPlayer(white()))
-//                        .with(csrf().asHeader())
+//                        .with(cookieCsrf())
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.clock.runningColor").value("WHITE"))
@@ -972,7 +974,7 @@ class GameMoveHttpIntegrationTest {
         String readBody = mockMvc.perform(
                         get("/api/v1/games/{gameId}", game.id())
                                 .cookie(sessions.forPlayer(black()))
-//                                .with(csrf().asHeader())
+//                                .with(cookieCsrf())
                                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.clock.runningColor").value(nullValue()))
@@ -1009,7 +1011,7 @@ class GameMoveHttpIntegrationTest {
 
         mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
                         .cookie(sessions.forPlayer(white()))
-//                        .with(csrf().asHeader())
+//                        .with(cookieCsrf())
                         )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.clock").value(nullValue()));
@@ -1027,7 +1029,7 @@ class GameMoveHttpIntegrationTest {
                         game.id()
                 )
                         .cookie(sessions.forPlayer(actor))
-                        .with(csrf().asHeader())
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {"expectedVersion": %d}
@@ -1045,7 +1047,7 @@ class GameMoveHttpIntegrationTest {
         return mockMvc.perform(
                 post("/api/v1/games/{gameId}/moves", game.id())
                         .cookie(sessions.forPlayer(actor))
-                        .with(csrf().asHeader())
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(moveBody(
                                 expectedVersion, from, to, promotion
@@ -1060,7 +1062,7 @@ class GameMoveHttpIntegrationTest {
         return mockMvc.perform(
                 post("/api/v1/games/{gameId}/resignation", game.id())
                         .cookie(sessions.forPlayer(actor))
-                        .with(csrf().asHeader())
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {"expectedVersion": %d}
@@ -1131,7 +1133,7 @@ class GameMoveHttpIntegrationTest {
             String getBody = mockMvc.perform(
                             get("/api/v1/games/{gameId}", game.id())
                                     .cookie(sessions.forPlayer(participant))
-//                                    .with(csrf().asHeader())
+//                                    .with(cookieCsrf())
                                     )
                     .andExpect(status().isOk())
                     .andReturn()
@@ -1250,7 +1252,7 @@ class GameMoveHttpIntegrationTest {
         return mockMvc.perform(
                 get("/api/v1/games/{gameId}/moves", game.id())
                         .cookie(sessions.forPlayer(playerId))
-//                        .with(csrf().asHeader())
+//                        .with(cookieCsrf())
         );
     }
 }

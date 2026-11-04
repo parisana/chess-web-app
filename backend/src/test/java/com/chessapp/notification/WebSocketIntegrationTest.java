@@ -41,10 +41,7 @@ import java.net.http.HttpResponse;
 import java.net.http.WebSocketHandshakeException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -84,6 +81,8 @@ class WebSocketIntegrationTest {
 
     private final JsonMapper json = JsonMapper.builder().build();
     private final List<Peer> peers = new ArrayList<>();
+    private final Set<String> readinessProbes =
+            ConcurrentHashMap.newKeySet();
 
     private List<PlayerResponse> players;
     private GameResponse game;
@@ -617,9 +616,13 @@ class WebSocketIntegrationTest {
             ) {
                 String body = text(payload);
 
-                // Late replies to repeated probes remain fixture traffic and must never pollute application assertions.
-                if (peer.probe.equals(body)) {
-                    peer.ready.countDown();
+                // User routing can deliver a fixture probe to multiple sockets
+                // belonging to the same Player.
+                if (readinessProbes.contains(body)) {
+                    if (peer.probe.equals(body)) {
+                        peer.ready.countDown();
+                    }
+
                     return;
                 }
 
@@ -649,6 +652,7 @@ class WebSocketIntegrationTest {
         client.start();
 
         var peer = new Peer(client);
+        readinessProbes.add(peer.probe);
         peers.add(peer);
         return peer;
     }

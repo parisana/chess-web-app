@@ -31,7 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static com.chessapp.support.TestCsrf.cookieCsrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -276,14 +276,14 @@ class MatchmakingIntegrationTest {
     @Test
     void queueEndpoints_rejectMissingSession() throws Exception {
         mockMvc.perform(post("/api/v1/matchmaking/queue")
-                        .with(csrf().asHeader()))
+                        .with(cookieCsrf()))
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(get("/api/v1/matchmaking/queue/me"))
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(delete("/api/v1/matchmaking/queue/me")
-                        .with(csrf().asHeader()))
+                        .with(cookieCsrf()))
                 .andExpect(status().isUnauthorized());
 
         assertEquals(0L, queueEntryCount());
@@ -300,7 +300,8 @@ class MatchmakingIntegrationTest {
                 .andExpect(jsonPath("$.status").value("NOT_QUEUED"));
 
         mockMvc.perform(post("/api/v1/matchmaking/queue")
-                        .cookie(cookie).with(csrf().asHeader()))
+                        .cookie(cookie)
+                        .with(cookieCsrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("WAITING"))
                 .andExpect(jsonPath("$.enqueuedAt").isNotEmpty());
@@ -311,12 +312,14 @@ class MatchmakingIntegrationTest {
                 .andExpect(jsonPath("$.status").value("WAITING"));
 
         mockMvc.perform(delete("/api/v1/matchmaking/queue/me")
-                        .cookie(cookie))
+                        .cookie(cookie)
+                        .with(cookieCsrf()))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
         mockMvc.perform(delete("/api/v1/matchmaking/queue/me")
-                        .cookie(cookie))
+                        .cookie(cookie)
+                        .with(cookieCsrf()))
                 .andExpect(status().isNoContent());
 
         assertEquals(0L, queueEntryCount());

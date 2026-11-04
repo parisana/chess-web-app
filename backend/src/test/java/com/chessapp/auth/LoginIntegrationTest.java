@@ -25,8 +25,9 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static com.chessapp.support.TestCsrf.cookieCsrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -64,7 +65,7 @@ class LoginIntegrationTest {
         RegisterRequest registration = newRegistration();
 
         mockMvc.perform(post("/api/v1/auth/register")
-                        .with(csrf().asHeader())
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {
@@ -98,6 +99,14 @@ class LoginIntegrationTest {
                 .getResponse();
 
         Cookie cookie = response.getCookie("CHESS_SESSION");
+        assertEquals(
+                "CHESS_SESSION",
+                org.springframework.test.util.ReflectionTestUtils.getField(
+                        cookieSerializer,
+                        "cookieName"
+                ),
+                "The session serializer should use the configured cookie name"
+        );
         assertNotNull(cookie);
 
         // Decode using the application's configured cookie serializer.
@@ -159,7 +168,7 @@ class LoginIntegrationTest {
             throws Exception {
 
         return mockMvc.perform(post("/api/v1/auth/login")
-                .with(csrf().asHeader())
+                .with(cookieCsrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                 {

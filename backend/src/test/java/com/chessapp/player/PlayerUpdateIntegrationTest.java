@@ -30,7 +30,7 @@ import java.util.UUID;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static com.chessapp.support.TestCsrf.cookieCsrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -106,7 +106,7 @@ class PlayerUpdateIntegrationTest {
         // Renaming does not change the Player ID stored in authentication.
         mockMvc.perform(get("/api/v1/players/me")
                 .cookie(sessionCookie)
-                .with(csrf().asHeader()))
+                .with(cookieCsrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value(username));
     }
@@ -204,7 +204,7 @@ class PlayerUpdateIntegrationTest {
     @Test
     void update_missingSessionReturnsUnauthorized() throws Exception {
         mockMvc.perform(patch("/api/v1/players/me")
-                        .with(csrf().asHeader())
+                        .with(cookieCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {"username": "new_username"}
@@ -239,7 +239,7 @@ class PlayerUpdateIntegrationTest {
 
         return mockMvc.perform(patch("/api/v1/players/me")
                         .cookie(sessionCookie)
-                        .with(csrf().asHeader())
+                        .with(cookieCsrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body));
     }

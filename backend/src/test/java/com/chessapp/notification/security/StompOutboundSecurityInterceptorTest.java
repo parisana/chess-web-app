@@ -52,10 +52,14 @@ class StompOutboundSecurityInterceptorTest {
 
     @Test
     void rechecksSessionAccessAfterWaitingInTheExecutor() {
-        when(access.canReceive("session-1")).thenReturn(false);
+        when(access.canReceive("session-1")).thenReturn(true);
+
         Message<?> message = applicationMessage("session-1");
 
         assertSame(message, interceptor.preSend(message, null));
+
+        // Simulate logout or expiry while waiting in the executor.
+        when(access.canReceive("session-1")).thenReturn(false);
 
         assertNull(
                 interceptor.beforeHandle(message, null, null)
