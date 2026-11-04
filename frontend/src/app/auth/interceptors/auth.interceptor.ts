@@ -12,51 +12,35 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const session = inject(AuthSessionStore);
   const router = inject(Router);
 
-  const token = session.token();
-  const path = request.url.split('?')[0];
-
   const isBackendRequest = request.url.startsWith('/api/');
-  const isPublicAuthRequest =
-    path === '/api/v1/auth/login' ||
-    path === '/api/v1/auth/register';
+  const isAuthRequest = request.url.startsWith('/api/v1/auth/');
 
-  if (!token || !isBackendRequest || isPublicAuthRequest) {
+  if (!isBackendRequest || isAuthRequest) {
     return next(request);
   }
 
-  const authenticatedRequest = request.clone({
-    setHeaders: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const revision = session.revision();
+  const wasAuthenticated = session.isAuthenticated();
 
-  return next(authenticatedRequest).pipe(
+  // The browser sends the session cookie.
+  // Angular's built-in XSRF interceptor supplies the CSRF header.
+  return next(request).pipe(
     catchError((error: unknown) => {
       if (
         error instanceof HttpErrorResponse &&
         error.status === 401 &&
-        session.token() === token
+        wasAuthenticated &&
+        session.revision() === revision
       ) {
-        const hadAuthenticatedPlayer =
-          session.currentPlayer() !== null;
-
         session.clear();
 
-        if (hadAuthenticatedPlayer) {
-          void router.navigate(['/login'], {
-            queryParams: { sessionExpired: 'true' },
-            replaceUrl: true,
-          });
-        }
+        void router.navigate(['/login'], {
+          queryParams: { sessionExpired: 'true' },
+          replaceUrl: true,
+        });
       }
 
       return throwError(() => error);
     }),
   );
 };
-
-// Login 401 stays on the form: public authentication requests bypass this handling.
-// Initial /me failure stays a login failure: there’s no established player session yet.
-// An older request won’t clear a different current token: we compare the token used by the request with the current token.
-
-// We handle 401, not 403: lacking permission doesn’t necessarily mean the session is invalid.

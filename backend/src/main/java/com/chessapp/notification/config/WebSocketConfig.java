@@ -1,5 +1,6 @@
 package com.chessapp.notification.config;
 
+import com.chessapp.notification.security.SessionHandshakeInterceptor;
 import com.chessapp.notification.security.StompOutboundSecurityInterceptor;
 import com.chessapp.notification.security.StompSecurityInterceptor;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class WebSocketConfig
     private TaskScheduler brokerTaskScheduler;
     private final StompSecurityInterceptor securityInterceptor;
     private final StompOutboundSecurityInterceptor outboundSecurityInterceptor;
+    private final SessionHandshakeInterceptor sessionHandshakeInterceptor;
     private final WebSocketProperties properties;
 
     // broker scheduler with lazy injection to avoid a configuration dependency cycle
@@ -42,6 +44,7 @@ public class WebSocketConfig
             StompEndpointRegistry registry
     ) {
         registry.addEndpoint(properties.endpoint())
+                .addInterceptors(sessionHandshakeInterceptor)
                 .setAllowedOrigins(properties.allowedOrigin());
     }
 

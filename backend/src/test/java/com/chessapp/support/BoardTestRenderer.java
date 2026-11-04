@@ -1,4 +1,4 @@
-package com.chessapp;
+package com.chessapp.support;
 
 import com.chessapp.game.rules.model.ChessPosition;
 import com.chessapp.game.rules.model.Move;

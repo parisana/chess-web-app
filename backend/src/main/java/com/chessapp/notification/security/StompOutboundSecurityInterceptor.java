@@ -34,7 +34,7 @@ public class StompOutboundSecurityInterceptor
             MessageHandler handler
     ) {
         // Check again after waiting in the outbound executor:
-        // the token may have expired since preSend().
+        // the HTTP session may have expired or been invalidated.
         return permitted(message) ? message : null;
     }
 
@@ -53,8 +53,8 @@ public class StompOutboundSecurityInterceptor
                         message.getHeaders()
                 );
 
-        // Fail closed for application messages without an authenticated,
-        // unexpired session.
+        // Fail closed for application messages without a registered,
+        // currently authenticated HTTP session.
         return sessionAccess.canReceive(sessionId);
     }
 }

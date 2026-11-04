@@ -6,12 +6,24 @@
     </mat-card-header>
 
     <mat-card-content>
+      @if (sessionChanged) {
+      <p role="status">
+        The signed-in account changed in another tab.
+        Reload to restore that session, or sign in below.
+      </p>
+      }
       @if (registrationComplete) {
       <p role="status">Account created. You can now sign in.</p>
       }
       @if (sessionExpired) {
       <p role="status">
         Your session is no longer valid. Please sign in again.
+      </p>
+      }
+      @if (restorationFailed()) {
+      <p role="alert">
+        Unable to check your existing session. Reload to try again,
+        or sign in below.
       </p>
       }
       <form [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="submitting()" novalidate>

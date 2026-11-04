@@ -9,12 +9,10 @@ import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Objects;
+import java.security.Principal;
 
 /**
  * @author pari on 10/23/26
@@ -30,11 +28,9 @@ public class GameController {
     @GetMapping("/{gameId}")
     public GameResponse getGame(
             @PathVariable("gameId") Long gameId,
-            @AuthenticationPrincipal Jwt jwt
+            Principal principal
     ) {
-        // JwtConfig validates that the subject is a positive Long.
-        Long requestingPlayerId =
-                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+        Long requestingPlayerId = Long.parseLong(principal.getName());
 
         return gameService.getGame(gameId, requestingPlayerId);
     }
@@ -42,10 +38,9 @@ public class GameController {
     @GetMapping("/{gameId}/moves")
     public GameHistoryResponse getHistory(
             @PathVariable("gameId") Long gameId,
-            @AuthenticationPrincipal Jwt jwt
+            Principal principal
     ) {
-        Long requestingPlayerId =
-                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+        Long requestingPlayerId = Long.parseLong(principal.getName());
 
         return gameService.getHistory(gameId, requestingPlayerId);
     }
@@ -53,12 +48,10 @@ public class GameController {
     @PostMapping("/{gameId}/moves")
     public GameMoveResult submitMove(
             @PathVariable("gameId") Long gameId,
-            @AuthenticationPrincipal Jwt jwt,
+            Principal principal,
             @Valid @RequestBody SubmitMoveRequest request
     ) {
-        // The authenticated subject chooses the actor, never the request body.
-        Long requestingPlayerId =
-                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+        Long requestingPlayerId = Long.parseLong(principal.getName());
 
         return gameService.submitMove(
                 gameId,
@@ -71,12 +64,11 @@ public class GameController {
     @PostMapping("/{gameId}/resignation")
     public GameResponse resign(
             @PathVariable("gameId") Long gameId,
-            @AuthenticationPrincipal Jwt jwt,
+            Principal principal,
             @Valid @RequestBody ResignGameRequest request
     ) {
         // The authenticated subject determines who resigns.
-        Long requestingPlayerId =
-                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+        Long requestingPlayerId = Long.parseLong(principal.getName());
 
         return gameService.resign(
                 gameId,
@@ -88,11 +80,10 @@ public class GameController {
     @PostMapping("/{gameId}/draw-offer")
     public GameResponse offerDraw(
             @PathVariable("gameId") Long gameId,
-            @AuthenticationPrincipal Jwt jwt,
+            Principal principal,
             @Valid @RequestBody DrawOfferRequest request
     ) {
-        Long requestingPlayerId =
-                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+        Long requestingPlayerId = Long.parseLong(principal.getName());
 
         return gameService.offerDraw(
                 gameId,
@@ -104,11 +95,10 @@ public class GameController {
     @PostMapping("/{gameId}/draw-offer/accept")
     public GameResponse acceptDraw(
             @PathVariable("gameId") Long gameId,
-            @AuthenticationPrincipal Jwt jwt,
+            Principal principal,
             @Valid @RequestBody DrawOfferRequest request
     ) {
-        Long requestingPlayerId =
-                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+        Long requestingPlayerId = Long.parseLong(principal.getName());
 
         return gameService.acceptDraw(
                 gameId,
@@ -120,11 +110,10 @@ public class GameController {
     @PostMapping("/{gameId}/draw-offer/decline")
     public GameResponse declineDraw(
             @PathVariable("gameId") Long gameId,
-            @AuthenticationPrincipal Jwt jwt,
+            Principal principal,
             @Valid @RequestBody DrawOfferRequest request
     ) {
-        Long requestingPlayerId =
-                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+        Long requestingPlayerId = Long.parseLong(principal.getName());
 
         return gameService.declineDraw(
                 gameId,
@@ -136,11 +125,10 @@ public class GameController {
     @PostMapping("/{gameId}/draw-offer/withdraw")
     public GameResponse withdrawDraw(
             @PathVariable("gameId") Long gameId,
-            @AuthenticationPrincipal Jwt jwt,
+            Principal principal,
             @Valid @RequestBody DrawOfferRequest request
     ) {
-        Long requestingPlayerId =
-                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+        Long requestingPlayerId = Long.parseLong(principal.getName());
 
         return gameService.withdrawDraw(
                 gameId,
@@ -152,10 +140,9 @@ public class GameController {
     @GetMapping("/{gameId}/pgn")
     public ResponseEntity<byte[]> exportPgn(
             @PathVariable("gameId") Long gameId,
-            @AuthenticationPrincipal Jwt jwt
+            Principal principal
     ) {
-        Long requestingPlayerId =
-                Long.parseLong(Objects.requireNonNull(jwt.getSubject()));
+        Long requestingPlayerId = Long.parseLong(principal.getName());
 
         String pgn = gameExportService.exportPgn(
                 gameId,

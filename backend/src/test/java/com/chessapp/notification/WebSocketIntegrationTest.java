@@ -1,5 +1,7 @@
 package com.chessapp.notification;
 
+import com.chessapp.auth.dto.RegisterRequest;
+import com.chessapp.auth.service.AuthService;
 import com.chessapp.game.dto.GameResponse;
 import com.chessapp.game.entity.GameStatus;
 import com.chessapp.game.event.GameChangedEvent;
@@ -7,8 +9,6 @@ import com.chessapp.game.service.GameService;
 import com.chessapp.notification.config.WebSocketProperties;
 import com.chessapp.notification.dto.PlayerUpdate;
 import com.chessapp.player.dto.PlayerResponse;
-import com.chessapp.player.service.PlayerService;
-import com.chessapp.security.service.JwtTokenService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,8 +17,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.messaging.converter.ByteArrayMessageConverter;
 import org.springframework.messaging.converter.SimpleMessageConverter;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.*;
@@ -30,10 +30,20 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.io.IOException;
 import java.lang.reflect.Type;
+import java.net.CookieManager;
+import java.net.CookiePolicy;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.http.WebSocketHandshakeException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 
@@ -41,13 +51,18 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author pari on 10/31/26
- * There is deliberately no class-level @Transactional: the tests need real commits and rollbacks.
- * The messaging template, broker, JWT decoder and socket endpoint are all real.
+ * No class-level @Transactional: these tests observe real commits/rollbacks.
+ * HTTP login, session storage, messaging, broker and socket endpoint are real.
  */
 @SpringBootTest(
-        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = {
+                "server.servlet.session.cookie.name=CHESS_SESSION",
+                "server.servlet.session.cookie.secure=false",
+                "spring.session.jdbc.cleanup-cron=-",
+                "app.game.clock.timeout-scan-enabled=false"
+        }
 )
-@ActiveProfiles("test")
 class WebSocketIntegrationTest {
 
     private static final long WAIT_SECONDS = 5;
@@ -56,12 +71,16 @@ class WebSocketIntegrationTest {
     private int port;
 
     @Autowired private WebSocketProperties properties;
-    @Autowired private JwtTokenService tokenService;
-    @Autowired private PlayerService playerService;
     @Autowired private GameService gameService;
     @Autowired private SimpMessagingTemplate messaging;
     @Autowired private PlatformTransactionManager transactionManager;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired
+    private AuthService authService;
+
+    private static final String PASSWORD = "StrongPassword123!";
+
+    private final List<BrowserSession> browsers = new ArrayList<>();
 
     private final JsonMapper json = JsonMapper.builder().build();
     private final List<Peer> peers = new ArrayList<>();
@@ -99,6 +118,9 @@ class WebSocketIntegrationTest {
                 }
             }
         } finally {
+            for (BrowserSession browser : browsers) {
+                browser.client().close();
+            }
             if (players != null) {
                 Object[] ids = players.stream()
                         .map(PlayerResponse::id)
@@ -141,25 +163,64 @@ class WebSocketIntegrationTest {
                         DELETE FROM player_statistics
                         WHERE player_id IN (?, ?, ?)
                         """, ids);
+                    jdbc.update("""
+                        DELETE FROM SPRING_SESSION
+                        WHERE PRINCIPAL_NAME IN (?, ?, ?)
+                        """,
+                        white().toString(),
+                        black().toString(),
+                        outsider().toString()
+                    );
 
                     jdbc.update("""
-                            DELETE FROM players
-                            WHERE id IN (?, ?, ?)
-                            """, ids);
+                        DELETE FROM auth_credentials
+                        WHERE player_id IN (?, ?, ?)
+                        """, ids);
+
+                    jdbc.update("""
+                        DELETE FROM players
+                        WHERE id IN (?, ?, ?)
+                        """, ids);
                 });
             }
         }
     }
 
+    @Test
+    void handshakeRequiresAuthenticatedHttpSession() throws Exception {
+        assertHandshakeRejected(
+                null,
+                properties.allowedOrigin(),
+                401
+        );
+    }
+
+    @Test
+    void handshakeRejectsDisallowedOrigin() throws Exception {
+        BrowserSession browser = loginBrowser(white());
+
+        assertHandshakeRejected(
+                browser,
+                "https://untrusted.example",
+                403
+        );
+    }
+
     @ParameterizedTest
-    @ValueSource(strings = {"", "not-a-jwt"})
-    void connectRequiresValidBearerCredentials(String token)
-            throws Exception {
+    @ValueSource(strings = {"", "incorrect-csrf"})
+    void connectRequiresCsrfAfterAuthenticatedHandshake(
+            String csrfToken
+    ) throws Exception {
+        BrowserSession browser = loginBrowser(white());
         Peer peer = newPeer();
 
-        CompletableFuture<StompSession> connection = connect(peer, token);
+        // This connection is expected to be rejected. Skip graceful
+        // DISCONNECT during cleanup, while still stopping the client.
+        peer.rejectionObserved = true;
 
-        // A timeout does not count as successful rejection.
+        CompletableFuture<StompSession> connection =
+                connect(peer, browser, csrfToken);
+
         assertThrows(
                 ExecutionException.class,
                 () -> connection.get(WAIT_SECONDS, TimeUnit.SECONDS)
@@ -306,14 +367,147 @@ class WebSocketIntegrationTest {
         );
     }
 
+    @Test
+    void logoutStopsDeliveryToBothTabsSharingTheSession()
+            throws Exception {
+
+        BrowserSession browser = loginBrowser(white());
+
+        Peer firstTab = connectReady(white(), browser);
+        Peer secondTab = connectReady(white(), browser);
+        Peer blackPeer = connectReady(black());
+
+        assertEquals(
+                204,
+                browserRequest(
+                        browser,
+                        "POST",
+                        "/api/v1/auth/logout",
+                        "{}"
+                ).statusCode()
+        );
+
+        GameResponse updated = gameService.offerDraw(
+                game.id(),
+                black(),
+                game.version()
+        );
+
+        var expected = new PlayerUpdate(
+                GameChangedEvent.Type.GAME_UPDATED.name(),
+                game.id(),
+                updated.version()
+        );
+
+        // Positive control: publication and live delivery still work.
+        assertUpdate(blackPeer, expected);
+
+        // Both sockets were ready before logout.
+        assertNoUpdate(firstTab);
+        assertNoUpdate(secondTab);
+    }
+
+    @Test
+    void sessionExpiryStopsDeliveryWithoutWaitingForCleanup()
+            throws Exception {
+
+        Peer whitePeer = connectReady(white());
+        Peer blackPeer = connectReady(black());
+
+        assertEquals(
+                1,
+                jdbc.update("""
+                    UPDATE SPRING_SESSION
+                    SET LAST_ACCESS_TIME = 0,
+                        EXPIRY_TIME = 1
+                    WHERE PRINCIPAL_NAME = ?
+                    """, white().toString())
+        );
+
+        GameResponse updated = gameService.offerDraw(
+                game.id(),
+                black(),
+                game.version()
+        );
+
+        assertUpdate(
+                blackPeer,
+                new PlayerUpdate(
+                        GameChangedEvent.Type.GAME_UPDATED.name(),
+                        game.id(),
+                        updated.version()
+                )
+        );
+
+        assertNoUpdate(whitePeer);
+    }
+
+    private void assertHandshakeRejected(
+            BrowserSession browser,
+            String origin,
+            int expectedStatus
+    ) throws Exception {
+        // A JDK WebSocket client exposes the actual failed-upgrade status.
+        try (var client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(WAIT_SECONDS))
+                .build()) {
+
+            var builder = client.newWebSocketBuilder()
+                    .connectTimeout(Duration.ofSeconds(WAIT_SECONDS))
+                    .header("Origin", origin);
+
+            if (browser != null) {
+                builder.header(
+                        "Cookie",
+                        browser.cookieHeader(httpUri(properties.endpoint()))
+                );
+            }
+
+            var connection = builder.buildAsync(
+                    URI.create(
+                            "ws://localhost:" + port + properties.endpoint()
+                    ),
+                    new java.net.http.WebSocket.Listener() {
+                        @Override
+                        public void onOpen(java.net.http.WebSocket socket) {
+                            // Avoid leaking a connection if rejection fails.
+                            socket.abort();
+                        }
+                    }
+            );
+
+            ExecutionException failure = assertThrows(
+                    ExecutionException.class,
+                    () -> connection.get(WAIT_SECONDS, TimeUnit.SECONDS)
+            );
+
+            var rejection = assertInstanceOf(
+                    WebSocketHandshakeException.class,
+                    failure.getCause()
+            );
+
+            assertEquals(
+                    expectedStatus,
+                    rejection.getResponse().statusCode()
+            );
+        }
+    }
+
     private Peer connectReady(Long playerId) throws Exception {
+        return connectReady(playerId, loginBrowser(playerId));
+    }
+
+    private Peer connectReady(
+            Long playerId,
+            BrowserSession browser
+    ) throws Exception {
         Peer peer = newPeer();
 
-        String token = tokenService.issueAccessToken(playerId)
-                .getTokenValue();
-
-        peer.session = connect(peer, token)
-                .get(WAIT_SECONDS, TimeUnit.SECONDS);
+        peer.session = connect(
+                peer,
+                browser,
+                browser.csrfToken()
+        ).get(WAIT_SECONDS, TimeUnit.SECONDS);
 
         peer.session.subscribe(
                 properties.subscriptionDestination(),
@@ -321,8 +515,7 @@ class WebSocketIntegrationTest {
         );
 
         // CONNECTED does not acknowledge subscription registration.
-        // Repeated private probes establish that this specific client
-        // can receive through the actual user-destination route.
+        // A private probe establishes readiness through the actual route.
         long deadline = System.nanoTime()
                 + TimeUnit.SECONDS.toNanos(WAIT_SECONDS);
 
@@ -343,20 +536,27 @@ class WebSocketIntegrationTest {
 
         fail("Private subscription did not become ready for Player "
                 + playerId);
+
         return peer;
     }
 
     private CompletableFuture<StompSession> connect(
             Peer peer,
-            String token
-    ) {
+            BrowserSession browser,
+            String csrfToken
+    ) throws IOException {
         var handshakeHeaders = new WebSocketHttpHeaders();
+
         handshakeHeaders.setOrigin(properties.allowedOrigin());
+        handshakeHeaders.set(
+                HttpHeaders.COOKIE,
+                browser.cookieHeader(httpUri(properties.endpoint()))
+        );
 
         var connectHeaders = new StompHeaders();
 
-        if (!token.isEmpty()) {
-            connectHeaders.add("Authorization", "Bearer " + token);
+        if (csrfToken != null && !csrfToken.isEmpty()) {
+            connectHeaders.add("X-XSRF-TOKEN", csrfToken);
         }
 
         return peer.client.connectAsync(
@@ -513,9 +713,18 @@ class WebSocketIntegrationTest {
                 .replace("-", "")
                 .substring(0, 16);
 
-        return playerService.createPlayer(
-                "socket_" + suffix,
-                suffix + "@example.com"
+        var registered = authService.register(
+                new RegisterRequest(
+                        "socket_" + suffix,
+                        suffix + "@example.com",
+                        PASSWORD
+                )
+        );
+
+        return new PlayerResponse(
+                registered.playerId(),
+                registered.username(),
+                registered.email()
         );
     }
 
@@ -529,6 +738,122 @@ class WebSocketIntegrationTest {
 
     private Long outsider() {
         return players.get(2).id();
+    }
+
+    private BrowserSession loginBrowser(Long playerId) throws Exception {
+        PlayerResponse player = players.stream()
+                .filter(value -> value.id().equals(playerId))
+                .findFirst()
+                .orElseThrow();
+
+        var cookies = new CookieManager(
+                null,
+                CookiePolicy.ACCEPT_ORIGINAL_SERVER
+        );
+
+        var client = HttpClient.newBuilder()
+                .cookieHandler(cookies)
+                .connectTimeout(Duration.ofSeconds(WAIT_SECONDS))
+                .version(HttpClient.Version.HTTP_1_1)
+                .build();
+
+        var browser = new BrowserSession(client, cookies);
+        browsers.add(browser);
+
+        assertEquals(
+                204,
+                browserRequest(
+                        browser,
+                        "GET",
+                        "/api/v1/auth/csrf",
+                        null
+                ).statusCode()
+        );
+
+        assertEquals(
+                200,
+                browserRequest(
+                        browser,
+                        "POST",
+                        "/api/v1/auth/login",
+                        """
+                        {
+                          "email": "%s",
+                          "password": "%s"
+                        }
+                        """.formatted(player.email(), PASSWORD)
+                ).statusCode()
+        );
+
+        // Successful login clears the preceding CSRF token.
+        assertEquals(
+                204,
+                browserRequest(
+                        browser,
+                        "GET",
+                        "/api/v1/auth/csrf",
+                        null
+                ).statusCode()
+        );
+
+        return browser;
+    }
+
+    private HttpResponse<String> browserRequest(
+            BrowserSession browser,
+            String method,
+            String path,
+            String body
+    ) throws Exception {
+        var request = HttpRequest.newBuilder(httpUri(path))
+                .timeout(Duration.ofSeconds(WAIT_SECONDS));
+
+        if ("POST".equals(method)) {
+            request.header("Content-Type", "application/json");
+            request.header("X-XSRF-TOKEN", browser.csrfToken());
+
+            request.POST(HttpRequest.BodyPublishers.ofString(
+                    body,
+                    StandardCharsets.UTF_8
+            ));
+        } else {
+            request.GET();
+        }
+
+        return browser.client().send(
+                request.build(),
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
+        );
+    }
+
+    private URI httpUri(String path) {
+        return URI.create("http://localhost:" + port + path);
+    }
+
+    private record BrowserSession(
+            HttpClient client,
+            CookieManager cookies
+    ) {
+        String csrfToken() {
+            return cookies.getCookieStore()
+                    .getCookies()
+                    .stream()
+                    .filter(cookie -> cookie.getName().equals("XSRF-TOKEN"))
+                    .filter(cookie -> !cookie.hasExpired())
+                    .map(java.net.HttpCookie::getValue)
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError(
+                            "The browser has no current CSRF cookie"
+                    ));
+        }
+
+        String cookieHeader(URI uri) throws java.io.IOException {
+            return String.join(
+                    "; ",
+                    cookies.get(uri, Map.of())
+                            .getOrDefault("Cookie", List.of())
+            );
+        }
     }
 
     private static final class Peer {

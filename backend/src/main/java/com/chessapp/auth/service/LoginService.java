@@ -1,37 +1,68 @@
 package com.chessapp.auth.service;
 
 import com.chessapp.auth.dto.LoginRequest;
-import com.chessapp.auth.dto.LoginResponse;
-import com.chessapp.security.service.JwtTokenService;
+import com.chessapp.player.dto.PlayerResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.session.SessionAuthenticationStrategy;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
-import java.util.Objects;
+import java.util.List;
+
 
 /**
- * @author pari on 10/16/26
+ * @author pari on 11/03/26
  */
 @Service
 @RequiredArgsConstructor
 public class LoginService {
 
     private final AuthService authService;
-    private final JwtTokenService jwtTokenService;
+    private final SessionAuthenticationStrategy loginSessionStrategy;
+    private final HttpSessionSecurityContextRepository
+            securityContextRepository;
 
-    public LoginResponse login(LoginRequest request) {
-        var player = authService.authenticate(request);
-        var token = jwtTokenService.issueAccessToken(player.id());
+    /**
+     * Verify credentials before changing session state, then explicitly
+     * persist the authenticated context for subsequent requests.
+     */
+    public PlayerResponse login(
+            LoginRequest credentials,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        PlayerResponse player = authService.authenticate(credentials);
 
-        long expiresIn = Duration.between(
-                Objects.requireNonNull(token.getIssuedAt()),
-                Objects.requireNonNull(token.getExpiresAt())
-        ).toSeconds();
+        // Keep the canonical Player ID as the principal name.
+        // Passwords and the complete profile are not stored in the session.
+        var authentication =
+                UsernamePasswordAuthenticationToken.authenticated(
+                        player.id().toString(),
+                        null,
+                        List.of()
+                );
 
-        return new LoginResponse(
-                token.getTokenValue(),
-                "Bearer",
-                expiresIn
+        loginSessionStrategy.onAuthentication(
+                authentication,
+                request,
+                response
         );
+
+        var context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+
+        SecurityContextHolder.setContext(context);
+
+        securityContextRepository.saveContext(
+                context,
+                request,
+                response
+        );
+
+        return player;
     }
 }

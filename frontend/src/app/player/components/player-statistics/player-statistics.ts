@@ -62,16 +62,16 @@ export class PlayerStatistics implements OnInit {
 
       // These are reads, so a newer refresh may cancel an older request.
       switchMap(() => {
-        const token = this.session.token();
+        const revision = this.session.revision();
         const playerId = this.session.currentPlayer()?.id;
 
-        if (!token || playerId === undefined) {
+        if (!this.session.isAuthenticated() || playerId === undefined) {
           this.statistics.set(null);
           return EMPTY;
         }
 
         const isCurrentSession = () =>
-          this.session.token() === token &&
+          this.session.revision() === revision &&
           this.session.currentPlayer()?.id === playerId;
 
         this.loading.set(true);

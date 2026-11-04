@@ -8,15 +8,18 @@ import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.repository.PlayerRepository;
 import com.chessapp.player.repository.PlayerStatisticsRepository;
 import com.chessapp.player.service.PlayerService;
-import com.chessapp.security.service.JwtTokenService;
+import com.chessapp.support.TestSessions;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.http.HttpHeaders;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
+import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -28,6 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -61,20 +65,18 @@ class MatchmakingIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+    @Autowired private SessionRepository<? extends Session> sessionRepository;
 
-    @Autowired
-    private JwtTokenService tokenService;
+    @Autowired private CookieSerializer cookieSerializer;
 
-    private String bearerToken() {
-        return "Bearer " + tokenService.issueAccessToken(player.id())
-                .getTokenValue();
-    }
+    private TestSessions sessions;
 
     private TransactionTemplate transactions;
     private PlayerResponse player;
 
     @BeforeEach
     void setUp() {
+        sessions = new TestSessions(sessionRepository, cookieSerializer);
         transactions = new TransactionTemplate(transactionManager);
 
         String suffix = UUID.randomUUID()
@@ -94,6 +96,9 @@ class MatchmakingIntegrationTest {
 
     @AfterEach
     void cleanUp() {
+        if (sessions != null) {
+            sessions.close();
+        }
         if (player == null) {
             return;
         }
@@ -269,14 +274,16 @@ class MatchmakingIntegrationTest {
     }
 
     @Test
-    void queueEndpoints_rejectMissingToken() throws Exception {
-        mockMvc.perform(post("/api/v1/matchmaking/queue"))
+    void queueEndpoints_rejectMissingSession() throws Exception {
+        mockMvc.perform(post("/api/v1/matchmaking/queue")
+                        .with(csrf().asHeader()))
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(get("/api/v1/matchmaking/queue/me"))
                 .andExpect(status().isUnauthorized());
 
-        mockMvc.perform(delete("/api/v1/matchmaking/queue/me"))
+        mockMvc.perform(delete("/api/v1/matchmaking/queue/me")
+                        .with(csrf().asHeader()))
                 .andExpect(status().isUnauthorized());
 
         assertEquals(0L, queueEntryCount());
@@ -285,39 +292,39 @@ class MatchmakingIntegrationTest {
     void queueEndpoints_supportJoinStatusAndRepeatedLeave()
             throws Exception {
 
-        String authorization = bearerToken();
+        Cookie cookie = sessions.forPlayer(player.id());
 
         mockMvc.perform(get("/api/v1/matchmaking/queue/me")
-                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                .cookie(cookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("NOT_QUEUED"));
 
         mockMvc.perform(post("/api/v1/matchmaking/queue")
-                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                        .cookie(cookie).with(csrf().asHeader()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("WAITING"))
                 .andExpect(jsonPath("$.enqueuedAt").isNotEmpty());
 
         mockMvc.perform(get("/api/v1/matchmaking/queue/me")
-                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                        .cookie(cookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("WAITING"));
 
         mockMvc.perform(delete("/api/v1/matchmaking/queue/me")
-                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                        .cookie(cookie))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
         mockMvc.perform(delete("/api/v1/matchmaking/queue/me")
-                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                        .cookie(cookie))
                 .andExpect(status().isNoContent());
 
         assertEquals(0L, queueEntryCount());
     }
 
     @Test
-    void queueEndpoint_rejectsTokenForDeletedPlayer() throws Exception {
-        String authorization = bearerToken();
+    void queueEndpoint_rejectsSessionForDeletedPlayer() throws Exception {
+        Cookie cookie = sessions.forPlayer(player.id());
 
         transactions.executeWithoutResult(status -> {
             playerStatisticsRepository.deleteById(player.id());
@@ -328,7 +335,7 @@ class MatchmakingIntegrationTest {
         });
 
         mockMvc.perform(get("/api/v1/matchmaking/queue/me")
-                        .header(HttpHeaders.AUTHORIZATION, authorization))
+                .cookie(cookie))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentTypeCompatibleWith(
                         "application/problem+json"

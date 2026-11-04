@@ -3,7 +3,7 @@ package com.chessapp.game.rules;
 import com.chessapp.game.rules.fen.FenParser;
 import com.chessapp.game.rules.model.*;
 import org.junit.jupiter.api.Test;
-import com.chessapp.BoardTestRenderer;
+import com.chessapp.support.BoardTestRenderer;
 import com.chessapp.game.rules.attack.SquareAttackDetector;
 import com.chessapp.game.rules.evaluation.PositionEvaluator;
 import com.chessapp.game.rules.evaluation.PositionStatus;

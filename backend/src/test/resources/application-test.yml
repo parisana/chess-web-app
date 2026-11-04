@@ -11,11 +11,13 @@ spring:
   flyway:
     enabled: true
     validate-migration-naming: true
+
+  session:
+    jdbc:
+      cleanup-cron: "-"
 app:
-  jwt:
-    secret: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
   game:
     clock:
       initial-time: 10m
-      timeout-scan-enabled: true
+      timeout-scan-enabled: false
       timeout-scan-interval: 1s

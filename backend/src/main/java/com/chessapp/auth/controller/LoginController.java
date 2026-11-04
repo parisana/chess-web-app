@@ -1,8 +1,10 @@
 package com.chessapp.auth.controller;
 
 import com.chessapp.auth.dto.LoginRequest;
-import com.chessapp.auth.dto.LoginResponse;
 import com.chessapp.auth.service.LoginService;
+import com.chessapp.player.dto.PlayerResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
@@ -20,11 +22,19 @@ public class LoginController {
     private final LoginService loginService;
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(
-            @Valid @RequestBody LoginRequest request
+    public ResponseEntity<PlayerResponse> login(
+            @Valid @RequestBody LoginRequest credentials,
+            HttpServletRequest request,
+            HttpServletResponse response
     ) {
+        PlayerResponse player = loginService.login(
+                credentials,
+                request,
+                response
+        );
+
         return ResponseEntity.ok()
-                .cacheControl(CacheControl.noStore()) // tells HTTP caches not to retain the token response
-                .body(loginService.login(request));
+                .cacheControl(CacheControl.noStore())
+                .body(player);
     }
 }

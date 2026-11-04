@@ -2,8 +2,8 @@
   @if (auth.currentPlayer(); as player) {
   <header>
     <h1>Welcome, {{ player.username }}</h1>
-    <button mat-button type="button" (click)="logout()">
-      Log out
+    <button mat-button type="button" [disabled]="busy() || signingOut()" (click)="logout()">
+      {{ signingOut() ? 'Signing out…' : 'Sign out' }}
     </button>
   </header>
   <app-profile-editor />
@@ -56,18 +56,18 @@
 
     <mat-card-actions>
       @if (queueStatusResponse()?.status === 'NOT_QUEUED') {
-      <button mat-flat-button type="button" [disabled]="busy()" (click)="join()">
+      <button mat-flat-button type="button" [disabled]="busy() || signingOut()" (click)="join()">
         Join queue
       </button>
       }
 
       @if (queueStatusResponse()?.status === 'WAITING') {
-      <button mat-flat-button type="button" [disabled]="busy()" (click)="leave()">
+      <button mat-flat-button type="button" [disabled]="busy() || signingOut()" (click)="leave()">
         Leave queue
       </button>
       }
 
-      <button mat-button type="button" [disabled]="busy()" (click)="loadStatus()">
+      <button mat-button type="button" [disabled]="busy() || signingOut()" (click)="loadStatus()">
         Refresh status
       </button>
     </mat-card-actions>

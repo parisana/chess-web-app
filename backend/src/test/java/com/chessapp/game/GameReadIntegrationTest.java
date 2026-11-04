@@ -2,30 +2,33 @@ package com.chessapp.game;
 
 import com.chessapp.game.dto.GameResponse;
 import com.chessapp.game.entity.Game;
+import com.chessapp.game.rules.model.Move;
+import com.chessapp.game.rules.model.Square;
 import com.chessapp.game.service.GameService;
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.service.PlayerService;
-import com.chessapp.security.service.JwtTokenService;
+import com.chessapp.support.TestSessions;
+import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
+import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import com.chessapp.game.rules.model.Move;
-import com.chessapp.game.rules.model.Square;
-import jakarta.persistence.EntityManager;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
-
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 /**
@@ -37,20 +40,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class GameReadIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
 
-    @Autowired
-    private EntityManager entityManager;
+    @Autowired private EntityManager entityManager;
 
-    @Autowired
-    private GameService gameService;
+    @Autowired private GameService gameService;
 
-    @Autowired
-    private PlayerService playerService;
+    @Autowired private PlayerService playerService;
 
-    @Autowired
-    private JwtTokenService tokenService;
+    @Autowired private SessionRepository<? extends Session> sessionRepository;
+
+    @Autowired private CookieSerializer cookieSerializer;
+
+    private TestSessions sessions;
 
     private PlayerResponse white;
     private PlayerResponse black;
@@ -62,6 +64,7 @@ class GameReadIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        sessions = new TestSessions(sessionRepository, cookieSerializer);
         white = createPlayer();
         black = createPlayer();
         outsider = createPlayer();
@@ -69,13 +72,17 @@ class GameReadIntegrationTest {
         game = gameService.createGame(white.id(), black.id());
     }
 
+    @AfterEach
+    void cleanUpSessions() {
+        if (sessions != null) {
+            sessions.close();
+        }
+    }
+
     @Test
     void getGame_whiteParticipantCanReadState() throws Exception {
         mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(white.id())
-                        ))
+                        .cookie(sessions.forPlayer(white.id())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(game.id()))
                 .andExpect(jsonPath("$.whitePlayerId").value(white.id()))
@@ -92,10 +99,7 @@ class GameReadIntegrationTest {
     @Test
     void getGame_blackParticipantCanReadState() throws Exception {
         mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(black.id())
-                        ))
+                        .cookie(sessions.forPlayer(black.id())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(game.id()));
     }
@@ -103,10 +107,7 @@ class GameReadIntegrationTest {
     @Test
     void getGame_nonParticipantIsForbidden() throws Exception {
         mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(outsider.id())
-                        ))
+                        .cookie(sessions.forPlayer(outsider.id())))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code")
                         .value("GAME_ACCESS_DENIED"))
@@ -118,16 +119,13 @@ class GameReadIntegrationTest {
         // Generated game IDs are positive, making -1 a missing fixture
         // without relying on the database's current sequence value.
         mockMvc.perform(get("/api/v1/games/{gameId}", -1L)
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(white.id())
-                        ))
+                        .cookie(sessions.forPlayer(white.id())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("GAME_NOT_FOUND"));
     }
 
     @Test
-    void getGame_missingTokenIsUnauthorized() throws Exception {
+    void getGame_missingSessionIsUnauthorized() throws Exception {
         mockMvc.perform(get("/api/v1/games/{gameId}", game.id()))
                 .andExpect(status().isUnauthorized());
     }
@@ -150,10 +148,7 @@ class GameReadIntegrationTest {
         entityManager.clear();
 
         mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(black.id())
-                        ))
+                        .cookie(sessions.forPlayer(black.id())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(game.id()))
                 .andExpect(jsonPath("$.currentFen").value(
@@ -220,10 +215,7 @@ class GameReadIntegrationTest {
         assertEquals(completed.finishedAt(), reloaded.finishedAt());
 
         mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(black.id())
-                        ))
+                        .cookie(sessions.forPlayer(black.id())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(game.id()))
                 .andExpect(jsonPath("$.whitePlayerId").value(white.id()))
@@ -243,10 +235,7 @@ class GameReadIntegrationTest {
         Long playerId = asWhite ? white.id() : black.id();
 
         mockMvc.perform(get("/api/v1/games/{gameId}/pgn", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(playerId)
-                        ))
+                        .cookie(sessions.forPlayer(playerId)))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(
                         "application/x-chess-pgn"
@@ -273,10 +262,7 @@ class GameReadIntegrationTest {
     @Test
     void pgnMissingGameReturnsNotFound() throws Exception {
         mockMvc.perform(get("/api/v1/games/{gameId}/pgn", -1L)
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(white.id())
-                        ))
+                        .cookie(sessions.forPlayer(white.id())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("GAME_NOT_FOUND"));
     }
@@ -297,18 +283,12 @@ class GameReadIntegrationTest {
         entityManager.clear();
 
         mockMvc.perform(get("/api/v1/games/{gameId}/pgn", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(outsider.id())
-                        ))
+                        .cookie(sessions.forPlayer(outsider.id())))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("GAME_ACCESS_DENIED"));
 
         mockMvc.perform(get("/api/v1/games/{gameId}/pgn", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(white.id())
-                        ))
+                        .cookie(sessions.forPlayer(white.id())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PGN_EXPORT_UNAVAILABLE"));
     }
@@ -332,10 +312,7 @@ class GameReadIntegrationTest {
         entityManager.clear();
 
         mockMvc.perform(get("/api/v1/games/{gameId}/pgn", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(white.id())
-                        ))
+                        .cookie(sessions.forPlayer(white.id())))
                 .andExpect(status().isOk())
                 .andExpect(content().string(
                         org.hamcrest.Matchers.containsString(
@@ -375,18 +352,9 @@ class GameReadIntegrationTest {
         entityManager.clear();
 
         mockMvc.perform(get("/api/v1/games/{gameId}/pgn", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(white.id())
-                        ))
+                        .cookie(sessions.forPlayer(white.id())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PGN_EXPORT_UNAVAILABLE"));
-    }
-
-    private String bearerToken(Long playerId) {
-        // Exercise the configured JWT filter using a real signed token.
-        return "Bearer " + tokenService.issueAccessToken(playerId)
-                .getTokenValue();
     }
 
     private PlayerResponse createPlayer() {

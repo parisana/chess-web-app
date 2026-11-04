@@ -1,6 +1,6 @@
 package com.chessapp.game;
 
-import com.chessapp.BoardTestRenderer;
+import com.chessapp.support.BoardTestRenderer;
 import com.chessapp.game.dto.GameMoveResult;
 import com.chessapp.game.dto.GameResponse;
 import com.chessapp.game.entity.*;

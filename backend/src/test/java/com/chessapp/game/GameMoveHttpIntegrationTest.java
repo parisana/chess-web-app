@@ -6,7 +6,7 @@ import com.chessapp.game.repository.GameRepository;
 import com.chessapp.game.service.GameService;
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.service.PlayerService;
-import com.chessapp.security.service.JwtTokenService;
+import com.chessapp.support.TestSessions;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +25,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import com.chessapp.support.TestSessions;
+import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
+import org.springframework.session.web.http.CookieSerializer;
 
 import java.time.Instant;
 import java.util.List;
@@ -33,9 +37,11 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -58,15 +64,21 @@ class GameMoveHttpIntegrationTest {
     @Autowired private GameService gameService;
     @Autowired private GameRepository repository;
     @Autowired private PlayerService playerService;
-    @Autowired private JwtTokenService tokenService;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PlatformTransactionManager transactionManager;
+    @Autowired
+    private SessionRepository<? extends Session> sessionRepository;
 
+    @Autowired
+    private CookieSerializer cookieSerializer;
+
+    private TestSessions sessions;
     private List<PlayerResponse> players;
     private GameResponse game;
 
     @BeforeEach
     void setUp() {
+        sessions = new TestSessions(sessionRepository, cookieSerializer);
         players = new TransactionTemplate(transactionManager)
                 .execute(status -> List.of(
                         createPlayer(),
@@ -83,7 +95,9 @@ class GameMoveHttpIntegrationTest {
         if (players == null) {
             return;
         }
-
+        if (sessions != null) {
+            sessions.close();
+        }
         Object[] ids = players.stream()
                 .map(PlayerResponse::id)
                 .toArray();
@@ -171,10 +185,7 @@ class GameMoveHttpIntegrationTest {
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(post("/api/v1/games/{gameId}/moves", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                "Bearer definitely-not-a-jwt"
-                        )
+                        .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnauthorized());
@@ -188,10 +199,9 @@ class GameMoveHttpIntegrationTest {
 
         // Lookup precedes participant membership.
         mockMvc.perform(post("/api/v1/games/{gameId}/moves", -1L)
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(outsider())
-                        )
+                        .cookie(sessions.forPlayer(outsider()))
+                        .with(csrf().asHeader())
+                        .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(moveBody(99, "e2", "e5", null)))
                 .andExpect(status().isNotFound())
@@ -208,7 +218,7 @@ class GameMoveHttpIntegrationTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("STALE_GAME_VERSION"));
 
-        // The JWT identifies Black, even though the coordinates name
+        // The session cookie identifies Black, even though the coordinates name
         // a White piece. Coordinates cannot choose the acting player.
         submit(black(), 0, "e2", "e4", null)
                 .andExpect(status().isConflict())
@@ -255,10 +265,8 @@ class GameMoveHttpIntegrationTest {
             throws Exception {
 
         mockMvc.perform(post("/api/v1/games/{gameId}/moves", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(white())
-                        )
+                        .cookie(sessions.forPlayer(white()))
+                        .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -278,10 +286,8 @@ class GameMoveHttpIntegrationTest {
             throws Exception {
 
         mockMvc.perform(post("/api/v1/games/{gameId}/moves", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(white())
-                        )
+                        .cookie(sessions.forPlayer(white()))
+                        .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());
@@ -508,7 +514,7 @@ class GameMoveHttpIntegrationTest {
                         get("/api/v1/games/{gameId}/moves", game.id())
                                 .header(
                                         HttpHeaders.AUTHORIZATION,
-                                        "Bearer definitely-not-a-jwt"
+                                        "Bearer randomstr"
                                 )
                 )
                 .andExpect(status().isUnauthorized());
@@ -522,10 +528,8 @@ class GameMoveHttpIntegrationTest {
 
         mockMvc.perform(
                         get("/api/v1/games/{gameId}/moves", -1L)
-                                .header(
-                                        HttpHeaders.AUTHORIZATION,
-                                        bearerToken(white())
-                                )
+                                .cookie(sessions.forPlayer(white()))
+//                                .with(csrf().asHeader())
                 )
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("GAME_NOT_FOUND"));
@@ -646,10 +650,9 @@ class GameMoveHttpIntegrationTest {
         // Both participants can read the same committed outcome.
         for (Long participant : List.of(white(), black())) {
             mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
-                            .header(
-                                    HttpHeaders.AUTHORIZATION,
-                                    bearerToken(participant)
-                            ))
+                    .cookie(sessions.forPlayer(participant))
+//                            .with(csrf().asHeader())
+                    )
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("FINISHED"))
                     .andExpect(jsonPath("$.result").value(expectedResult))
@@ -685,8 +688,9 @@ class GameMoveHttpIntegrationTest {
                 )
                         .header(
                                 HttpHeaders.AUTHORIZATION,
-                                "Bearer definitely-not-a-jwt"
+                                "Bearer randomstr"
                         )
+                        .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {"expectedVersion": 0}
@@ -708,10 +712,8 @@ class GameMoveHttpIntegrationTest {
                         "/api/v1/games/{gameId}/resignation",
                         game.id()
                 )
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(white())
-                        )
+                        .cookie(sessions.forPlayer(white()))
+                        .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -726,10 +728,8 @@ class GameMoveHttpIntegrationTest {
                         "/api/v1/games/{gameId}/resignation",
                         -1L
                 )
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(outsider())
-                        )
+                        .cookie(sessions.forPlayer(outsider()))
+                        .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {"expectedVersion": 99}
@@ -793,10 +793,9 @@ class GameMoveHttpIntegrationTest {
 
         // The opponent discovers the offer through the regular snapshot GET.
         mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(black())
-                        ))
+                        .cookie(sessions.forPlayer(black()))
+//                        .with(csrf().asHeader())
+                        )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.version").value(1))
                 .andExpect(jsonPath("$.drawOfferedByPlayerId").value(white()));
@@ -903,10 +902,8 @@ class GameMoveHttpIntegrationTest {
                             "/api/v1/games/{gameId}/draw-offer" + action,
                             game.id()
                     )
-                            .header(
-                                    HttpHeaders.AUTHORIZATION,
-                                    bearerToken(white())
-                            )
+                            .cookie(sessions.forPlayer(white()))
+                            .with(csrf().asHeader())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isBadRequest())
@@ -917,10 +914,8 @@ class GameMoveHttpIntegrationTest {
                         "/api/v1/games/{gameId}/draw-offer" + action,
                         -1L
                 )
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(outsider())
-                        )
+                        .cookie(sessions.forPlayer(outsider()))
+                        .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {"expectedVersion": 99}
@@ -950,10 +945,9 @@ class GameMoveHttpIntegrationTest {
     void clockResponsesSwitchAfterMoveAndFreezeAfterResignation()
             throws Exception {
         mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(white())
-                        ))
+                .cookie(sessions.forPlayer(white()))
+//                        .with(csrf().asHeader())
+                )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.clock.runningColor").value("WHITE"))
                 .andExpect(jsonPath("$.clock.whiteRemainingMillis").isNumber())
@@ -977,10 +971,9 @@ class GameMoveHttpIntegrationTest {
 
         String readBody = mockMvc.perform(
                         get("/api/v1/games/{gameId}", game.id())
-                                .header(
-                                        HttpHeaders.AUTHORIZATION,
-                                        bearerToken(black())
-                                ))
+                                .cookie(sessions.forPlayer(black()))
+//                                .with(csrf().asHeader())
+                                )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.clock.runningColor").value(nullValue()))
                 .andReturn()
@@ -1015,10 +1008,9 @@ class GameMoveHttpIntegrationTest {
         seedFen(INITIAL);
 
         mockMvc.perform(get("/api/v1/games/{gameId}", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(white())
-                        ))
+                        .cookie(sessions.forPlayer(white()))
+//                        .with(csrf().asHeader())
+                        )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.clock").value(nullValue()));
     }
@@ -1034,10 +1026,8 @@ class GameMoveHttpIntegrationTest {
                         "/api/v1/games/{gameId}/draw-offer" + action,
                         game.id()
                 )
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(actor)
-                        )
+                        .cookie(sessions.forPlayer(actor))
+                        .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {"expectedVersion": %d}
@@ -1054,10 +1044,8 @@ class GameMoveHttpIntegrationTest {
     ) throws Exception {
         return mockMvc.perform(
                 post("/api/v1/games/{gameId}/moves", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(actor)
-                        )
+                        .cookie(sessions.forPlayer(actor))
+                        .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(moveBody(
                                 expectedVersion, from, to, promotion
@@ -1071,10 +1059,8 @@ class GameMoveHttpIntegrationTest {
     ) throws Exception {
         return mockMvc.perform(
                 post("/api/v1/games/{gameId}/resignation", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(actor)
-                        )
+                        .cookie(sessions.forPlayer(actor))
+                        .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {"expectedVersion": %d}
@@ -1144,10 +1130,9 @@ class GameMoveHttpIntegrationTest {
         for (Long participant : List.of(white(), black())) {
             String getBody = mockMvc.perform(
                             get("/api/v1/games/{gameId}", game.id())
-                                    .header(
-                                            HttpHeaders.AUTHORIZATION,
-                                            bearerToken(participant)
-                                    ))
+                                    .cookie(sessions.forPlayer(participant))
+//                                    .with(csrf().asHeader())
+                                    )
                     .andExpect(status().isOk())
                     .andReturn()
                     .getResponse()
@@ -1233,12 +1218,6 @@ class GameMoveHttpIntegrationTest {
         return ((Number) fields.get(name)).longValue();
     }
 
-    private String bearerToken(Long playerId) {
-        // Exercise the real security filter and configured JWT decoder.
-        return "Bearer " + tokenService.issueAccessToken(playerId)
-                .getTokenValue();
-    }
-
     private Long white() {
         return players.getFirst().id();
     }
@@ -1270,10 +1249,8 @@ class GameMoveHttpIntegrationTest {
     private ResultActions readHistory(Long playerId) throws Exception {
         return mockMvc.perform(
                 get("/api/v1/games/{gameId}/moves", game.id())
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearerToken(playerId)
-                        )
+                        .cookie(sessions.forPlayer(playerId))
+//                        .with(csrf().asHeader())
         );
     }
 }

@@ -5,11 +5,14 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { HttpXsrfTokenExtractor } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Subject } from 'rxjs';
+import { firstValueFrom, Subject, switchMap, timeout } from 'rxjs';
 import { Client } from '@stomp/stompjs';
 
+import { AuthApiService } from '../../auth/services/auth-api.service';
 import { AuthSessionStore } from '../../auth/services/auth-session.store';
+import { PlayerApiService } from '../../player/services/player-api.service';
 import { REALTIME_CONFIG } from '../config/realtime.config';
 import {
   parsePlayerUpdate,
@@ -28,6 +31,9 @@ export type RealtimeConnectionState =
 })
 export class RealtimeService {
   private readonly session = inject(AuthSessionStore);
+  private readonly authApi = inject(AuthApiService);
+  private readonly playerApi = inject(PlayerApiService);
+  private readonly xsrf = inject(HttpXsrfTokenExtractor);
   private readonly router = inject(Router);
   private readonly config = inject(REALTIME_CONFIG);
 
@@ -39,46 +45,34 @@ export class RealtimeService {
 
   readonly state = this.connectionState.asReadonly();
   readonly updates$ = this.updatesSubject.asObservable();
-
-  // Emits on initial connection and every successful reconnection.
-  // It does not acknowledge server-side subscription registration.
   readonly connections$ = this.connectionsSubject.asObservable();
 
   constructor() {
     effect(onCleanup => {
-      const token = this.session.token();
+      const revision = this.session.revision();
       const authenticated = this.session.isAuthenticated();
 
-      if (!token || !authenticated) {
+      if (!authenticated) {
         this.connectionState.set('DISCONNECTED');
         return;
       }
 
-      // Only token/authentication changes should restart this effect.
-      // Reads made while setting up the transport are not dependencies.
-      const cleanup = untracked(() => this.connect(token));
+      const cleanup = untracked(() => this.connect(revision));
 
       onCleanup(cleanup);
     });
   }
 
-  private connect(token: string): () => void {
-    const expiresAt = this.readExpiry(token);
-
-    if (expiresAt === null) {
-      // HTTP remains available to establish whether the session is valid.
-      this.connectionState.set('UNAVAILABLE');
-      return () => { };
-    }
+  private connect(revision: number): () => void {
+    const playerId = this.session.currentPlayer()?.id;
 
     let stopped = false;
     let failed = false;
     let hasConnected = false;
-    let expiryTimer: ReturnType<typeof setTimeout> | undefined;
 
     const isCurrentSession = () =>
       !stopped &&
-      this.session.token() === token &&
+      this.session.revision() === revision &&
       this.session.isAuthenticated();
 
     const url = new URL(
@@ -90,76 +84,77 @@ export class RealtimeService {
 
     const client = new Client({
       brokerURL: url.toString(),
-      connectHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
       reconnectDelay: this.config.reconnectDelayMs,
       connectionTimeout: this.config.connectionTimeoutMs,
-
       heartbeatIncoming: this.config.heartbeatIntervalMs,
       heartbeatOutgoing: this.config.heartbeatIntervalMs,
-
-      // Close an unresponsive transport so automatic reconnect can proceed.
       discardWebsocketOnCommFailure: true,
 
-      // Never log CONNECT frames containing the bearer token.
+      // CONNECT now contains a CSRF token; don't log its frames.
       debug: () => { },
     });
 
     const deactivate = () => {
       void client.deactivate({ force: true }).catch(() => {
-        // Local callbacks are already guarded against stale sessions.
+        // Callbacks remain guarded against stale local sessions.
       });
     };
 
-    const expireSession = () => {
-      if (!isCurrentSession()) {
-        return;
-      }
-
-      this.connectionState.set('DISCONNECTED');
-      this.session.clear();
-      deactivate();
-
-      void this.router.navigate(['/login'], {
-        queryParams: { sessionExpired: 'true' },
-        replaceUrl: true,
-      });
-    };
-
-    const armExpiryTimer = () => {
-      if (!isCurrentSession()) {
-        return;
-      }
-
-      const remaining = expiresAt - Date.now();
-
-      if (remaining <= 0) {
-        expireSession();
-        return;
-      }
-
-      // Browser timers have a maximum signed 32-bit delay.
-      expiryTimer = setTimeout(
-        armExpiryTimer,
-        Math.min(remaining, 2_147_483_647),
-      );
-    };
-
-    client.beforeConnect = () => {
+    client.beforeConnect = async () => {
       if (!isCurrentSession() || failed) {
         deactivate();
-        return;
-      }
-
-      if (Date.now() >= expiresAt) {
-        expireSession();
         return;
       }
 
       this.connectionState.set(
         hasConnected ? 'RECONNECTING' : 'CONNECTING',
       );
+
+      try {
+        // Recheck through HTTP before initial connection/reconnection.
+        // A 401 is handled by the authentication interceptor.
+        const player = await firstValueFrom(
+          this.authApi.csrf().pipe(
+            switchMap(() => this.playerApi.currentPlayer()),
+            timeout(10_000),
+          ),
+        );
+
+        if (!isCurrentSession()) {
+          deactivate();
+          return;
+        }
+
+        // The shared cookie may have changed in another browser tab.
+        if (player.id !== playerId) {
+          this.session.clear();
+          deactivate();
+
+          void this.router.navigate(['/login'], {
+            queryParams: { sessionChanged: 'true' },
+            replaceUrl: true,
+          });
+
+          return;
+        }
+
+        const csrfToken = this.xsrf.getToken();
+
+        if (!csrfToken) {
+          throw new Error('WebSocket CSRF token is unavailable');
+        }
+
+        client.connectHeaders = {
+          'X-XSRF-TOKEN': csrfToken,
+        };
+      } catch {
+        if (isCurrentSession()) {
+          failed = true;
+          this.connectionState.set('UNAVAILABLE');
+        }
+
+        deactivate();
+      }
     };
 
     client.onConnect = () => {
@@ -168,22 +163,10 @@ export class RealtimeService {
         return;
       }
 
-      if (Date.now() >= expiresAt) {
-        expireSession();
-        return;
-      }
-
-      // Subscriptions belong to a connection and must be recreated
-      // after reconnecting.
       client.subscribe(
         this.config.subscriptionDestination,
         message => {
           if (!isCurrentSession() || failed) {
-            return;
-          }
-
-          if (Date.now() >= expiresAt) {
-            expireSession();
             return;
           }
 
@@ -217,77 +200,25 @@ export class RealtimeService {
         return;
       }
 
-      if (Date.now() >= expiresAt) {
-        expireSession();
-        return;
-      }
-
-      // A STOMP error may indicate authentication or configuration
-      // rejection. Avoid retrying that rejection indefinitely.
-      // HTTP still determines whether the session is valid.
+      // Avoid retrying a protocol/security rejection indefinitely.
       failed = true;
       this.connectionState.set('UNAVAILABLE');
       deactivate();
+
+      // HTTP determines whether authentication itself has expired.
+      // Failure here is already handled by the interceptor when it is 401.
+      void firstValueFrom(
+        this.playerApi.currentPlayer().pipe(timeout(10_000)),
+      ).catch(() => { });
     };
 
-    armExpiryTimer();
-
-    if (isCurrentSession()) {
-      this.connectionState.set('CONNECTING');
-      client.activate();
-    }
+    this.connectionState.set('CONNECTING');
+    client.activate();
 
     return () => {
-      // Ignore callbacks from this client before starting a replacement.
       stopped = true;
-
-      if (expiryTimer !== undefined) {
-        clearTimeout(expiryTimer);
-      }
-
       this.connectionState.set('DISCONNECTED');
       deactivate();
     };
-  }
-
-  private readExpiry(token: string): number | null {
-    try {
-      const parts = token.split('.');
-
-      if (parts.length !== 3) {
-        return null;
-      }
-
-      const base64 = parts[1]
-        .replace(/-/g, '+')
-        .replace(/_/g, '/');
-
-      const padded = base64.padEnd(
-        Math.ceil(base64.length / 4) * 4,
-        '=',
-      );
-
-      const value: unknown = JSON.parse(atob(padded));
-
-      if (typeof value !== 'object' || value === null) {
-        return null;
-      }
-
-      const exp = (value as Record<string, unknown>)['exp'];
-
-      if (
-        typeof exp !== 'number' ||
-        !Number.isSafeInteger(exp) ||
-        !Number.isSafeInteger(exp * 1_000)
-      ) {
-        return null;
-      }
-
-      // Reading expiry schedules local cleanup; it does not verify JWTs.
-      // Signature and authorization checks remain on the backend.
-      return exp * 1_000;
-    } catch {
-      return null;
-    }
   }
 }

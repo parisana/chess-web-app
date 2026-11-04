@@ -38,11 +38,14 @@ import { AuthService } from '../../services/auth.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Login {
+  readonly sessionChanged =
+    inject(ActivatedRoute).snapshot.queryParamMap.get('sessionChanged') === 'true';
   readonly sessionExpired =
     inject(ActivatedRoute).snapshot.queryParamMap.get('sessionExpired') === 'true';
   readonly registrationComplete =
     inject(ActivatedRoute).snapshot.queryParamMap.get('registered') === 'true';
   private readonly auth = inject(AuthService);
+  readonly restorationFailed = this.auth.restorationFailed;
   private readonly router = inject(Router);
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly destroyRef = inject(DestroyRef);

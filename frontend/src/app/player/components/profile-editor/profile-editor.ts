@@ -160,8 +160,11 @@ export class ProfileEditor {
       return;
     }
 
-    const token = this.session.token();
+    const revision = this.session.revision();
     const playerId = this.session.currentPlayer()?.id;
+    if (!this.session.isAuthenticated() || playerId === undefined) {
+      return;
+    }
 
     this.saving.set(true);
 
@@ -174,7 +177,7 @@ export class ProfileEditor {
       next: player => {
         // Ignore a response belonging to a session that has since changed.
         if (
-          this.session.token() !== token ||
+          this.session.revision() !== revision ||
           this.session.currentPlayer()?.id !== playerId
         ) {
           return;
@@ -186,7 +189,12 @@ export class ProfileEditor {
         this.saved.set(true);
       },
       error: (error: unknown) => {
-        this.errorMessage.set(this.describeError(error));
+        if (
+          this.session.revision() === revision &&
+          this.session.currentPlayer()?.id === playerId
+        ) {
+          this.errorMessage.set(this.describeError(error));
+        }
       },
     });
   }

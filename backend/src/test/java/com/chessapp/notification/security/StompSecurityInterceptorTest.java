@@ -11,37 +11,25 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtException;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
-import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-/**
- * @author pari on 10/29/26
- */
 class StompSecurityInterceptorTest {
 
-    private static final Instant NOW =
-            Instant.parse("2026-10-29T06:00:00Z");
-
-    private JwtDecoder jwtDecoder;
+    private WebSocketSessionAccess access;
     private StompSecurityInterceptor interceptor;
-    private WebSocketProperties properties;
 
     @BeforeEach
     void setUp() {
-        jwtDecoder = mock(JwtDecoder.class);
+        access = mock(WebSocketSessionAccess.class);
 
-        properties = new WebSocketProperties(
+        var properties = new WebSocketProperties(
                 "/api/v1/ws",
                 "http://localhost:4200",
                 "/app",
@@ -52,91 +40,82 @@ class StompSecurityInterceptorTest {
                 Duration.ofSeconds(10)
         );
 
-        interceptor = new StompSecurityInterceptor(
-                jwtDecoder,
-                Clock.fixed(NOW, ZoneOffset.UTC),
-                properties,
-                new WebSocketSessionAccess(
-                        Clock.fixed(NOW, ZoneOffset.UTC)
-                )
-        );
+        interceptor = new StompSecurityInterceptor(properties, access);
+
+        when(access.canAccess("socket-1", "42")).thenReturn(true);
     }
 
     @Test
-    void authenticatesConnectUsingTheExistingDecoder() {
-        Jwt jwt = token(NOW.plusSeconds(600));
-        when(jwtDecoder.decode("valid-token")).thenReturn(jwt);
+    void connectUsesHandshakeIdentityAndRequiresCsrf() {
+        var headers = authenticated(StompCommand.CONNECT);
 
-        var accessor =
-                StompHeaderAccessor.create(StompCommand.CONNECT);
-        accessor.setNativeHeader(
-                "Authorization",
-                "Bearer valid-token"
+        var attributes = new HashMap<String, Object>();
+        attributes.put(
+                SessionHandshakeInterceptor.HTTP_SESSION_ID,
+                "http-1"
+        );
+        attributes.put(
+                SessionHandshakeInterceptor.PLAYER_NAME,
+                "42"
+        );
+        attributes.put(
+                SessionHandshakeInterceptor.CSRF_TOKEN,
+                "csrf-value"
         );
 
-        Message<?> message = message(accessor);
+        headers.setSessionAttributes(attributes);
+        headers.setNativeHeader("X-XSRF-TOKEN", "csrf-value");
 
-        assertSame(
-                message,
-                interceptor.preSend(message, null)
-        );
+        Message<?> message = message(headers);
 
-        var authentication = assertInstanceOf(
-                JwtAuthenticationToken.class,
-                accessor.getUser()
-        );
+        assertSame(message, interceptor.preSend(message, null));
 
-        assertTrue(authentication.isAuthenticated());
-        assertEquals("42", authentication.getName());
-        assertSame(jwt, authentication.getToken());
-        assertNull(accessor.getNativeHeader("Authorization"));
-        verify(jwtDecoder).decode("valid-token");
+        verify(access).register("socket-1", "http-1", "42");
+
+        assertEquals("42", headers.getUser().getName());
+        assertNull(headers.getNativeHeader("X-XSRF-TOKEN"));
+        assertFalse(attributes.containsKey(
+                SessionHandshakeInterceptor.CSRF_TOKEN
+        ));
     }
 
     @Test
-    void rejectsConnectWithoutCredentials() {
-        var accessor =
-                StompHeaderAccessor.create(StompCommand.CONNECT);
+    void connectRejectsMissingCsrfEvenWithAuthenticatedHandshake() {
+        var headers = authenticated(StompCommand.CONNECT);
+
+        headers.setSessionAttributes(new HashMap<>(java.util.Map.of(
+                SessionHandshakeInterceptor.HTTP_SESSION_ID, "http-1",
+                SessionHandshakeInterceptor.PLAYER_NAME, "42",
+                SessionHandshakeInterceptor.CSRF_TOKEN, "expected"
+        )));
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> interceptor.preSend(message(headers), null)
+        );
+
+        verify(access, never()).register(any(), any(), any());
+    }
+
+    @Test
+    void bearerHeaderCannotReplaceAuthenticatedHandshake() {
+        var headers = StompHeaderAccessor.create(StompCommand.CONNECT);
+        headers.setNativeHeader("Authorization", "Bearer old-token");
 
         assertThrows(
                 BadCredentialsException.class,
-                () -> interceptor.preSend(message(accessor), null)
-        );
-
-        verifyNoInteractions(jwtDecoder);
-    }
-
-    @Test
-    void rejectsInvalidToken() {
-        when(jwtDecoder.decode("invalid"))
-                .thenThrow(new JwtException("Invalid token"));
-
-        var accessor =
-                StompHeaderAccessor.create(StompCommand.CONNECT);
-        accessor.setNativeHeader(
-                "Authorization",
-                "Bearer invalid"
-        );
-
-        assertThrows(
-                BadCredentialsException.class,
-                () -> interceptor.preSend(message(accessor), null)
+                () -> interceptor.preSend(message(headers), null)
         );
     }
 
     @Test
-    void permitsTheAuthenticatedPrivateSubscription() {
-        var accessor = authenticated(StompCommand.SUBSCRIBE);
-        accessor.setDestination(
-                properties.subscriptionDestination()
-        );
+    void permitsExactPrivateSubscription() {
+        var headers = authenticated(StompCommand.SUBSCRIBE);
+        headers.setDestination("/user/queue/updates");
 
-        Message<?> message = message(accessor);
+        Message<?> message = message(headers);
 
-        assertSame(
-                message,
-                interceptor.preSend(message, null)
-        );
+        assertSame(message, interceptor.preSend(message, null));
     }
 
     @ParameterizedTest
@@ -147,97 +126,71 @@ class StompSecurityInterceptorTest {
             "/user/queue/updates/extra",
             "/user/queue/*"
     })
-    void rejectsOtherSubscriptionDestinations(String destination) {
-        var accessor = authenticated(StompCommand.SUBSCRIBE);
-        accessor.setDestination(destination);
+    void rejectsOtherDestinations(String destination) {
+        var headers = authenticated(StompCommand.SUBSCRIBE);
+        headers.setDestination(destination);
 
         assertThrows(
                 AccessDeniedException.class,
-                () -> interceptor.preSend(message(accessor), null)
+                () -> interceptor.preSend(message(headers), null)
         );
     }
 
     @Test
-    void rejectsAnonymousSubscription() {
-        var accessor =
-                StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
-        accessor.setDestination(
-                properties.subscriptionDestination()
-        );
+    void rejectsOperationsAfterHttpSessionInvalidation() {
+        when(access.canAccess("socket-1", "42")).thenReturn(false);
 
-        assertThrows(
-                AccessDeniedException.class,
-                () -> interceptor.preSend(message(accessor), null)
-        );
-    }
-
-    @Test
-    void rejectsClientPublishingEvenToItsPrivateDestination() {
-        var accessor = authenticated(StompCommand.SEND);
-        accessor.setDestination(
-                properties.subscriptionDestination()
-        );
-
-        assertThrows(
-                AccessDeniedException.class,
-                () -> interceptor.preSend(message(accessor), null)
-        );
-    }
-
-    @Test
-    void rejectsSubscriptionWhenTheTokenHasExpired() {
-        var accessor =
-                StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
-        accessor.setUser(
-                new JwtAuthenticationToken(
-                        token(NOW),
-                        List.of(),
-                        "42"
-                )
-        );
-        accessor.setDestination(
-                properties.subscriptionDestination()
-        );
+        var headers = authenticated(StompCommand.SUBSCRIBE);
+        headers.setDestination("/user/queue/updates");
 
         assertThrows(
                 BadCredentialsException.class,
-                () -> interceptor.preSend(message(accessor), null)
+                () -> interceptor.preSend(message(headers), null)
         );
     }
 
-    private StompHeaderAccessor authenticated(
-            StompCommand command
-    ) {
-        var accessor = StompHeaderAccessor.create(command);
+    @Test
+    void rejectsClientPublishing() {
+        var headers = authenticated(StompCommand.SEND);
+        headers.setDestination("/user/queue/updates");
 
-        accessor.setUser(
-                new JwtAuthenticationToken(
-                        token(NOW.plusSeconds(600)),
-                        List.of(),
-                        "42"
+        assertThrows(
+                AccessDeniedException.class,
+                () -> interceptor.preSend(message(headers), null)
+        );
+    }
+
+    @Test
+    void permitsDisconnectAfterSessionInvalidation() {
+        when(access.canAccess("socket-1", "42")).thenReturn(false);
+
+        var headers = authenticated(StompCommand.DISCONNECT);
+        Message<?> message = message(headers);
+
+        assertSame(message, interceptor.preSend(message, null));
+    }
+
+    private StompHeaderAccessor authenticated(StompCommand command) {
+        var headers = StompHeaderAccessor.create(command);
+
+        headers.setUser(
+                UsernamePasswordAuthenticationToken.authenticated(
+                        "42",
+                        null,
+                        List.of()
                 )
         );
 
-        return accessor;
+        return headers;
     }
 
-    private Jwt token(Instant expiresAt) {
-        return Jwt.withTokenValue("valid-token")
-                .header("alg", "HS256")
-                .subject("42")
-                .issuedAt(NOW.minusSeconds(60))
-                .expiresAt(expiresAt)
-                .build();
-    }
-
-    private Message<?> message(StompHeaderAccessor accessor) {
-        accessor.setSessionId("test-session");
-        // Keep the accessor mutable, matching inbound channel handling.
-        accessor.setLeaveMutable(true);
+    private Message<?> message(StompHeaderAccessor headers) {
+        headers.setSessionId("socket-1");
+        headers.setLeaveMutable(true);
 
         return MessageBuilder.createMessage(
                 new byte[0],
-                accessor.getMessageHeaders()
+                headers.getMessageHeaders()
         );
     }
 }

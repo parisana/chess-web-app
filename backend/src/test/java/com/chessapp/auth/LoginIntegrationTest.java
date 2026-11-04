@@ -2,22 +2,33 @@ package com.chessapp.auth;
 
 import com.chessapp.auth.dto.RegisterRequest;
 import com.chessapp.auth.service.AuthService;
-import com.jayway.jsonpath.JsonPath;
+import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
+import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
-import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -35,26 +46,40 @@ class LoginIntegrationTest {
     @Autowired
     private AuthService authService;
 
+    @Autowired
+    private SessionRepository<? extends Session> sessionRepository;
+
+    @Autowired
+    private CookieSerializer cookieSerializer;
+
+    private final List<String> createdSessionIds = new ArrayList<>();
+
+    @AfterEach
+    void cleanUpSessions() {
+        createdSessionIds.forEach(sessionRepository::deleteById);
+    }
+
     @Test
-    void login_returnsTokenThatCanAccessCurrentPlayer() throws Exception {
+    void login_returnsProfileAndSessionCookie() throws Exception {
         RegisterRequest registration = newRegistration();
 
         mockMvc.perform(post("/api/v1/auth/register")
+                        .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {
-                                  "username": "%s",
-                                  "email": "%s",
-                                  "password": "%s"
-                                }
-                                """.formatted(
+                            {
+                              "username": "%s",
+                              "email": "%s",
+                              "password": "%s"
+                            }
+                            """.formatted(
                                 registration.username(),
                                 registration.email(),
                                 registration.password()
                         )))
                 .andExpect(status().isCreated());
 
-        String response = login(
+        var response = login(
                 registration.email(),
                 registration.password()
         )
@@ -63,23 +88,28 @@ class LoginIntegrationTest {
                         HttpHeaders.CACHE_CONTROL,
                         containsString("no-store")
                 ))
-                .andExpect(jsonPath("$.accessToken")
-                        .value(not(emptyOrNullString())))
-                .andExpect(jsonPath("$.tokenType").value("Bearer"))
-                .andExpect(jsonPath("$.expiresIn").value(greaterThan(0)))
+                .andExpect(jsonPath("$.username")
+                        .value(registration.username()))
+                .andExpect(jsonPath("$.email")
+                        .value(registration.email()))
+                .andExpect(jsonPath("$.accessToken").doesNotExist())
+                .andExpect(jsonPath("$.passwordHash").doesNotExist())
                 .andReturn()
-                .getResponse()
-                .getContentAsString();
+                .getResponse();
 
-        String token = JsonPath.read(response, "$.accessToken");
+        Cookie cookie = response.getCookie("CHESS_SESSION");
+        assertNotNull(cookie);
 
-        mockMvc.perform(get("/api/v1/players/me")
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                "Bearer " + token
-                        ))
+        // Decode using the application's configured cookie serializer.
+        var cookieRequest = new MockHttpServletRequest();
+        cookieRequest.setCookies(cookie);
+
+        createdSessionIds.addAll(
+                cookieSerializer.readCookieValues(cookieRequest)
+        );
+
+        mockMvc.perform(get("/api/v1/players/me").cookie(cookie))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.username")
                         .value(registration.username()))
                 .andExpect(jsonPath("$.email")
@@ -129,13 +159,14 @@ class LoginIntegrationTest {
             throws Exception {
 
         return mockMvc.perform(post("/api/v1/auth/login")
+                .with(csrf().asHeader())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {
-                          "email": "%s",
-                          "password": "%s"
-                        }
-                        """.formatted(email, password)));
+                {
+                  "email": "%s",
+                  "password": "%s"
+                }
+                """.formatted(email, password)));
     }
 
     private static RegisterRequest newRegistration() {

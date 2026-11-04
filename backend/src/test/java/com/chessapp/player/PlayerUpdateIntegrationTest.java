@@ -4,8 +4,10 @@ import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.repository.PlayerRepository;
 import com.chessapp.player.repository.PlayerStatisticsRepository;
 import com.chessapp.player.service.PlayerService;
-import com.chessapp.security.service.JwtTokenService;
+import com.chessapp.support.TestSessions;
 import jakarta.persistence.EntityManager;
+import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -14,8 +16,10 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
+import org.springframework.session.web.http.CookieSerializer;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -24,9 +28,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.hasItem;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 /**
  * @author pari on 10/23/26
  */
@@ -49,22 +57,26 @@ class PlayerUpdateIntegrationTest {
     private PlayerRepository playerRepository;
 
     @Autowired
-    private JwtTokenService tokenService;
-
-    @Autowired
     private EntityManager entityManager;
+    @Autowired private SessionRepository<? extends Session> sessionRepository;
+
+    @Autowired private CookieSerializer cookieSerializer;
 
     private PlayerResponse player;
-    private String bearerToken;
-
+    private Cookie sessionCookie;
+    private TestSessions sessions;
     @BeforeEach
     void setUp() {
+        sessions = new TestSessions(sessionRepository, cookieSerializer);
         player = createPlayer();
+        sessionCookie = sessions.forPlayer(player.id());
+    }
 
-        // Use a real signed token to exercise the security filter chain.
-        bearerToken = "Bearer " + tokenService
-                .issueAccessToken(player.id())
-                .getTokenValue();
+    @AfterEach
+    void cleanUpSessions() {
+        if (sessions != null) {
+            sessions.close();
+        }
     }
 
     @Test
@@ -91,9 +103,10 @@ class PlayerUpdateIntegrationTest {
                 () -> assertEquals(player.email(), persisted.getEmail())
         );
 
-        // A rename does not invalidate a token whose subject is the player ID.
+        // Renaming does not change the Player ID stored in authentication.
         mockMvc.perform(get("/api/v1/players/me")
-                        .header(HttpHeaders.AUTHORIZATION, bearerToken))
+                .cookie(sessionCookie)
+                .with(csrf().asHeader()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value(username));
     }
@@ -189,12 +202,13 @@ class PlayerUpdateIntegrationTest {
     }
 
     @Test
-    void update_missingTokenReturnsUnauthorized() throws Exception {
+    void update_missingSessionReturnsUnauthorized() throws Exception {
         mockMvc.perform(patch("/api/v1/players/me")
+                        .with(csrf().asHeader())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"username": "new_username"}
-                                """))
+                            {"username": "new_username"}
+                            """))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -208,7 +222,7 @@ class PlayerUpdateIntegrationTest {
         playerRepository.flush();
         entityManager.clear();
 
-        // The signature remains valid, but the account no longer exists.
+        // The session still exists, but its Player account has been deleted.
         doUpdatePlayer("new_username")
                 .andExpect(status().isUnauthorized());
     }
@@ -224,7 +238,8 @@ class PlayerUpdateIntegrationTest {
                   """.formatted(username);
 
         return mockMvc.perform(patch("/api/v1/players/me")
-                .header(HttpHeaders.AUTHORIZATION, bearerToken)
+                        .cookie(sessionCookie)
+                        .with(csrf().asHeader())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body));
     }

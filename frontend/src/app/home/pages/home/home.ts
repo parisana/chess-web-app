@@ -42,6 +42,7 @@ import { PlayerStatistics } from '../../../player/components/player-statistics/p
 })
 export class Home implements OnInit {
   readonly auth = inject(AuthService);
+  readonly signingOut = signal(false);
 
   private readonly router = inject(Router);
   private readonly matchmakingApi = inject(MatchmakingApiService);
@@ -126,10 +127,27 @@ export class Home implements OnInit {
   }
 
   logout(): void {
-    this.auth.logout();
+    if (this.busy() || this.signingOut()) {
+      return;
+    }
 
-    void this.router.navigateByUrl('/login', {
-      replaceUrl: true,
+    this.signingOut.set(true);
+    this.errorMessage.set(null);
+
+    this.auth.logout().pipe(
+      takeUntilDestroyed(this.destroyRef),
+      finalize(() => this.signingOut.set(false)),
+    ).subscribe({
+      next: () => {
+        void this.router.navigateByUrl('/login', {
+          replaceUrl: true,
+        });
+      },
+      error: () => {
+        this.errorMessage.set(
+          'Unable to complete sign-out. Please try again.',
+        );
+      },
     });
   }
 
@@ -138,6 +156,7 @@ export class Home implements OnInit {
   ): void {
     if (
       this.busy() ||
+      this.signingOut() ||
       this.destroyRef.destroyed ||
       !this.auth.isAuthenticated()
     ) {

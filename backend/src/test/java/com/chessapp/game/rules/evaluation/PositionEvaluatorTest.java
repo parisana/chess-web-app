@@ -1,6 +1,6 @@
 package com.chessapp.game.rules.evaluation;
 
-import com.chessapp.BoardTestRenderer;
+import com.chessapp.support.BoardTestRenderer;
 import com.chessapp.game.rules.attack.SquareAttackDetector;
 import com.chessapp.game.rules.fen.FenParser;
 import com.chessapp.game.rules.fen.FenSerializer;

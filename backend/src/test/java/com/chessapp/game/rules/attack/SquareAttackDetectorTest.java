@@ -1,6 +1,6 @@
 package com.chessapp.game.rules.attack;
 
-import com.chessapp.BoardTestRenderer;
+import com.chessapp.support.BoardTestRenderer;
 import com.chessapp.game.rules.fen.FenParser;
 import com.chessapp.game.rules.model.PieceColor;
 import com.chessapp.game.rules.model.Square;

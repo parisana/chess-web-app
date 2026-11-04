@@ -5,7 +5,6 @@ import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.repository.PlayerRepository;
 import com.chessapp.player.repository.PlayerStatisticsRepository;
 import com.chessapp.player.service.PlayerService;
-import com.chessapp.security.service.JwtTokenService;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +16,12 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
+import com.chessapp.support.TestSessions;
+import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.AfterEach;
+import org.springframework.session.Session;
+import org.springframework.session.SessionRepository;
+import org.springframework.session.web.http.CookieSerializer;
 
 import java.util.UUID;
 
@@ -36,16 +41,27 @@ class PlayerStatisticsHttpIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private PlayerService playerService;
     @Autowired private GameService gameService;
-    @Autowired private JwtTokenService tokenService;
     @Autowired private PlayerRepository playerRepository;
     @Autowired private PlayerStatisticsRepository statisticsRepository;
     @Autowired private EntityManager entityManager;
+    @Autowired private SessionRepository<? extends Session> sessionRepository;
+
+    @Autowired private CookieSerializer cookieSerializer;
+
+    private TestSessions sessions;
 
     private PlayerResponse player;
 
     @BeforeEach
     void setUp() {
+        sessions = new TestSessions(sessionRepository, cookieSerializer);
         player = createPlayer();
+    }
+    @AfterEach
+    void cleanUpSessions() {
+        if (sessions != null) {
+            sessions.close();
+        }
     }
 
     @Test
@@ -111,35 +127,29 @@ class PlayerStatisticsHttpIntegrationTest {
     }
 
     @Test
-    void tokenForDeletedPlayerIsRejected() throws Exception {
-        String token = bearer(player.id());
+    void sessionForDeletedPlayerIsRejected() throws Exception {
+        Cookie cookie = sessions.forPlayer(player.id());
 
         statisticsRepository.deleteById(player.id());
         statisticsRepository.flush();
 
         playerRepository.deleteById(player.id());
         playerRepository.flush();
+
         entityManager.clear();
 
         mockMvc.perform(get("/api/v1/players/me/statistics")
-                        .header(HttpHeaders.AUTHORIZATION, token))
+                        .cookie(cookie))
                 .andExpect(status().isUnauthorized());
     }
 
     private ResultActions readStatistics(long playerId)
             throws Exception {
+
         return mockMvc.perform(
                 get("/api/v1/players/me/statistics")
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                bearer(playerId)
-                        )
+                        .cookie(sessions.forPlayer(playerId))
         );
-    }
-
-    private String bearer(long playerId) {
-        return "Bearer " + tokenService.issueAccessToken(playerId)
-                .getTokenValue();
     }
 
     private PlayerResponse createPlayer() {

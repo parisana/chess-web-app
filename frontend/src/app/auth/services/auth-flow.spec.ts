@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import {
   HttpClient,
-  HttpErrorResponse,
+  HttpXsrfTokenExtractor,
   provideHttpClient,
   withInterceptors,
 } from '@angular/common/http';
@@ -22,14 +22,16 @@ import {
 import { AuthService } from './auth.service';
 import { AuthSessionStore } from './auth-session.store';
 import { authInterceptor } from '../interceptors/auth.interceptor';
+import { AuthSessionEventsService } from './auth-session-events.service';
 
-describe('Authentication flow', () => {
+describe('Session authentication flow', () => {
   let http: HttpClient;
   let backend: HttpTestingController;
   let session: AuthSessionStore;
   let auth: AuthService;
 
   const navigate = vi.fn().mockResolvedValue(true);
+  const notifyChanged = vi.fn();
 
   const player = {
     id: 1,
@@ -39,15 +41,24 @@ describe('Authentication flow', () => {
 
   beforeEach(() => {
     navigate.mockClear();
+    notifyChanged.mockClear();
 
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
         {
+          provide: HttpXsrfTokenExtractor,
+          useValue: { getToken: () => 'fixture-csrf' },
+        },
+        {
           provide: Router,
           useValue: { navigate },
         },
+        {
+          provide: AuthSessionEventsService,
+          useValue: { notifyChanged },
+        }
       ],
     });
 
@@ -57,43 +68,79 @@ describe('Authentication flow', () => {
     auth = TestBed.inject(AuthService);
   });
 
-  afterEach(() => {
-    backend.verify();
-  });
+  afterEach(() => backend.verify());
 
-  it('attaches the token to protected API requests', () => {
-    session.begin('test-token');
+  it('restores the Player without attaching a bearer token', () => {
+    auth.restore().subscribe();
 
-    http.get('/api/v1/players/me').subscribe();
+    backend.expectOne('/api/v1/auth/csrf').flush(null);
 
     const request = backend.expectOne('/api/v1/players/me');
 
-    expect(request.request.headers.get('Authorization'))
-      .toBe('Bearer test-token');
+    expect(request.request.headers.has('Authorization')).toBe(false);
 
     request.flush(player);
+    expect(notifyChanged).toHaveBeenCalledTimes(1);
+
+    expect(auth.currentPlayer()).toEqual(player);
+    expect(auth.isAuthenticated()).toBe(true);
   });
 
-  it('does not send the token to an external service', () => {
-    session.begin('test-token');
+  it('initializes CSRF before login and again after login', () => {
+    auth.login({
+      email: player.email,
+      password: 'StrongPassword123!',
+    }).subscribe();
 
-    http.get('https://example.com/data').subscribe();
+    backend.expectOne('/api/v1/auth/csrf').flush(null);
 
-    const request = backend.expectOne('https://example.com/data');
+    const request = backend.expectOne('/api/v1/auth/login');
+
+    expect(request.request.headers.get('X-XSRF-TOKEN'))
+      .toBe('fixture-csrf');
 
     expect(request.request.headers.has('Authorization')).toBe(false);
 
-    request.flush({});
+    request.flush(player);
+
+    // Don't enable the authenticated UI until CSRF initialization finishes.
+    expect(auth.isAuthenticated()).toBe(false);
+    expect(notifyChanged).not.toHaveBeenCalled();
+
+    backend.expectOne('/api/v1/auth/csrf').flush(null);
+
+    expect(auth.currentPlayer()).toEqual(player);
+    expect(auth.isAuthenticated()).toBe(true);
   });
 
-  it('clears an established session when a protected request returns 401', () => {
-    session.begin('expired-token');
+  it('does not let an old request clear a newer local session', () => {
+    session.begin();
     session.setPlayer(player);
 
-    const onError = vi.fn();
+    http.get('/api/v1/players/me').subscribe({
+      error: () => { },
+    });
+
+    const oldRequest = backend.expectOne('/api/v1/players/me');
+
+    session.begin();
+    session.setPlayer({ ...player, id: 2 });
+
+    oldRequest.flush(null, {
+      status: 401,
+      statusText: 'Unauthorized',
+    });
+
+    expect(session.currentPlayer()?.id).toBe(2);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('clears the current session after a protected request returns 401', () => {
+    session.begin();
+    session.setPlayer(player);
 
     http.get('/api/v1/players/me').subscribe({
-      error: onError,
+      error: () => { },
     });
 
     backend.expectOne('/api/v1/players/me').flush(null, {
@@ -101,9 +148,6 @@ describe('Authentication flow', () => {
       statusText: 'Unauthorized',
     });
 
-    expect(onError).toHaveBeenCalled();
-    expect(session.token()).toBeNull();
-    expect(session.currentPlayer()).toBeNull();
     expect(auth.isAuthenticated()).toBe(false);
 
     expect(navigate).toHaveBeenCalledWith(['/login'], {
@@ -112,65 +156,36 @@ describe('Authentication flow', () => {
     });
   });
 
-  it('clears the token when profile loading fails after login', () => {
-    const onError = vi.fn();
+  it('does not claim logout succeeded when its HTTP request fails', () => {
+    session.begin();
+    session.setPlayer(player);
 
-    auth.login({
-      email: player.email,
-      password: 'StrongPassword123!',
-    }).subscribe({
-      error: onError,
+    auth.logout().subscribe({
+      error: () => { },
     });
 
-    const loginRequest = backend.expectOne('/api/v1/auth/login');
+    backend.expectOne('/api/v1/auth/csrf').flush(null);
 
-    expect(loginRequest.request.method).toBe('POST');
-    expect(loginRequest.request.headers.has('Authorization')).toBe(false);
-
-    loginRequest.flush({
-      accessToken: 'new-token',
-      tokenType: 'Bearer',
-      expiresIn: 900,
-    });
-
-    const profileRequest = backend.expectOne('/api/v1/players/me');
-
-    expect(profileRequest.request.headers.get('Authorization'))
-      .toBe('Bearer new-token');
-
-    profileRequest.flush(null, {
+    backend.expectOne('/api/v1/auth/logout').flush(null, {
       status: 500,
       statusText: 'Internal Server Error',
     });
 
-    expect(onError).toHaveBeenCalledWith(
-      expect.any(HttpErrorResponse),
-    );
-    expect(session.token()).toBeNull();
-    expect(session.currentPlayer()).toBeNull();
-    expect(auth.isAuthenticated()).toBe(false);
-    expect(navigate).not.toHaveBeenCalled();
+    expect(auth.isAuthenticated()).toBe(true);
   });
 
-  it('logout clears the token and player', () => {
-    session.begin('test-token');
+  it('clears local authentication after successful server logout', () => {
+    session.begin();
     session.setPlayer(player);
 
-    auth.logout();
+    auth.logout().subscribe();
 
-    expect(session.token()).toBeNull();
-    expect(session.currentPlayer()).toBeNull();
+    backend.expectOne('/api/v1/auth/csrf').flush(null);
+    backend.expectOne('/api/v1/auth/logout').flush(null);
+
     expect(auth.isAuthenticated()).toBe(false);
+    expect(notifyChanged).toHaveBeenCalledTimes(1);
+
+    backend.expectOne('/api/v1/auth/csrf').flush(null);
   });
 });
-
-// | Tool                       | Rough Java equivalent |
-// |---                         |---|
-// | `describe(...)`            | Groups related tests |
-// | `it(...)`                  | A JUnit test method |
-// | `beforeEach(...)`          | `@BeforeEach` |
-// | `expect(...)`              | An assertion |
-// | `vi.fn()`                  | A Mockito-style mock function |
-// | `TestBed`                  | An isolated Angular dependency-injection container |
-// | `backend.expectOne(...)`   | Capture the expected outgoing HTTP request |
-// | `request.flush(...)`       | Supply the fake server response |

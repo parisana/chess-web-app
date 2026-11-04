@@ -11,12 +11,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Objects;
+import java.security.Principal;
 
 /**
  * @author pari on 10/16/26
@@ -31,10 +29,10 @@ public class PlayerController {
 
     @GetMapping("/me")
     public PlayerResponse currentPlayer(
-            @AuthenticationPrincipal Jwt jwt
+            Principal principal
     ) {
         return playerService.findById(
-                Long.parseLong(Objects.requireNonNull(jwt.getSubject()))
+                Long.parseLong(principal.getName())
         ).orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.UNAUTHORIZED,
                 "Authenticated player no longer exists"
@@ -43,12 +41,12 @@ public class PlayerController {
 
     @PatchMapping("/me")
     public PlayerResponse updateCurrentPlayer(
-            @AuthenticationPrincipal Jwt jwt,
+            Principal principal,
             @Valid @RequestBody UpdatePlayerRequest request
     ) {
-        // The validated JWT identifies the player allowed to change this profile.
+        // The authenticated principal identifies the Player allowed to edit.
         Long playerId = Long.parseLong(
-                Objects.requireNonNull(jwt.getSubject())
+                principal.getName()
         );
 
         return playerService.updateUsername(
@@ -62,10 +60,10 @@ public class PlayerController {
 
     @GetMapping("/me/statistics")
     public ResponseEntity<PlayerStatisticsResponse> currentPlayerStatistics(
-            @AuthenticationPrincipal Jwt jwt
+            Principal principal
     ) {
         long playerId = Long.parseLong(
-                Objects.requireNonNull(jwt.getSubject())
+                principal.getName()
         );
 
         var statistics = playerStatisticsService.findByPlayerId(playerId)
