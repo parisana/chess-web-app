@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes Day 26, source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Clocks, V12/V13, timeout completion and Angular countdowns extend the Day 25 statistics baseline. No assistant application execution is claimed. See [review](day26-clocks-review.md), [clock flow](game-clocks-flow.md) and [historical main documents](history/main-documents-through-day25.md).
+This document describes Day 27, source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. See [review](day27-sessions-review.md), [session/WebSocket flow](session-authentication-flow.md) and [tab synchronization](tab-synchronization-flow.md). No assistant application execution. Prior document text is preserved in [history](history/main-documents-through-day26.md).
 
 ## Application structure
 
@@ -10,7 +10,7 @@ One Spring Boot application, organized by feature with conventional controller/s
 | --- | --- |
 | auth | Registration, local credentials and login orchestration |
 | player | Player creation/lookup, self-profile, username updates, statistics and Elo completion reaction |
-| security | HTTP security, password encoding, JWT signing/validation |
+| security | HTTP session security, password encoding, CSRF and cookie settings |
 | matchmaking | Persistent queue, eligibility and transactional pairing |
 | game | Game creation/read/move commands, reservations, lifecycle, immutable rules and game events |
 | notification | WebSocket configuration/security, private outbound notifications and session access tracking |
@@ -32,9 +32,9 @@ flowchart TD
 
 Transactional registration creates a Player through PlayerService and stores encoded credentials in auth. Scalar Player IDs avoid cross-feature entity coupling. PostgreSQL uniqueness constraints remain authoritative when availability checks race.
 
-Login validates credentials, issues HS256 JWTs and then Angular loads `/players/me`. JWT subject contains the Player ID. The shared JwtDecoder validates signature, issuer, timestamps, a required expiry and positive Long subject. HTTP timestamp validation has its existing 60-second tolerance; WebSocket checks additionally enforce the stated expiry strictly.
+Login validates credentials, changes an existing session ID and resets CSRF, then explicitly saves a SecurityContext with a canonical Player-ID String principal. Spring Session JDBC stores it in PostgreSQL. Login returns PlayerResponse; JWT classes/starter/settings are removed. V14 creates framework session tables. Cookie settings are explicitly bound by SessionCookieConfig; TimeConfig now owns Clock.
 
-The frontend stores token/Player in memory. Its interceptor attaches bearer tokens only to relative protected `/api/` requests. A protected 401 clears the matching session; stale responses cannot clear a different current token. A 403 does not invalidate the session. Login/register failure retains passwords. Username PATCH updates the current session profile without changing JWT identity. Exact, case-sensitive identity matching remains the implemented policy.
+The browser manages an HttpOnly session cookie; Angular stores only profile/revision and restores them at startup through csrf then players/me. Built-in XSRF handling supplies headers for relative API writes. Protected 401 clears a matching captured revision; 403 does not invalidate authentication. Login/register failure retains passwords. Profile edits keep stable Player identity. Broadcast hints trigger receiver clear/navigation/restore, as detailed in the tab companion. Exact, case-sensitive credential matching remains.
 
 ## Persistence and transactions
 
@@ -81,7 +81,7 @@ The facade does not own authorization, persistence, version checks or transactio
 
 ## Game commands and lifecycle
 
-Both participants may read a game, including after completion. Commands derive the acting Player from the JWT, never from request-supplied identity.
+Both participants may read a game, including after completion. Commands derive the acting Player from the authenticated session principal, never from request-supplied identity.
 
 For a well-formed move command, GameService checks existence, membership, lifecycle, expected version, clock expiry, turn and legal membership. It applies and evaluates the move through ChessRules before mutating the managed game. SAN is formatted from the original position, accepted move, complete legal set and resulting assessment before managed state changes. The recorded sequence advances on the versioned Game row. Flush advances the optimistic version and detects competing writes before history insertion. A losing optimistic update becomes STALE_GAME_VERSION.
 
@@ -97,17 +97,15 @@ Sending is best-effort. Each recipient attempt catches runtime send failures so 
 
 ## WebSocket security
 
-The configured HTTP GET endpoint permits the upgrade. STOMP CONNECT must supply exactly one bearer Authorization header and pass the existing decoder plus strict expiry. The interceptor assigns a canonical Player-ID principal and removes the native header entry; the authenticated principal still retains the JWT.
+HTTP upgrade requires session authentication and the configured Origin. SessionHandshakeInterceptor copies the existing session ID, Player name and raw CSRF cookie. CONNECT requires one matching X-XSRF-TOKEN native header and inherited authenticated identity; WebSocketSessionAccess rechecks the stored session before registering the socket binding. The expected CSRF attribute and native credential headers are removed after acceptance.
 
-Only the exact configured private subscription is allowed. Direct broker paths, another user’s path, wildcards and client SEND commands are rejected. User routing is not itself authorization; the inbound interceptor enforces this policy. Backend event recipients come from stored participants.
+Only the exact private subscription is allowed; raw broker paths, other-Player paths, wildcards and SEND are rejected. Inbound operations and outgoing application MESSAGEs check the exact bound HTTP session, stored SecurityContext and Player identity. Outbound checks happen before enqueue and handler; protocol/heartbeat output bypasses that application-message filter. Disconnect removes bindings idempotently.
 
-WebSocketSessionAccess stores expiry by session ID. Outbound application messages require an unexpired registered session both before enqueueing and immediately before outbound handling. Disconnect removes the entry idempotently. This filters delivery, not proactive socket closure at the expiry instant; an already transmitted message cannot be recalled.
-
-The frontend deactivates on logout, session replacement and local expiry. Browser timers are best-effort, so backend checks remain authoritative. Token decoding in the browser schedules cleanup; it does not validate signatures.
+JDBC session reads do not extend activity. Each outgoing application message can incur two session reads. There is no proactive physical socket closure on session invalidation, no JDBC destruction-event dependency and no recall of transmitted messages. The local simple broker/map remain single-instance. See [authentication diagram](session-authentication-flow.md#websocket-authentication-in-detail).
 
 ## Angular orchestration
 
-App instantiates one RealtimeService independently of route navigation. It recreates private subscriptions after reconnecting, ignores stale-session callbacks, validates incoming update shape and exposes signals/observables. STOMP errors mark live delivery unavailable; HTTP still determines session validity.
+App instantiates RealtimeService and SessionSyncService independently of route navigation after startup restoration. It recreates private subscriptions after reconnecting, ignores stale-session callbacks, validates incoming update shape and exposes signals/observables. STOMP errors mark live delivery unavailable; HTTP still determines session validity.
 
 Home reads queue state on entry, notifications and connection events. One pending read is drained after any current queue command/read. Periodic checks run for unknown, WAITING and MATCHED state; NOT_QUEUED is idle. Pairing reveals an Open game link rather than forcing navigation.
 
@@ -117,7 +115,7 @@ ChessBoard owns rendering/orientation/selection and emits coordinates. Its selec
 
 ## Configuration and deployment boundary
 
-`app.websocket` binds to WebSocketProperties with constructor validation. Endpoint registration, HTTP permission, subscription authorization and sending consume this shared object. Destination paths are derived from prefixes plus updates-path. The configured heartbeat range is 1–300 seconds. A lazily injected broker scheduler enables heartbeats.
+`app.websocket` binds to WebSocketProperties with constructor validation. Endpoint registration, subscription authorization and sending consume this shared object; the HTTP endpoint is protected by the general authenticated-request rule. Destination paths are derived from prefixes plus updates-path. The configured heartbeat range is 1–300 seconds. A lazily injected broker scheduler enables heartbeats.
 
 Angular’s REALTIME_CONFIG contains matching routing addresses and its own timing settings. Backend YAML is not automatically published to the browser. Development proxying includes WebSocket upgrades. Configuration/secrets remain user-managed.
 
@@ -125,7 +123,7 @@ The simple broker and session registry are in-process. Current delivery assumes 
 
 ## Deferred scope
 
-The PGN download UI, pre-SAN backfill, clock extensions, extra rule-based draws, acceptance, abandonment/disconnect completion, session continuity and rating extensions remain separate choices. Replay and backend PGN export are implemented. Promotion chooser legality gating is intentionally deferred. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](roadmap.md) and the two flow companions for details.
+The PGN download UI, pre-SAN backfill, clock extensions, extra rule-based draws, acceptance, abandonment/disconnect completion, rating extensions remain separate choices; session continuity is implemented in Day 27. Replay and backend PGN export are implemented. Promotion chooser legality gating is intentionally deferred. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](roadmap.md) and the two flow companions for details.
 
 ## Persisted history and SAN
 
@@ -153,7 +151,7 @@ Angular executeGameCommand coordinates all POST types through one submission loc
 
 ## Day 23 verification boundaries
 
-WebSocketPropertiesTest uses an isolated binding context. WebSocketIntegrationTest starts the real server on a random port and uses actual STOMP clients, the configured JWT decoder, simple broker, listener and database transactions. A private probe establishes subscription readiness before application assertions. Resignation delivery waits for outer commit, reaches both participants and excludes an independently ready outsider. Rollback preserves active state and reservations and produces no update during the bounded observation windows.
+WebSocketPropertiesTest uses an isolated binding context. WebSocketIntegrationTest starts the real server on a random port and uses actual STOMP clients, real HTTP login/session cookies and CSRF, simple broker, listener and database transactions. A private probe establishes subscription readiness before application assertions. Resignation delivery waits for outer commit, reaches both participants and excludes an independently ready outsider. Rollback preserves active state and reservations and produces no update during the bounded observation windows.
 
 GameMigrationIntegrationTest applies the real migrations to uniquely named PostgreSQL schemas. It tests V6-to-V10 legacy metadata and V7/V8/V9/V10 history/resignation continuity. It does not run JPA services against intermediate schemas or prove every deployment upgrade path. The current source filename is GameMigrationIntegrationTest.java; no naming cleanup remains.
 
@@ -166,7 +164,7 @@ GameExportService owns the participant-protected PGN read transaction. It loads 
 
 PgnFormatter lives in game.export, outside the pure rules engine. It consumes captured DTOs and the existing FenParser. It requires matching game IDs/versions, complete history, an exact row count, contiguous sequences and nonblank SAN. It formats persisted SAN without replaying or revalidating chess moves. Baseline side/fullmove number determines numbering; lifecycle versions do not. Current result and captured move boundary remain consistent under existing atomic append-only writes, without asserting general repeatable-read isolation or an explicitly tested concurrent-export schedule.
 
-The controller emits UTF-8 bytes, application/x-chess-pgn, an attachment filename based on game ID and Cache-Control: no-store. Authentication and access use existing JWT/feature errors; unsupported history returns 409 PGN_EXPORT_UNAVAILABLE. No export button or Blob client method is included in Angular by user decision.
+The controller emits UTF-8 bytes, application/x-chess-pgn, an attachment filename based on game ID and Cache-Control: no-store. Authentication and access use session security and feature errors; unsupported history returns 409 PGN_EXPORT_UNAVAILABLE. No export button or Blob client method is included in Angular by user decision.
 
 Game.replayIndex is a local display cursor: null follows game.currentFen; zero selects historyStartFen; a positive value selects a move's resultingFen. replayHistory checks game identity, version not ahead, row count and sequence continuity. An older accepted list remains usable during reconciliation. displayedFen drives both board and FEN details, while live status/offer/result remain sourced from game(). Numeric replay selection disables the shared command permission, including at the last recorded entry. Only Latest resumes live following; Next does not automatically do so.
 
@@ -180,7 +178,7 @@ GameService publishes GameFinishedEvent after a terminal move's history flush or
 
 PlayerStatisticsRepository owns both the JPA entity operations and native insertFinishedGameClaim, wrapped by default boolean claimFinishedGame. ON CONFLICT DO NOTHING uses the game primary key to reject repeated/excluded processing. Successful claims are transactional, not durable work queues. The service then locks statistics by ascending Player ID with PESSIMISTIC_WRITE, maps back to colors, calculates from both old ratings, updates and flushes. The event is a trusted internal contract; the consumer does not reload/verify game membership/result through another feature's repository.
 
-EloCalculator is pure Java in player.rating: initial 1200, K=32, scale 400, actual scores 1/0.5/0. One Math.round adjustment is applied oppositely to conserve the pair's total. There is no floor, provisional policy, time-control separation, backfill or rating audit ledger. Overflow checks fail rather than wrap. The /players/me/statistics read uses ordinary findById, checks account existence and maps a DTO. No rating-write lock is needed for display. The existing auth profile DTO/JWT are unchanged.
+EloCalculator is pure Java in player.rating: initial 1200, K=32, scale 400, actual scores 1/0.5/0. One Math.round adjustment is applied oppositely to conserve the pair's total. There is no floor, provisional policy, time-control separation, backfill or rating audit ledger. Overflow checks fail rather than wrap. The /players/me/statistics read uses ordinary findById, checks account existence and maps a DTO. No rating-write lock is needed for display. The statistics profile contract is unchanged; Day 27 independently replaces transport authentication with sessions.
 
 Home embeds PlayerStatistics with separate TS/HTML/CSS. Initial/manual/live-hint/reconnect triggers switch to a fresh GET, guarded by captured token/Player ID. Inner tap updates signals; inner catchError returns EMPTY so later triggers remain active. Inner finalize handles completion/error/cancellation; downstream takeUntilDestroyed tears down active GETs. No polling, focus retry or new frontend test suite is added for this card. See [statistics flow](player-statistics-flow.md).
 
@@ -191,3 +189,9 @@ Game clock state and TIMEOUT are implemented. New games start White at configure
 Both response DTOs append projected clock with calculatedAt; read timestamps are not persisted completion events. Timeout currently always awards opponent win; the possible-mate draw exception is deferred. Disconnect/logout does not itself complete a game, but a timed game continues and can later expire. This scheduled worker does not make statistics asynchronous or introduce an outbox.
 
 See [clock flow and pseudocode](game-clocks-flow.md) for timing, configuration, transaction boundaries and remaining limits.
+
+## Session integration and tab coordination
+
+Spring Boot supplies the session filter/repository through its JDBC session starter. The schema has no cross-feature Player entity relation; authentication uses a scalar identity in serialized SecurityContext. Session persistence uses its own framework transactions and is not part of a game completion transaction. Production cleanup runs every minute; fixture tests disable it. Cookie age and inactivity expiry are distinct. CSRF reset clears the browser cookie, not a server-side revocation list.
+
+SessionSyncService consumes only hints and rechecks the backend. It resets revision/profile before navigation, guards against a newer local operation, then restores with another revision and opens Home on success. It does not replay commands or lock all tab mutations. See the detailed [tab flow](tab-synchronization-flow.md).

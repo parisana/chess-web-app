@@ -1,14 +1,14 @@
 # API Contracts
 
-Current contracts, source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Day 26 adds nullable clock projections to GameResponse/GameMoveResult, TIMEOUT and GAME_CLOCK_EXPIRED. Other routes remain. No assistant application execution is claimed. See [review](day26-clocks-review.md).
+Current Day 27 contracts, source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. Session cookies and CSRF replace bearer JWTs; game/clock contracts remain. No assistant application execution. See [review](day27-sessions-review.md) and [authentication flow](session-authentication-flow.md).
 
 ## Shared conventions
 
-- Protected endpoints require `Authorization: Bearer <token>`.
-- Protected self-service actions derive player identity from the validated JWT subject; clients do not choose the acting player ID.
+- Protected endpoints require a valid CHESS_SESSION cookie. State-changing requests also require a matching XSRF-TOKEN cookie and X-XSRF-TOKEN header. This includes anonymous login/registration and logout.
+- Protected self-service actions derive player identity from the authenticated session principal name; clients do not choose the acting player ID.
 - MVC validation returns Problem Detail with `code: VALIDATION_FAILED` and an `errors` array containing `field` and `message`. Rejected password values are omitted.
 - Duplicate-identity and feature-owned exceptions return Problem Detail with their application code.
-- Missing/invalid bearer credentials use Spring Security handling; no application code or uniform MVC error body is guaranteed.
+- Missing/invalid session authentication use Spring Security handling; no application code or uniform MVC error body is guaranteed.
 - Deleted-player failures from profile GET/PATCH and statistics GET use `ResponseStatusException` with 401; no application code is guaranteed. Matchmaking has its own `AUTHENTICATED_PLAYER_UNAVAILABLE` code.
 - Malformed JSON, incompatible field types, path conversion failures and unexpected server errors may have different bodies. Clients need a generic fallback.
 - The frontend handles protected 401 session cleanup centrally; action-specific UI handles known codes. A 403 does not invalidate the session.
@@ -17,23 +17,25 @@ Current contracts, source-reviewed on 3 November 2026 against actual user chess-
 
 | Method | Route | Authentication | Successful response |
 | --- | --- | --- | --- |
-| POST | `/api/v1/auth/register` | Public | 201; `playerId`, `username`, `email` |
-| POST | `/api/v1/auth/login` | Public | 200; `accessToken`, `tokenType`, `expiresIn` |
-| GET | `/api/v1/players/me` | Bearer JWT | 200; `id`, `username`, `email` |
-| GET | `/api/v1/players/me/statistics` | Bearer JWT | 200; `playerId`, `rating`, `wins`, `draws`, `losses`, `gamesPlayed`; no-store |
-| PATCH | `/api/v1/players/me` | Bearer JWT | 200; updated `id`, `username`, `email` |
-| POST | `/api/v1/matchmaking/queue` | Bearer JWT | 200; queue status |
-| GET | `/api/v1/matchmaking/queue/me` | Bearer JWT | 200; queue status |
-| DELETE | `/api/v1/matchmaking/queue/me` | Bearer JWT | 204; no body |
-| GET | `/api/v1/games/{gameId}` | Participant bearer JWT | 200; game state |
-| GET | `/api/v1/games/{gameId}/pgn` | Participant bearer JWT | 200; UTF-8 PGN attachment |
-| POST | `/api/v1/games/{gameId}/moves` | Participant Bearer JWT | 200; GameMoveResult |
-| GET | `/api/v1/games/{gameId}/moves` | Participant bearer JWT | 200; GameHistoryResponse |
-| POST | `/api/v1/games/{gameId}/resignation` | Participant bearer JWT | 200; GameResponse |
-| POST | `/api/v1/games/{gameId}/draw-offer` | Participant bearer JWT | 200; GameResponse |
-| POST | `/api/v1/games/{gameId}/draw-offer/accept` | Participant bearer JWT | 200; GameResponse |
-| POST | `/api/v1/games/{gameId}/draw-offer/decline` | Participant bearer JWT | 200; GameResponse |
-| POST | `/api/v1/games/{gameId}/draw-offer/withdraw` | Participant bearer JWT | 200; GameResponse |
+| POST | `/api/v1/auth/register` | Anonymous access + CSRF | 201; `playerId`, `username`, `email` |
+| POST | `/api/v1/auth/login` | Anonymous access + CSRF | 200; `id`, `username`, `email`; session cookie; no-store |
+| GET | `/api/v1/auth/csrf` | Anonymous access | 204; initializes CSRF cookie; no-store |
+| POST | `/api/v1/auth/logout` | Valid CSRF; authentication may be absent | 204; invalidates current session; clears cookies; no-store |
+| GET | `/api/v1/players/me` | Session cookie | 200; `id`, `username`, `email` |
+| GET | `/api/v1/players/me/statistics` | Session cookie | 200; `playerId`, `rating`, `wins`, `draws`, `losses`, `gamesPlayed`; no-store |
+| PATCH | `/api/v1/players/me` | Session cookie | 200; updated `id`, `username`, `email` |
+| POST | `/api/v1/matchmaking/queue` | Session cookie | 200; queue status |
+| GET | `/api/v1/matchmaking/queue/me` | Session cookie | 200; queue status |
+| DELETE | `/api/v1/matchmaking/queue/me` | Session cookie | 204; no body |
+| GET | `/api/v1/games/{gameId}` | Participant session | 200; game state |
+| GET | `/api/v1/games/{gameId}/pgn` | Participant session | 200; UTF-8 PGN attachment |
+| POST | `/api/v1/games/{gameId}/moves` | Participant session | 200; GameMoveResult |
+| GET | `/api/v1/games/{gameId}/moves` | Participant session | 200; GameHistoryResponse |
+| POST | `/api/v1/games/{gameId}/resignation` | Participant session | 200; GameResponse |
+| POST | `/api/v1/games/{gameId}/draw-offer` | Participant session | 200; GameResponse |
+| POST | `/api/v1/games/{gameId}/draw-offer/accept` | Participant session | 200; GameResponse |
+| POST | `/api/v1/games/{gameId}/draw-offer/decline` | Participant session | 200; GameResponse |
+| POST | `/api/v1/games/{gameId}/draw-offer/withdraw` | Participant session | 200; GameResponse |
 
 There is no public game-creation endpoint: pairing invokes creation internally. Participant-authenticated POST /api/v1/games/{gameId}/moves delegates to GameService. Pure rules exceptions are not themselves the HTTP contract; game-owned application exceptions map gameplay rejections.
 
@@ -53,7 +55,7 @@ Username: nonblank, 3–30 Java UTF-16 string units. Email: nonblank, valid emai
 
 Request fields: `email`, `password`. Email matching is exact. Login validates nonblank fields, email format/maximum length and the BCrypt byte maximum; it does not impose registration's minimum password length.
 
-Success returns `accessToken`, `tokenType: Bearer` and `expiresIn` in seconds, with `Cache-Control: no-store`. The frontend then loads the self-profile. Unknown accounts and incorrect/missing local credentials receive the same invalid-credentials response.
+Success returns PlayerResponse (`id`, `username`, `email`) with `Cache-Control: no-store` and establishes the session cookie. The frontend reinitializes CSRF before storing the local profile; startup restoration separately reads the self-profile. Unknown accounts and incorrect/missing local credentials receive the same invalid-credentials response.
 
 | Failure | Status | Application code |
 | --- | --- | --- |
@@ -66,18 +68,18 @@ No request body. Success returns the current database-backed `PlayerResponse` (`
 
 | Failure | Status | Application code |
 | --- | --- | --- |
-| Missing, invalid or expired token | 401 | Not guaranteed |
+| Missing, invalid or expired session | 401 | Not guaranteed |
 | Authenticated player no longer exists | 401 | Not guaranteed |
 
 ## Read self-statistics — GET `/api/v1/players/me/statistics`
 
-Player ID comes exclusively from the validated JWT subject. Success is 200 with Cache-Control: no-store:
+Player ID comes exclusively from the authenticated session principal name. Success is 200 with Cache-Control: no-store:
 
 ```json
 {"playerId":7,"rating":1200,"wins":0,"draws":0,"losses":0,"gamesPlayed":0}
 ```
 
-No email or persistence version is included. gamesPlayed equals wins+draws+losses. Ratings can be negative; no floor is imposed. Missing/invalid authentication is rejected by security. A valid token for a deleted Player yields 401, matching self-profile policy. An existing Player missing statistics is an internal invariant failure, not a default zero response or a new structured feature error.
+No email or persistence version is included. gamesPlayed equals wins+draws+losses. Ratings can be negative; no floor is imposed. Missing/invalid authentication is rejected by security. A session for a deleted Player yields 401, matching self-profile policy. An existing Player missing statistics is an internal invariant failure, not a default zero response or a new structured feature error.
 
 V11 excludes games already finished at migration time; active games count when they later finish. All four supported completion reasons count, including zero-move resignation/agreement. Duplicate completion events do not apply a second update. Completion and statistics share one transaction; a failed rating update prevents the completion from committing. This GET performs ordinary reads and adds no mutation or retry behavior. No public leaderboard, rating-history or statistics-write endpoint exists.
 
@@ -108,7 +110,7 @@ Success: 200 with the existing `PlayerResponse` shape:
 - Matching is exact and case-sensitive. Spaces and special characters are allowed; whitespace-only values are rejected. No trimming or normalization is performed.
 - Submitting the current username succeeds without changing the entity or its update timestamp.
 - Availability prechecks provide feedback; the existing PostgreSQL unique constraint protects against conflicting writes under concurrency.
-- Existing JWTs remain valid because their subject contains the stable player ID.
+- Existing sessions retain the stable Player ID after a rename.
 - Concurrent edits to the same player's username use last-write-wins behavior.
 - Missing/null username is invalid. This endpoint is a username-specific update, not a general JSON Patch or JSON Merge Patch implementation. Additional fields are outside its supported contract.
 
@@ -116,7 +118,7 @@ Success: 200 with the existing `PlayerResponse` shape:
 | --- | --- | --- |
 | Invalid username | 400 | `VALIDATION_FAILED` |
 | Username taken | 409 | `USERNAME_ALREADY_EXISTS` |
-| Missing, invalid or expired token | 401 | Not guaranteed |
+| Missing, invalid or expired session | 401 | Not guaranteed |
 | Authenticated player no longer exists | 401 | Not guaranteed |
 
 A representative validation response is:
@@ -147,7 +149,7 @@ Repeated joins preserve the original waiting timestamp or return the existing ac
 
 | Action | Failure | Status | Application code |
 | --- | --- | --- | --- |
-| Join, status, leave | Missing, invalid or expired token | 401 | Not guaranteed |
+| Join, status, leave | Missing, invalid or expired session | 401 | Not guaranteed |
 | Join, status, leave | Authenticated player no longer exists | 401 | `AUTHENTICATED_PLAYER_UNAVAILABLE` |
 | Join during pairing | Reservation conflict with another game-creation caller | 409 | `PLAYER_ALREADY_IN_GAME` |
 
@@ -159,13 +161,13 @@ No request body. Success returns id, whitePlayerId, blackPlayerId, status, curre
 
 | Failure | Status | Application code |
 | --- | --- | --- |
-| Missing, invalid or expired token | 401 | Not guaranteed |
+| Missing, invalid or expired session | 401 | Not guaranteed |
 | Game does not exist | 404 | `GAME_NOT_FOUND` |
 | Authenticated requester is not a participant | 403 | `GAME_ACCESS_DENIED` |
 
 ## Submit move — POST `/api/v1/games/{gameId}/moves`
 
-Authenticated Player identity comes from the validated JWT subject.
+Authenticated Player identity comes from the authenticated session principal name.
 
 ```json
 {
@@ -183,7 +185,7 @@ Success returns 200 with gameId, currentFen, version, positionStatus, status, re
 | Failure | Status | Application code |
 | --- | --- | --- |
 | Invalid request fields | 400 | VALIDATION_FAILED |
-| Missing/invalid bearer credentials | 401 | Not guaranteed |
+| Missing/invalid session authentication | 401 | Not guaranteed |
 | Nonparticipant | 403 | GAME_ACCESS_DENIED |
 | Missing game | 404 | GAME_NOT_FOUND |
 | Finished game | 409 | GAME_ALREADY_FINISHED |
@@ -199,7 +201,7 @@ The Angular page preserves GET-only participant metadata when applying a POST re
 
 ## Read move history — GET `/api/v1/games/{gameId}/moves`
 
-No body or pagination parameters. Either stored participant may read active or finished history. Identity comes from the JWT. Lookup precedes membership checking, using the existing GAME_NOT_FOUND (404) and GAME_ACCESS_DENIED (403) contracts. Missing/invalid credentials receive 401 without a guaranteed MVC code.
+No body or pagination parameters. Either stored participant may read active or finished history. Identity comes from the authenticated session. Lookup precedes membership checking, using the existing GAME_NOT_FOUND (404) and GAME_ACCESS_DENIED (403) contracts. Missing/invalid credentials receive 401 without a guaranteed MVC code.
 
 GameHistoryResponse fields:
 
@@ -236,7 +238,7 @@ The service captures result/version and a move-count boundary before reading row
 
 | Failure | HTTP | Application code |
 | --- | --- | --- |
-| Missing/invalid bearer credentials | 401 | Not guaranteed |
+| Missing/invalid session authentication | 401 | Not guaranteed |
 | Missing game | 404 | GAME_NOT_FOUND |
 | Nonparticipant | 403 | GAME_ACCESS_DENIED |
 | Incomplete history, row-count mismatch, sequence gap or missing/blank SAN | 409 | PGN_EXPORT_UNAVAILABLE |
@@ -245,7 +247,7 @@ V7 legacy history is rejected even when its recorded list is empty. Pre-SAN null
 
 ## Explicit lifecycle commands
 
-All five routes require participant authentication. The actor comes from the JWT; no request-supplied Player ID selects the actor. Each uses a JSON object with required, nonnegative Long expectedVersion:
+All five routes require participant authentication. The actor comes from the session; no request-supplied Player ID selects the actor. Each uses a JSON object with required, nonnegative Long expectedVersion:
 
 ```json
 {"expectedVersion": 3}
@@ -268,7 +270,7 @@ Well-formed command precedence is missing game, participant membership, active l
 | Failure | HTTP | Application code |
 | --- | --- | --- |
 | Invalid fields | 400 | VALIDATION_FAILED |
-| Missing/invalid bearer | 401 | Not guaranteed |
+| Missing/invalid session authentication | 401 | Not guaranteed |
 | Nonparticipant | 403 | GAME_ACCESS_DENIED |
 | Missing game | 404 | GAME_NOT_FOUND |
 | Finished game | 409 | GAME_ALREADY_FINISHED |
@@ -287,39 +289,24 @@ WebSocket messages are server-to-client change hints. Existing REST routes and e
 
 ### Addresses and configuration
 
-Values below are those in the reviewed source, not mandatory deployment URLs.
+Addresses remain configured under app.websocket: endpoint /api/v1/ws, allowed-origin http://localhost:4200, application-prefix /app, user-prefix /user, broker-prefix /queue, updates-path /updates, first-message timeout 10s and heartbeat 10s. Derived user-send is /queue/updates and subscription is /user/queue/updates. Existing literal-path/origin/prefix/duration validation remains.
 
-| Setting | Reviewed value |
-| --- | --- |
-| app.websocket.endpoint | /api/v1/ws |
-| app.websocket.allowed-origin | http://localhost:4200 |
-| app.websocket.application-prefix | /app |
-| app.websocket.user-prefix | /user |
-| app.websocket.broker-prefix | /queue |
-| app.websocket.updates-path | /updates |
-| app.websocket.time-to-first-message | 10s |
-| app.websocket.heartbeat-interval | 10s |
-| Derived backend user-send destination | /queue/updates |
-| Derived client subscription destination | /user/queue/updates |
-
-WebSocketProperties validates literal slash-prefixed paths with no wildcards/trailing slash; HTTP(S) origin without path/query/fragment; nonoverlapping routing prefixes; first-message timeout 1ms–2147483647ms; heartbeat interval 1–300 seconds. An invalid constructor-bound configuration prevents startup. Validation does not validate all deployment/browser/proxy combinations.
-
-The endpoint’s HTTP GET upgrade is permitted, with the configured origin restriction. STOMP CONNECT requires exactly one native header:
+The HTTP upgrade requires the session cookie and accepts only the configured Origin. Handshake metadata contains the HTTP session ID, authenticated Player name and raw XSRF cookie. STOMP CONNECT then supplies exactly one native header:
 
 ```text
-Authorization: Bearer <JWT>
+X-XSRF-TOKEN: <current CSRF cookie value>
 ```
 
-The existing decoder verifies the JWT. An additional strict expiry check applies. The canonical principal name is the decimal Player ID. No token is placed in the URL. Removal of the native Authorization header does not erase the JWT retained by the authentication principal.
+Inherited authentication and persisted-session identity are rechecked before binding the socket. Native Authorization cannot authenticate. Missing HTTP authentication is rejected at upgrade (401); missing handshake CSRF or disallowed Origin is 403. CONNECT failures after upgrade use STOMP ERROR rather than a REST error body. See [detailed diagram](session-authentication-flow.md#websocket-authentication-in-detail).
 
 ### Client operations
 
 | Operation | Policy |
 | --- | --- |
-| CONNECT / STOMP | Authenticate with bearer JWT |
-| SUBSCRIBE | Authenticated and unexpired; exact configured private destination only |
-| UNSUBSCRIBE | Authenticated and unexpired |
-| Heartbeat | Authenticated and unexpired |
+| CONNECT / STOMP | Inherit authenticated HTTP session; validate handshake metadata and native CSRF |
+| SUBSCRIBE | Bound session remains authenticated and unexpired; exact configured private destination only |
+| UNSUBSCRIBE | Bound session remains authenticated and unexpired |
+| Heartbeat | Bound session remains authenticated and unexpired |
 | DISCONNECT | Allowed for cleanup, including framework-generated cleanup |
 | SEND and other client commands | Rejected |
 
@@ -349,9 +336,9 @@ Angular validates recognized type, positive safe-integer gameId and nonnegative 
 - Game rereads on relevant newer hints, connections and focus/visibility return. Visible loaded active games, or loaded games still requiring board/history refresh, receive 30-second safety reads. Initial failed reads without a snapshot rely on manual refresh, connection/focus events or a new hint; the periodic filter requires a snapshot.
 - Reconciliation waits during POST. A safety GET can be cancelled before POST. Commands are never replayed. Failed reads block proposals pending a successful read.
 
-Server outbound application messages require a registered unexpired session at enqueue and handler checks. Disconnect removes access. Backend filtering does not proactively close the physical socket at the exact expiry instant; already transmitted messages cannot be recalled.
+Server outbound application messages require a registered binding and a live persisted authenticated session at enqueue and handler checks. Disconnect removes access. Backend filtering does not proactively close the physical socket at the exact expiry instant; already transmitted messages cannot be recalled.
 
-Frontend local expiry clears the in-memory session, deactivates the client and navigates to login. Transport close/error enables reconnect attempts. STOMP rejection stops automatic reconnect for that session and marks live updates unavailable; it does not by itself clear a still-current HTTP session.
+There is no frontend JWT expiry timer. Protected HTTP 401 clears a matching local revision and navigates to Login. Session clearing stops its client. Before initial connect/reconnect, csrf/profile HTTP preflight checks current access; preflight failure stops that lifecycle. Transport close/error otherwise enables reconnect attempts. STOMP rejection stops automatic reconnect for that session and marks live updates unavailable; it does not by itself clear a still-current HTTP session.
 
 ### Frontend timing
 
@@ -363,13 +350,11 @@ When changing an endpoint, update its owning DTO/service/controller, correspondi
 
 ## Day 23 contract verification
 
-Both previously reported draw authentication/version-precedence HTTP tests are present and inspected. Binding tests cover configured paths, origin, routing overlap and duration validation. Real socket tests cover missing/malformed CONNECT credentials, four forbidden subscription forms and client SEND, plus participant-only resignation hints after commit and suppression on rollback. Bodyless ERROR frames are valid for this test fixture; no REST error-code shape is assumed.
-
-The socket client disables heartbeats and is not a browser/proxy test. Strict expiry, origin rejection and reconnection are not newly exercised over real sockets. The migration fixtures verify old rows and selected constraints using SQL, not application authorization or command atomicity. See [Day 23 review](day23-reliability-review.md).
+Historical Day 23 bearer checks are superseded by the current session socket suite. Inspected Day 27 coverage includes upgrade 401 and disallowed-Origin 403; missing/incorrect CONNECT CSRF; forbidden subscriptions and client SEND; after-commit/rollback hints; logout affecting two sockets sharing one session; and session expiry filtering. ERROR frames may have no body. Test clients disable heartbeats and bounded observations do not prove all transport schedules, reconnect or browser behavior. See [review](day27-sessions-review.md).
 
 ## Day 25 completion extension
 
-Registration creates Player and initial statistics within the enclosing credentials transaction. A successful game finish also commits both statistics and its processing marker. This adds no fields to GameResponse, GameMoveResult or PlayerUpdate. A statistics processing failure is an unexpected server failure, not a claim that a completed game was committed. Existing clients reconcile uncertain commands through GET rather than replaying POST. Longer access-token lifetime and refresh tokens remain deferred, with no configuration/security change in this milestone.
+Registration creates Player and initial statistics within the enclosing credentials transaction. A successful game finish also commits both statistics and its processing marker. This adds no fields to GameResponse, GameMoveResult or PlayerUpdate. A statistics processing failure is an unexpected server failure, not a claim that a completed game was committed. Existing clients reconcile uncertain commands through GET rather than replaying POST. Day 25 did not change authentication; Day 27 now supplies server-side sessions instead of extending access-token lifetime or adding refresh tokens.
 
 ## Day 26 clocks and timeout extension
 
@@ -380,3 +365,9 @@ TIMEOUT is an additional termination reason, currently requiring WHITE_WIN/BLACK
 Timeout completion uses the existing GAME_UPDATED hint and synchronous statistics transaction. There is no per-tick WebSocket payload. PGN format is unchanged, using the persisted winning result without clock tags or timeout-specific SAN. Full impossible-mate timeout draw adjudication is deferred.
 
 See [clock flow and pseudocode](game-clocks-flow.md) for timing, configuration, transaction boundaries and remaining limits.
+
+## CSRF and logout precedence
+
+GET /api/v1/auth/csrf returns 204/no-store and resolves the deferred CSRF cookie. POST logout is handled by Spring Security, invalidates the current session and returns 204/no-store; it is not a game command or all-device logout. All protected application writes pass CSRF before MVC validation and service authorization. Missing/incorrect CSRF can therefore produce 403 even if authentication is also missing; the 401 rows above assume CSRF is satisfied where required. CSRF/security failures do not guarantee MVC application codes. Reinitialize CSRF after login/logout; cookie clearing is not a server-side CSRF-token blacklist.
+
+See [tab synchronization](tab-synchronization-flow.md) for client publication/restore order and concurrency limits.

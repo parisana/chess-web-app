@@ -1,5 +1,8 @@
 # Replay and PGN flow
 
+Day 27 update, source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. Session/CSRF authentication supersedes earlier bearer/token statements. See [review](day27-sessions-review.md), [authentication and WebSocket diagrams](session-authentication-flow.md) and [tab synchronization](tab-synchronization-flow.md). No assistant application execution; older Day-labelled sections describe their historical checkpoint.
+
+
 Current companion through Day 26, source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Clock/timeout additions below supersede earlier checkpoint-specific statements. No assistant application execution is claimed. See [Day 26 review](day26-clocks-review.md) and [clock flow/pseudocode](game-clocks-flow.md).
 
 ## Distinct state meanings
@@ -37,7 +40,7 @@ Previous in live mode selects available list length minus one. If the list is be
 
 ## Backend export read
 
-GameController derives Player ID from JWT and invokes GameExportService.exportPgn. The service transaction loads the game, checks membership, captures GameResponse/count, queries GameMoveRepository.findHistoryThrough and maps immutable DTOs. Current usernames come from PlayerService. It formats the captured game, not whichever replay position the browser is showing.
+GameController derives Player ID from the authenticated session and invokes GameExportService.exportPgn. The service transaction loads the game, checks membership, captures GameResponse/count, queries GameMoveRepository.findHistoryThrough and maps immutable DTOs. Current usernames come from PlayerService. It formats the captured game, not whichever replay position the browser is showing.
 
 Captured count excludes later commits under the existing atomic append-only model. Result/version come from the same loaded game. This is not a general repeatable-read claim or proof from a forced concurrent-export test. Username reads are current rather than historically pinned.
 

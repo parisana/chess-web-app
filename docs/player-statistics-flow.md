@@ -1,5 +1,8 @@
 # Player statistics and Elo flow
 
+Day 27 update, source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. Session/CSRF authentication supersedes earlier bearer/token statements. See [review](day27-sessions-review.md), [authentication and WebSocket diagrams](session-authentication-flow.md) and [tab synchronization](tab-synchronization-flow.md). No assistant application execution; older Day-labelled sections describe their historical checkpoint.
+
+
 Current companion through Day 26, source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Clock/timeout additions below supersede earlier checkpoint-specific statements. No assistant application execution is claimed. See [Day 26 review](day26-clocks-review.md) and [clock flow/pseudocode](game-clocks-flow.md).
 
 ## Ownership
@@ -12,7 +15,7 @@ Current companion through Day 26, source-reviewed on 3 November 2026 against act
 | PlayerStatisticsRepository | Entity persistence, locking query and native processing claim |
 | PlayerStatistics | Rating/counters/version; derived gamesPlayed |
 | EloCalculator | Pure arithmetic, separate from game rules |
-| PlayerController | JWT-derived self-statistics GET and no-store |
+| PlayerController | Session-derived self-statistics GET and no-store |
 | Angular PlayerStatistics | Display and GET lifecycle; no rating calculation |
 
 An event belongs to the feature that owns the fact; its listener belongs to the feature that owns the reaction. These are conventional feature layers, not a new DDD model. No managed game/Player entity crosses the event boundary. Scalar IDs still have SQL foreign-key constraints. Scalar mappings do not inherently prevent N+1 if callers manually query each parent; they make such queries explicit.
@@ -89,7 +92,7 @@ Delete markers and moves before games, and statistics before Players, respecting
 
 Async ratings, banking commands, immutable ledgers and outboxes were educational discussions. They are not implemented. If ratings were decoupled, per-Player ordering and downstream Elo corrections would require a deliberate policy. An audit ledger alone would not make in-memory events durable. For this modular monolith, synchronous atomic completion is the chosen design.
 
-Access-token expiry cleanup remains in RealtimeService.armExpiryTimer. It schedules a browser timeout until expiry, rearms for very long delays, ignores stale sessions and clears the timer during connection cleanup. It does not refresh tokens or replace backend expiry enforcement. Session continuity is tracked separately in roadmap.md.
+Day 27 removes the JWT expiry timer. Startup restoration and matching-revision protected-401 handling manage local state; RealtimeService checks csrf/profile before connecting. Cookie/inactivity expiry and persisted socket access checks remain server-owned. See the session/tab companions.
 
 ## Day 26 clocks and timeout extension
 

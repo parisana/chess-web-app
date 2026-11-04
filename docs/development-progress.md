@@ -1,6 +1,14 @@
 # Development Progress
 
-## Current checkpoint — Day 26
+## Current checkpoint — Day 27
+
+Reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. Persistent Spring Session JDBC replaces JWTs; V14 framework tables, explicit cookie serializer, SPA CSRF, logout, session-authenticated sockets, Angular restoration and revision-guarded cross-tab synchronization are implemented. Raw path comparison is 15 added/5 removed/56 changed, including BoardTestRenderer relocation. User reports the previously reported failures resolved and browser login/flow working; no assistant application execution or separately established comprehensive frontend/restart acceptance.
+
+Four new Java suites contain 18 ordinary methods; current socket suite has 13 source cases. Frontend has six auth-flow plus three mocked coordinator cases. Fixes present include actual cookie-CSRF fixtures, missing write fixtures, explicit CHESS_SESSION naming, true-then-false outbound mocking and exact readiness-probe registry for same-Player sockets. Shared test timeout scanning is false; production remains enabled. See [review](day27-sessions-review.md), [authentication diagrams](session-authentication-flow.md), [tab diagrams](tab-synchronization-flow.md) and [handoff](day27-handoff.md).
+
+The intermittent game-action click observation is deferred without an established cause or fix. No OIDC, refresh tokens, all-device logout, new game policy or replay polish is added.
+
+## Previous checkpoint — Day 26
 
 Source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Twenty-one added files, twenty-two changed, none removed. Implemented V12/V13 clock persistence/constraints, pure arithmetic, 10m/no-increment creation, expiry command guards, transactional timeout completion, bounded fixed-delay scanning, calculatedAt clock responses and separate Angular countdowns/pseudocode. Old games remain untimed; timeout always awards opponent win under the current simplified policy.
 
@@ -144,7 +152,7 @@ Suggested manual scenarios are in the [Day 20 review](day20-realtime-review.md).
 
 ## Current limits and working agreement
 
-One queue and one in-process message broker; notifications are not durable. Move history is separately persisted from Day 21. HTTP commands remain authoritative and are not replayed. Sessions remain in memory. Disconnect/logout does not release reservations or determine a game outcome. Auto-navigation is not implemented by design. Additional game/rating policies remain in the [roadmap](roadmap.md).
+One queue and one in-process message broker; notifications are not durable. Move history is separately persisted from Day 21. HTTP commands remain authoritative and are not replayed. Authentication sessions persist in PostgreSQL; each tab keeps its profile cache in memory. Disconnect/logout does not release reservations or determine a game outcome. Auto-navigation is not implemented by design. Additional game/rating policies remain in the [roadmap](roadmap.md).
 
 Continue with inline, explainable increments. The user implements production changes. Do not silently apply generated implementation archives. Documentation replacement packages are welcome. Keep feature service boundaries, pure Java rules, Player naming, useful comments, minimal frontend tests and separate component HTML/CSS. Preserve user-managed configuration. Treat tests as green unless failures are reported; do not execute tests/builds without an explicit request.
 

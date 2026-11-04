@@ -4,11 +4,11 @@ A backend-focused chess portfolio project built as a modular monolith with conve
 
 ## Current checkpoint
 
-Day 26 adds server-authoritative clocks, transactional timeout completion and a live Angular countdown. Source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip, compared with the actual Day 25 baseline including its documentation replacements. See [Day 26 review](docs/day26-clocks-review.md), [clock flow and pseudocode](docs/game-clocks-flow.md) and [next-session handoff](docs/day26-handoff.md).
+Day 27 replaces JWT authentication with persistent Spring Security sessions backed by PostgreSQL. Source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. See [review](docs/day27-sessions-review.md), [session/WebSocket authentication](docs/session-authentication-flow.md), [detailed tab synchronization](docs/tab-synchronization-flow.md) and [handoff](docs/day27-handoff.md).
 
-No production blocker was found in inspected changes. Shared test YAML still enables scanning: recommend disabling it for test isolation; this package changes no configuration. User reports green tests after fixes; later increments follow the standing agreement. No assistant tests/builds/migrations/database/browser checks ran. Frontend was reported to look good; detailed manual clock acceptance and historical replay route-switch verification are not independently established.
+User reports the previously reported failures resolved and browser login/flow working. No assistant tests/builds/migrations/database/browser runs; detailed cross-tab/restart/deployment acceptance is not independently established. The shared test profile now disables timeout scanning and session cleanup. An intermittent game-action click observation remains deferred in the review.
 
-**Angular PGN download and session continuity remain deferred.** Replay polish, sounds and new-live-move indicators are deferred until after MVP.
+**Session continuity is implemented.** Angular PGN download and post-MVP replay polish remain deferred.
 
 ## Capabilities
 
@@ -16,9 +16,9 @@ No production blocker was found in inspected changes. Shared test YAML still ena
 - Versioned timeout completion freezes clocks, releases reservations and updates ratings atomically.
 - Live countdowns remain live during replay; same-version GETs refresh clock estimates.
 
-- Registration/login, BCrypt password handling, JWT authentication and self-profile GET/username PATCH.
+- Registration/login, BCrypt password handling, server-side session authentication and self-profile GET/username PATCH.
 - Player Elo/statistics initialized at registration; all supported game completions update both Players atomically with duplicate protection.
-- JWT-derived self-statistics GET and a Home card with manual/live-hint/reconnect refresh.
+- Session-derived self-statistics GET and a Home card with manual/live-hint/reconnect refresh.
 - Persistent matchmaking with atomic pairing, oldest-first eligibility and one active-game reservation per Player.
 - Immutable chess rules: all pieces, king safety, explicit promotion, en passant, standard castling and normal/check/checkmate/stalemate assessment.
 - Participant-protected game GET and versioned HTTP move commands with optimistic concurrency protection.
@@ -34,11 +34,11 @@ No production blocker was found in inspected changes. Shared test YAML still ena
 
 ## Stack
 
-Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, JPA, Flyway, Spring Security/JWT, Lombok and YAML. Angular 21, Angular Material, signals, RxJS and `@stomp/stompjs` (declared `^7.5.0`).
+Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, JPA, Flyway, Spring Security and Spring Session JDBC, Lombok and YAML. Angular 21, Angular Material, signals, RxJS and `@stomp/stompjs` (declared `^7.5.0`).
 
 ## Run locally
 
-Keep database and JWT configuration user-managed in `backend/src/main/resources/application.yaml`. Flyway migrations V1–V13 provide the schema; Hibernate validates it.
+Keep database, cookie and session configuration user-managed in `backend/src/main/resources/application.yaml`. Flyway migrations V1–V14 provide the schema; Hibernate validates it.
 
 From `backend/`:
 
@@ -93,15 +93,17 @@ npm test -- --watch=false
 npm run build
 ```
 
-Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests remain the existing focused authentication suite. The [Day 23 review](docs/day23-reliability-review.md) distinguishes inspected coverage, user-reported execution and remaining limits. Migration tests create and drop unique schemas and require schema creation permission. The broad notification test pattern now includes a database-backed socket test.
+Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests cover six auth-flow cases and three mocked tab-sync coordinator cases; this document does not establish their execution. The [Day 23 review](docs/day23-reliability-review.md) distinguishes inspected coverage, user-reported execution and remaining limits. Migration tests create and drop unique schemas and require schema creation permission. The broad notification test pattern now includes a database-backed socket test.
 
 ## Current limits
 
-Notifications are best-effort live hints. Accepted moves are separately persisted in the database; notification delivery is not guaranteed. HTTP reads recover current state; commands are never automatically replayed. Sessions are in memory, so browser reload requires login again.
+Notifications are best-effort live hints. Accepted moves are separately persisted in the database; notification delivery is not guaranteed. HTTP reads recover current state; commands are never automatically replayed. Angular restores its in-memory profile using the persisted session cookie after reload; session and cookie expiry still apply.
 
-Existing games record forward from their migration-time FEN; earlier moves cannot be reconstructed. Entries recorded before SAN support retain null SAN, displayed as “—” beside their coordinates. Replay supports available legacy positions, but PGN requires complete history, contiguous records and SAN on every move. There is no Angular PGN download button, SAN backfill, repetition/move-count/dead-position draws, acceptance stage or abandonment policy. Closing the page, disconnecting or logging out does not directly finish a game or release reservations. Timed games continue counting and can later finish by TIMEOUT. Spectators, chat, AI, external brokers and distributed deployment remain outside current scope. The custom board has no legal-move highlighting, drag-and-drop or persistent check indicator. Promotion selection may appear before a proposed promotion is rejected for king safety; this UI improvement is intentionally deferred. In-memory login state is distinct from PostgreSQL-persisted games/history.
+Existing games record forward from their migration-time FEN; earlier moves cannot be reconstructed. Entries recorded before SAN support retain null SAN, displayed as “—” beside their coordinates. Replay supports available legacy positions, but PGN requires complete history, contiguous records and SAN on every move. There is no Angular PGN download button, SAN backfill, repetition/move-count/dead-position draws, acceptance stage or abandonment policy. Closing the page, disconnecting or logging out does not directly finish a game or release reservations. Timed games continue counting and can later finish by TIMEOUT. Spectators, chat, AI, external brokers and distributed deployment remain outside current scope. The custom board has no legal-move highlighting, drag-and-drop or persistent check indicator. Promotion selection may appear before a proposed promotion is rejected for king safety; this UI improvement is intentionally deferred. The local profile/revision cache is distinct from PostgreSQL-persisted authentication sessions and games/history.
 
 ## Documentation
+
+- [Day 27 review](docs/day27-sessions-review.md), [session and WebSocket authentication](docs/session-authentication-flow.md), [tab synchronization diagrams](docs/tab-synchronization-flow.md) and [handoff](docs/day27-handoff.md).
 
 - [Day 26 clock review](docs/day26-clocks-review.md), [clock flow/pseudocode](docs/game-clocks-flow.md) and [handoff](docs/day26-handoff.md).
 
@@ -127,13 +129,13 @@ Either participant may resign or offer a draw regardless of turn. Only the recip
 
 Initial Elo is 1200, K=32 and scale=400; each completion applies one rounded delta oppositely. V11 excludes already finished games and initializes existing Players at zero counts; active games count when they later finish. No historical backfill, rating floor, provisional/rated modes, leaderboard, audit ledger or rating-aware pairing is implemented. Counts include zero-move resignation/agreement. The game-ID processing record prevents duplicate counting; it is not an event queue.
 
-Statistics failures roll back completion; messaging failures after commit cannot. Home statistics use ordinary GETs and no polling. Missed hints can leave values stale until manual refresh, reconnection or reopening Home. Token lifetime/refresh tokens remain a separate deferred choice; increasing token lifetime alone cannot preserve in-memory login across reload.
+Statistics failures roll back completion; messaging failures after commit cannot. Home statistics use ordinary GETs and no polling. Missed hints can leave values stale until manual refresh, reconnection or reopening Home. Day 27 supplies session restoration; no access/refresh-token lifecycle remains in the current implementation.
 
 ## Clock policy and limits
 
 Production uses app.game.clock initial-time=10m, timeout-scan-enabled=true and timeout-scan-interval=1s. Old games stay untimed. Exactly zero expires; no increment, pause, acceptance/grace stage or network-lag compensation exists. Current timeout policy always awards the opponent a win; full impossible-mate draw adjudication is deferred.
 
-Commands after expiry receive 409 GAME_CLOCK_EXPIRED; the scanner completes games separately through normal transactional statistics/release. Read-only calculatedAt clock projections do not advance game version. Browser countdowns estimate elapsed time from response receipt and may lag delivery; only the backend declares outcomes. A 100-candidate scan batch is not a strict one-second guarantee. Shared test YAML currently enables scans; recommend setting it false. See the review for failure-starvation and coverage limits.
+Commands after expiry receive 409 GAME_CLOCK_EXPIRED; the scanner completes games separately through normal transactional statistics/release. Read-only calculatedAt clock projections do not advance game version. Browser countdowns estimate elapsed time from response receipt and may lag delivery; only the backend declares outcomes. A 100-candidate scan batch is not a strict one-second guarantee. Shared test YAML now disables scans for fixture isolation. See the review for failure-starvation and coverage limits.
 
 ## Day 26 focused verification
 
@@ -146,3 +148,9 @@ Suggested commands only; no assistant execution:
 # With configured PostgreSQL test database:
 ./gradlew test --tests 'com.chessapp.game.GameClockPersistenceIntegrationTest' --tests 'com.chessapp.game.GameTimeoutIntegrationTest' --tests 'com.chessapp.game.GameMoveHttpIntegrationTest' --tests 'com.chessapp.game.GameMigrationIntegrationTest'
 ```
+
+## Session settings
+
+CHESS_SESSION is HttpOnly, path /, SameSite Lax, with configured 7d max-age. Server session inactivity is separately 7d. Cookie lifetime is not automatically renewed per request and no separate absolute server cap is implemented. SessionCookieConfig explicitly binds the YAML values. SESSION_COOKIE_SECURE defaults false for local HTTP; use true for HTTPS deployment. Flyway owns framework session tables; production expired-session cleanup runs every minute. Logout invalidates the shared session, while other independent browser sessions remain.
+
+GET /api/v1/auth/csrf initializes the readable XSRF-TOKEN cookie. Angular sends X-XSRF-TOKEN on state-changing relative API requests. POST login returns the Player profile; POST logout returns 204. CONNECT uses the session-authenticated handshake plus a native CSRF header. See the flow companions for expiry, revocation, multi-tab limits and the cost of database access checks.

@@ -1,151 +1,55 @@
-# Real-time updates flow
+# Real-time updates flow — Day 27
 
-Current companion through Day 26, source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Clock/timeout additions below supersede earlier checkpoint-specific statements. No assistant application execution is claimed. See [Day 26 review](day26-clocks-review.md) and [clock flow/pseudocode](game-clocks-flow.md).
+Source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. No assistant application execution. Authentication details and diagrams are in [session/WebSocket flow](session-authentication-flow.md); [tab flow](tab-synchronization-flow.md) documents browser coordination. Previous checkpoint descriptions are preserved in [history](history/main-documents-through-day26.md).
 
-## Connection and subscription
+## Connection and authentication
 
-App injects one root RealtimeService. Its effect reads token and isAuthenticated. When login has loaded both token and Player, it creates a client. Effect cleanup marks that client stopped, clears the expiry timer and deactivates it. Navigation between Home/Game does not intentionally create a new connection.
+App instantiates one RealtimeService and SessionSyncService after startup restoration. RealtimeService's effect observes local revision/isAuthenticated and uses untracked setup. Cleanup marks callbacks stopped and force-deactivates the old client. Its transport URL is relative to the page origin with ws/wss scheme; development proxy forwards /api upgrades.
 
-```mermaid
-stateDiagram-v2
-    [*] --> Disconnected
-    Disconnected --> Connecting: Authenticated session
-    Connecting --> Connected: CONNECT succeeds
-    Connecting --> Reconnecting: Transport closes
-    Connected --> Reconnecting: Transport closes
-    Reconnecting --> Connected: Reconnect succeeds
-    Connecting --> Unavailable: STOMP rejection
-    Reconnecting --> Unavailable: STOMP rejection
-    Connected --> Unavailable: STOMP error
-    Connected --> Disconnected: Logout or expiry
-    Reconnecting --> Disconnected: Logout or expiry
-    Connecting --> Disconnected: Logout or expiry
-    Unavailable --> Disconnected: Session cleared
-    Disconnected --> Unavailable: Unreadable JWT expiry
-```
+Before each initial connect/reconnect, the client GETs csrf then players/me with a 10-second timeout. A protected 401 clears matching local state centrally. A different Player ID redirects to Login with sessionChanged. It extracts current XSRF-TOKEN and sets X-XSRF-TOKEN in CONNECT. Browser authentication comes from the HttpOnly session cookie; no JWT is decoded, stored or sent. Preflight failure or STOMP ERROR can stop retry for that lifecycle; transport errors otherwise reconnect. STOMP ERROR also causes a bounded profile read. No local authentication-expiry timer remains.
 
-New credentials cause cleanup and a new lifecycle. Invalid/unreadable expiry marks the socket unavailable but leaves HTTP session validity to HTTP. STOMP rejection stops retry for the current socket lifecycle; transport failure normally permits retries. callbacks check captured token/current session/stopped to ignore old clients. No bearer frames are deliberately logged by the client debug callback.
+The HTTP upgrade requires session authentication and allowed Origin. Handshake metadata and CONNECT CSRF are checked before registering the exact HTTP-session/socket binding. The inherited Player name controls user routing. The exact private subscription is allowed, while direct broker/other-Player/wildcard paths and SEND are rejected. Multiple subscribed sockets belonging to one Player may receive the same hint.
 
-The endpoint uses the page’s origin and ws/wss scheme. During development, the Angular proxy forwards upgrades. The browser supplies its bearer header inside CONNECT, not an arbitrary HTTP upgrade header or token query parameter.
-
-## Authentication and private routing
-
-The HTTP upgrade is permitted. Origin restriction and first-message timeout apply. CONNECT then uses the existing JwtDecoder and strict token expiry. The interceptor sets a canonical Player-ID principal and registers session expiry.
-
-| Routing stage | Example |
-| --- | --- |
-| Upgrade endpoint | /api/v1/ws |
-| Client subscribes | /user/queue/updates |
-| Sender selects Player | convertAndSendToUser("42", "/queue/updates", update) |
-| Broker destination | Session-specific internal /queue/... destination |
-
-The same subscription string does not mean all Players share updates. Spring resolves it using user/session identity. A user can have multiple subscribed sessions. The inbound interceptor still explicitly authenticates and restricts the destination: user routing alone is not authorization.
-
-Only the exact derived private subscription is accepted. Direct broker paths, user-ID-addressed paths, wildcard subscriptions and client SEND are rejected. The /app prefix separates hypothetical application handlers from broker routing; no WebSocket command handler is implemented.
-
-Native Authorization removal changes the existing message’s mutable accessor. The interceptor returns the same message object, so assertSame can pass while a separate header-removal assertion also passes. The principal retains the JWT; native-header removal is not token erasure.
-
-## Committed changes and notifications
+## Committed changes
 
 ```mermaid
 flowchart TD
     A["GameService validates and writes"] --> S["If finished: synchronous statistics update"]
-    S --> B["Publish immutable GameChangedEvent"]
-    B --> C{"Enclosing transaction"}
-    C -->|Commit| D["AFTER_COMMIT listener"]
-    C -->|Rollback| E["No notification"]
-    D --> F["Attempt White private send"]
-    F --> G["Attempt Black private send"]
-    G --> H["Subscribed clients request HTTP state"]
+    S --> B["Publish GameChangedEvent"]
+    B --> C{"Enclosing transaction commits?"}
+    C -->|No| E["No successful-change hint"]
+    C -->|Yes| D["AFTER_COMMIT listener"]
+    D --> F["Attempt both participant sends separately"]
+    F --> G["Session-filtered private delivery"]
+    G --> H["Browser rereads authoritative HTTP state"]
 ```
 
-createGame publishes after both reservations are verified. submitMove publishes after game/history flushes and any completion reservation release. These events carry IDs, version and type, not managed entities. Game depends on ApplicationEventPublisher, not messaging transport.
+Pairing waits for the outer matchmaking transaction including queue deletions. Moves/history/completion/reservation release and synchronous ratings stay atomic. Notification send failures after commit do not roll back those writes; each participant send is attempted separately. PlayerUpdate remains type/gameId/version only. GAME_CREATED refreshes Home, GAME_UPDATED refreshes game/statistics consumers. No FEN, offer/result, clock tick or SAN is pushed.
 
-Pairing calls createGame inside MatchmakingService’s transaction. The listener therefore waits for the outer transaction, including both queue deletions. A failure after GameService returns can still roll back and suppress delivery. Flush alone does not permit notification.
+Outbound application MESSAGEs recheck persisted session access before enqueue and before executor handling. Inbound operations and heartbeats also check it; DISCONNECT remains allowed for cleanup. Invalid sessions lose their local binding. This does not refresh inactivity, physically close every expired socket or recall transmitted data. JDBC session events are not used; database reads/deserialization add cost. Session persistence does not make the simple broker/map distributed.
 
-PlayerUpdate contains only type, gameId and version. GAME_CREATED leads Home to reread status. GAME_UPDATED covers ordinary/terminal moves and accepted lifecycle commands; Game reads the current participant-protected snapshot. Terminal result fields are not duplicated into the notification contract.
-
-The listener attempts each participant separately and logs runtime enqueue failures. It performs no database writes or fresh entity loads. It does not turn a failed send into a failed committed HTTP command.
-
-## Expiry and cleanup
-
-WebSocketSessionAccess holds session ID to expiry in a ConcurrentHashMap. Inbound operations check the authenticated JWT expiry. Outbound application messages check registered/unexpired access before sending to the outbound channel and again immediately before executor handling, covering time spent queued.
-
-Disconnect removes the registry entry idempotently. Unknown/missing session IDs cannot receive application messages. Protocol establishment, heartbeat and cleanup messages are not filtered as application MESSAGE payloads by the outbound interceptor.
-
-These checks do not schedule server-side physical closure at the exact expiry instant and cannot recall a transmitted message. The browser separately schedules local expiry, clears the current session, deactivates and navigates to login. Browser timers can be delayed; backend expiry remains authoritative. The existing HTTP decoder’s timestamp tolerance is unchanged.
-
-## Heartbeats and delivery guarantees
-
-The configured backend heartbeat is 10 seconds, validated between 1 and 300 seconds. A lazily injected messageBrokerTaskScheduler avoids a configuration cycle. StompJS requests incoming/outgoing 10-second heartbeats and discards an unresponsive transport so reconnect can proceed. Intervals are negotiated and browser scheduling is not an exact clock.
-
-The in-memory simple broker has no persistent replay, subscription receipts or guaranteed browser acknowledgement. CONNECTED means a successful connection followed by a sent subscription request. A commit during the small registration window can be missed. A process failure between commit and notification can also lose the hint. This checkpoint does not introduce an outbox or exactly-once semantics.
-
-## Recovery reads
+## Recovery and replay
 
 | Consumer | Immediate reads | Periodic recovery |
 | --- | --- | --- |
-| Home | Entry, private updates and successful connections | Every 30 seconds for unknown/WAITING/MATCHED, not idle NOT_QUEUED |
-| Game | Entry, relevant newer hints, connection/reconnect, focus/visible return and manual refresh | Every 30 seconds while visible with loaded active or board/history-refresh-required state |
+| Home | Entry, private updates and connections | 30s for unknown/WAITING/MATCHED; idle NOT_QUEUED is not polled |
+| Game | Entry, relevant newer hints, connections, focus/visible return and manual refresh | 30s while visible with a loaded active or board/history-refresh-required snapshot |
+| Statistics card | Entry/manual/private updates/connections | No polling added |
 
-Home coalesces events received during a queue command/read into one pending read. It updates MATCHED feedback but intentionally leaves Open game as an explicit action.
+One pending read coalesces triggers while commands/reads run. Game reads board then history, respecting captured versions. An older response cannot overwrite newer state; equal-version clock projections refresh without replacing board identity. Blocking synchronization may clear selection/promotion/confirmation; a nonblocking safety read preserves unchanged-version interaction. Commands are never automatically replayed. Initial game-load failure without a snapshot relies on manual/focus/connection/hint recovery rather than the periodic snapshot filter.
 
-Game coalesces required reads during GET/POST. Safety reads retain the board and same-version object. A Player may start a POST during a safety read; the GET is cancelled first and a read is queued afterward. Known-newer hints block proposals until reconciled. Delayed hints and older snapshots cannot roll back accepted state. There is never an automatic POST retry.
+Replay keeps a historical board while status and clocks remain live. Latest explicitly returns to play. Home pairing still exposes Open game rather than forcing navigation. No sounds, square-click return, Next-to-live or new-live-move indicators are added.
 
-If an initial Game read fails without a snapshot, the timer does not retry it. Manual refresh, focus/connection events or a relevant hint can retry. The recovery intervals improve eventual state discovery; they do not guarantee a strict 30-second bound during network failure or browser throttling.
+## Timing and delivery limits
 
-## Configuration lookup
+Backend app.websocket heartbeat defaults to configured 10s; literal origin/path/prefix/duration validation remains. Frontend REALTIME_CONFIG separately declares endpoint/subscription, 5s reconnect delay, 10s connection/heartbeat and 30s reconciliation. YAML does not publish browser config. Intervals are not strict latency guarantees under network failure/throttling.
 
-Backend settings live in application.yaml under app.websocket and bind to WebSocketProperties. Prefixes and updates-path derive both sending and allowed-subscription destinations. Endpoint registration and HTTP security use the same endpoint property. Frontend REALTIME_CONFIG separately supplies matching addresses and client timing. Do not assume editing YAML changes a compiled browser address.
+The in-process broker has no durable replay/outbox, guaranteed browser acknowledgment, persistent subscription receipt or exactly-once semantics. CONNECTED plus sending SUBSCRIBE is not a registration acknowledgment. HTTP reads recover state, not missed negotiation history. A session-validity check does not provide atomic revocation-versus-network-send ordering.
 
-The origin property is a single allowed HTTP(S) origin. Routing prefixes cannot overlap; literal-path validation rejects wildcards and trailing slashes. These are configuration checks, not proof of deployment correctness. User-managed JWT/database configuration is outside this documentation package.
+## Tests and fixture lessons
 
-## Tests and scope
+WebSocketIntegrationTest uses real HTTP registration/login/CSRF cookies and a random-port STOMP endpoint. Upgrade rejection checks assert HTTP statuses; CONNECT rejection checks require ERROR frames and tolerate empty bodies. Four forbidden-subscription cases, SEND rejection and transaction timing remain. Two sockets sharing one cookie jar stop receiving after logout while an independent recipient still receives. Stored expiry similarly filters delivery before cleanup. These are bounded observations, not actual Angular tab/restart/deployment tests.
 
-Inspected tests cover inbound authorization, outbound expiry/cleanup and real PostgreSQL transaction notification timing with a mocked messaging template. Day 23 adds actual socket routing/security and a private probe readiness fixture, including resignation after-commit delivery, outsider isolation and rollback suppression. Heartbeat negotiation and Angular coordination are not covered by these new socket tests. See [review](day23-reliability-review.md).
+Readiness probes are generated per peer and sent through user routing. Same-Player sockets can receive each other's probes, so the fixture ignores the exact registry of all generated probes while releasing only a peer's own latch. SimpleMessageConverter preserves raw payloads; application messages alone are parsed as PlayerUpdate. Cleanup skips graceful disconnect for expected rejected peers but still stops clients. No complete transport-failure cleanup guarantee is claimed.
 
-Day 21 persists history separately; live notifications remain small hints. No clocks, acceptance or disconnect outcome is added. This is a single-instance live notification path. Future durable/multi-instance requirements need their own design rather than assuming the simple broker scales transparently.
-
-## References
-
-- [Spring token authentication](https://docs.spring.io/spring-framework/reference/web/websocket/stomp/authentication-token-based.html)
-- [Spring user destinations](https://docs.spring.io/spring-framework/reference/web/websocket/stomp/user-destination.html)
-- [Transaction-bound events](https://docs.spring.io/spring-framework/reference/data-access/transaction/event.html)
-- [Simple broker and heartbeat scheduler](https://docs.spring.io/spring-framework/reference/web/websocket/stomp/handle-simple-broker.html)
-- [Simple broker limitations](https://docs.spring.io/spring-framework/reference/web/websocket/stomp/handle-broker-relay.html)
-- [StompJS lifecycle](https://stomp-js.github.io/guide/stompjs/using-stompjs-v5.html)
-
-## Day 21 read extension
-
-The notification payload is unchanged. Board GET is now followed by history GET. Matching versions accept history; newer history supplies another synchronization trigger; older history is ignored. Successful POST explicitly queues recovery for the sender's move list. cancelReads cancels either GET stage before POST. Loaded finished games keep visible-page safety checks only while board/history still need recovery. A history error alone does not disable an accepted board. See [history flow](move-history-flow.md).
-
-## Day 22 lifecycle extension
-
-The transport contract and notification module are unchanged. After every accepted resignation/offer/accept/decline/withdraw, GameService publishes GAME_UPDATED after flushing and any required release. GameNotificationListener still sends the committed version through updatesDestination() to both Players; PlayerUpdate.type is the event enum's name string.
-
-The recipient rereads GameResponse to discover drawOfferedByPlayerId or completion. Lifecycle versions invalidate stale command preconditions and history versions without implying a new move row. executeGameCommand now coordinates every game POST with notification/recovery reads. Missed offer hints recover through the existing active-page reads; no durable negotiation replay is added.
-
-## Day 23 socket fixture
-
-WebSocketIntegrationTest uses a random-port server, real JWTs, allowed Origin and the private subscription. Repeated unique byte-array probes establish reception before testing notifications; late probe replies are ignored. SimpleMessageConverter retains raw payload bytes, then JsonMapper parses application updates. text(null) tolerates an ERROR frame without a body; otherwise callback failure can prevent the error being recorded.
-
-Seven rejection cases assert STOMP ERROR callbacks; two cases exercise real resignation commit/rollback through GameService with three ready Players. Negative assertions observe 300 ms per check and positive reads allow five seconds. These are bounded observations, not proof of durable or exactly-once delivery. Heartbeats are disabled in this test client. No test-level transaction surrounds the fixture; explicit TransactionTemplate blocks own completion while service methods join them.
-
-
-## Day 24 live snapshots during replay
-
-Notifications still compare against the authoritative game().version, never the replay cursor or a displayed historical FEN. Relevant hints and periodic reads update live game/history while preserving numeric replay selection. Pending local promotion/confirmation can still be cleared by synchronization. Latest returns to the latest accepted game snapshot, subject to existing synchronization guards before commands. Replay does not pause the opponent, socket, database or game lifecycle. No PGN data is sent over WebSocket, and export performs no game mutation/event publication.
-
-## Day 25: two event contracts
-
-GameFinishedEvent belongs to game.event; PlayerStatisticsGameFinishedEventListener belongs to player.event. This ordinary synchronous listener must succeed within the publishing transaction and calls a MANDATORY service. It is not the AFTER_COMMIT notification listener. Its failure rolls back completion; delivery failure after commit cannot do so.
-
-PlayerUpdate stays type/gameId/version only. The Home statistics component responds to existing updates$ and connections$ with an ordinary statistics GET; it does not calculate from the hint or add another socket subscription. Changes to the simple broker, JWT lifetime, session expiry timer or refresh tokens are not part of Day 25. No durable outbox/event replay guarantee is introduced.
-
-## Day 26 clocks and timeout extension
-
-Timeout completion publishes the same GAME_UPDATED hint after the normal synchronous rating transaction commits. No clock ticks are broadcast. Angular advances its estimate locally and rereads projected clock data on existing recovery triggers, including equal-version GETs. Local zero is not a server completion.
-
-The scanner is a separate scheduled service, not an async statistics dispatcher. Notifications remain best-effort and single-instance routing assumptions remain. Socket rejection cleanup now observes ERROR before skipping graceful DISCONNECT on rejected peers; this does not establish scheduled-timeout delivery or a general transport-race guarantee.
-
-See [clock flow and pseudocode](game-clocks-flow.md) for timing, configuration, transaction boundaries and remaining limits.
+See [review](day27-sessions-review.md), [testing](backend-reliability-testing.md) and [clock flow](game-clocks-flow.md).

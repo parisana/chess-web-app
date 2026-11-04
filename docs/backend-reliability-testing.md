@@ -1,5 +1,8 @@
 # Backend reliability testing
 
+Day 27 update, source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. Session/CSRF authentication supersedes earlier bearer/token statements. See [review](day27-sessions-review.md), [authentication and WebSocket diagrams](session-authentication-flow.md) and [tab synchronization](tab-synchronization-flow.md). No assistant application execution; older Day-labelled sections describe their historical checkpoint.
+
+
 Current companion through Day 26, source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Clock/timeout additions below supersede earlier checkpoint-specific statements. No assistant application execution is claimed. See [Day 26 review](day26-clocks-review.md) and [clock flow/pseudocode](game-clocks-flow.md).
 
 ## Pick the boundary being tested
@@ -80,6 +83,14 @@ Deep-read ratingFailureRollsBackTimeoutAndAllowsSuccessfulRetry and moveAndTimeo
 
 Direct synthetic FEN/legacy/finished-unprocessed SQL clears all four clock columns. Frozen response comparison ignores clock.calculatedAt only. Rejection tests require STOMP ERROR before marking rejectionObserved; cleanup skips graceful DISCONNECT for rejected peers but still stops clients. This targets the observed closed-session cleanup race.
 
-Configuration follow-up: shared application-test.yml currently enables scans. Recommend false; GameTimeoutIntegrationTest alone already overrides false. This package leaves configuration unchanged. Keep background scanning off for deterministic fixture tests unless the scheduled trigger is the boundary being tested.
+Day 27 applies the configuration follow-up: shared application-test.yml now disables scans and session cleanup. Production scanning remains enabled. Keep background scanning off for deterministic fixture tests unless the scheduled trigger is the boundary being tested.
 
 See [clock flow and pseudocode](game-clocks-flow.md) for timing, configuration, transaction boundaries and remaining limits.
+
+## Day 27 authentication verification
+
+See [review](day27-sessions-review.md) for inspected suites and limits. Dedicated HTTP tests obtain actual csrf/session cookies; feature suites seed persisted contexts through TestSessions and send matching CSRF cookies/headers through TestCsrf. These helpers do not replace the production CSRF repository. Explicitly clean persisted sessions even when Player/game fixtures are rollback-managed; framework session operations use independent transactions.
+
+SessionCookieConfig fixes observed default SESSION issuance. Outbound permission must be true at preSend then false before beforeHandle. Same-Player readiness probes fan out, so ignore all exact registered fixture probes but release only the receiving peer's own latch. Real socket tests assert upgrade status separately from STOMP ERROR and use bounded no-message observations.
+
+Four new backend suites: JdbcSessionPersistenceIntegrationTest (2), SessionAuthenticationHttpIntegrationTest (5), SessionSecurityIntegrationTest (6) and WebSocketSessionAccessTest (5) ordinary methods. Current socket suite has 13 source cases; frontend has six auth-flow and three mocked tab-sync cases. No isolated V13-to-V14 upgrade, scheduled-cleanup trigger, process restart, actual browser BroadcastChannel or complete simultaneous auth-race test is claimed. No assistant execution.

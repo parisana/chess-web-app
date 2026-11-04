@@ -1,5 +1,8 @@
 # Game clocks and timeout flow
 
+Day 27 update, source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. Session/CSRF authentication supersedes earlier bearer/token statements. See [review](day27-sessions-review.md), [authentication and WebSocket diagrams](session-authentication-flow.md) and [tab synchronization](tab-synchronization-flow.md). No assistant application execution; older Day-labelled sections describe their historical checkpoint.
+
+
 Source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. See [review](day26-clocks-review.md) for evidence and limitations. No assistant application execution is claimed.
 
 ## Ownership and storage
@@ -109,7 +112,7 @@ Clocks show live game time during replay, not historical time. Existing Latest r
 
 ## Configuration and known follow-up
 
-Production uses 10m, enabled=true and fixed delay 1s. Batch size is 100. The shared test YAML currently also enables scans; recommend changing only its timeout-scan-enabled to false. GameTimeoutIntegrationTest already overrides false. This docs package changes no configuration.
+Production uses 10m, enabled=true and fixed delay 1s. Batch size is 100. Day 27 source now sets shared test timeout-scan-enabled=false and disables session cleanup. Production scanning remains true. No configuration is changed by this documentation package.
 
 No deadline index, backoff, permanent-failure quarantine, scheduler lease, time-control selector or latency compensation exists. Large batches or repeated failures can delay later games. Persisted timestamp recovery after restart is supported by the design, not demonstrated by a restart test. Clock start precedes creation commit and opening the board. Disconnect/logout/replay never pause it.
 

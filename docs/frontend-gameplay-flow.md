@@ -1,5 +1,8 @@
 # Frontend gameplay flow
 
+Day 27 update, source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. Session/CSRF authentication supersedes earlier bearer/token statements. See [review](day27-sessions-review.md), [authentication and WebSocket diagrams](session-authentication-flow.md) and [tab synchronization](tab-synchronization-flow.md). No assistant application execution; older Day-labelled sections describe their historical checkpoint.
+
+
 Current companion through Day 26, source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Clock/timeout additions below supersede earlier checkpoint-specific statements. No assistant application execution is claimed. See [Day 26 review](day26-clocks-review.md) and [clock flow/pseudocode](game-clocks-flow.md).
 
 ## Ownership
@@ -29,7 +32,7 @@ flowchart TD
     G --> H["Guarded Game route loads GET"]
 ```
 
-Matchmaking creates the game before the route opens. Home updates automatically, but routing remains an explicit Player action. The game route never creates the game. The route guard checks local authentication; the backend separately enforces JWT and participant access.
+Matchmaking creates the game before the route opens. Home updates automatically, but routing remains an explicit Player action. The game route never creates the game. The route guard checks local authentication; the backend separately enforces session authentication and participant access.
 
 ## Signals and coordination
 
@@ -173,3 +176,9 @@ GameClocks has separate TS/HTML/CSS and pseudocode.txt. It anchors server-calcul
 Replay displays historical positions while clocks/status remain live. Latest remains explicit. Stronger banner/square-click behavior, sounds and new-live-move indicators are deferred until after MVP. No new frontend tests or assistant browser acceptance is claimed.
 
 See [clock flow and pseudocode](game-clocks-flow.md) for timing, configuration, transaction boundaries and remaining limits.
+
+## Session initialization and deferred action-click observation
+
+App initialization restores csrf/profile before route guards. Local revision replaces JWT comparisons in profile/statistics/socket callbacks. SessionSyncService leaves the old page before restoring another identity; see the detailed tab diagrams. Game command/replay/read coordination itself is unchanged in Day 27.
+
+User reports some lifecycle clicks need another attempt. Accept draw/resign deliberately require confirmation. needsRefresh, replay, pending promotion, loading/submission or changed snapshots can gate/clear interaction. An unchanged-version nonblocking safety read alone does not block commands. No runtime trace establishes whether the reported case is no POST, confirmation clearing, CSRF 403, stale 409 or another cause. Investigation and fixes remain deferred; do not add automatic command replay.

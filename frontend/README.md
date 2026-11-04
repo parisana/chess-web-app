@@ -1,6 +1,6 @@
 # Chess Frontend
 
-Angular 21 standalone frontend with Material, signals, RxJS, in-memory authentication, custom board and live clocks. Source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. No assistant build/test/browser run is claimed. See [review](../docs/day26-clocks-review.md) and [clock flow](../docs/game-clocks-flow.md).
+Angular 21 standalone frontend with Material, signals, RxJS, persistent-session authentication, custom board and live clocks. Day 27 source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. No assistant build/test/browser run is claimed. See [review](../docs/day26-clocks-review.md) and [clock flow](../docs/game-clocks-flow.md).
 
 ## Run
 
@@ -15,7 +15,7 @@ Open http://localhost:4200. The start script enables proxy.conf.json, forwarding
 
 ## Authentication and navigation
 
-Login stores the token, fetches `/players/me` and establishes authentication when both token and Player exist. Sessions are in memory; browser reload requires login again. Protected 401 handling compares the request token with the current session before clearing it. Failed forms preserve passwords.
+Startup initialization restores csrf then players/me before guards. Login returns a Player profile after session creation; Angular reinitializes CSRF before storing it. The browser retains CHESS_SESSION; Angular stores profile/revision only. Protected 401 compares captured revision; 403 does not clear authentication. Failed forms preserve passwords. Server logout is subscribed to and only successful logout clears local state. See [session flow](../docs/session-authentication-flow.md) and [tab diagrams](../docs/tab-synchronization-flow.md).
 
 Home supports profile editing, self-statistics and persistent matchmaking. It reads queue state on entry, private updates and successful connections. A single pending read is drained after a current command/read. Unknown/WAITING/MATCHED status has 30-second recovery checks; NOT_QUEUED is idle. Home’s signal is named queueStatusResponse in this checkpoint.
 
@@ -33,7 +33,7 @@ Games also reconcile after reconnect/focus and periodically while visible with a
 
 ## Real-time connection
 
-App instantiates RealtimeService once. It observes token/authentication, recreates subscriptions on reconnect, validates update payloads and ignores callbacks from replaced sessions. Heartbeats detect transport failures. Local expiry/logout deactivates the connection; expiry also navigates to login. STOMP rejection marks live delivery UNAVAILABLE while HTTP/manual recovery remains available.
+App instantiates RealtimeService once. It observes revision/authentication, checks csrf/profile before connecting, recreates subscriptions on reconnect and ignores stale callbacks. CONNECT sends X-XSRF-TOKEN and the handshake inherits cookie authentication. Heartbeats detect transport failures; clearing local state stops the client. No JWT expiry timer remains. STOMP rejection marks live delivery UNAVAILABLE while HTTP/manual recovery remains available.
 
 @stomp/stompjs is declared as ^7.5.0. REALTIME_CONFIG supplies matching backend addresses plus reconnect/heartbeat/recovery timing. Backend YAML is not read by Angular.
 
@@ -46,7 +46,7 @@ npm test -- --watch=false
 npm run build
 ```
 
-The existing five auth-flow.spec.ts tests are unchanged. There is no new notification/game coordinator suite in the ZIP. Suggested two-session scenarios are in the [review](../docs/day22-lifecycle-review.md).
+The archive contains six auth-flow and three mocked tab-sync coordinator tests. No comprehensive real-browser notification/game coordinator suite is established. Suggested two-session scenarios are in the [review](../docs/day22-lifecycle-review.md).
 
 The move list has separate coordinate and SAN columns. Pre-SAN entries show “—” for SAN. Recorded-position replay is implemented with explicit Latest return. Backend PGN export exists; its Angular download UI is deferred. Live clocks are implemented; drag-and-drop and legal-move highlighting remain absent. Promotion selection may open before backend king-safety rejection; this known UI improvement remains intentionally deferred. Disconnecting never decides game completion or releases reservations. No durable notification replay, auto board navigation or persisted login session is supplied.
 
@@ -89,3 +89,7 @@ GameClocks has separate TS/HTML/CSS and pseudocode.txt. It anchors server-calcul
 Replay displays historical positions while clocks/status remain live. Latest remains explicit. Stronger banner/square-click behavior, sounds and new-live-move indicators are deferred until after MVP. No new frontend tests or assistant browser acceptance is claimed.
 
 See [clock flow and pseudocode](../docs/game-clocks-flow.md) for timing, configuration, transaction boundaries and remaining limits.
+
+## Session coordination
+
+AuthSessionEventsService publishes only SESSION_CHANGED over BroadcastChannel. SessionSyncService clears local identity/revision, awaits Login navigation, checks revision and restores the backend session before opening Home. Another tab does not receive credentials or a profile through the channel. Delivery and simultaneous authentication schedules have documented limits; see the tab companion. Relative API URLs preserve built-in Angular XSRF integration through the development proxy.

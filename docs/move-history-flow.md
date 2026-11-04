@@ -1,5 +1,8 @@
 # Move history and SAN flow
 
+Day 27 update, source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. Session/CSRF authentication supersedes earlier bearer/token statements. See [review](day27-sessions-review.md), [authentication and WebSocket diagrams](session-authentication-flow.md) and [tab synchronization](tab-synchronization-flow.md). No assistant application execution; older Day-labelled sections describe their historical checkpoint.
+
+
 Day 24 source companion, reviewed on 31 October 2026 against actual user `chess-web-app-day24-end.zip`. Existing persistence/SAN/history-query behavior is retained; replay and backend PGN export now consume it. The DTO has an additional ordering comment only. No assistant application tests, builds, migrations or browser checks were run.
 
 ## Storage meanings
