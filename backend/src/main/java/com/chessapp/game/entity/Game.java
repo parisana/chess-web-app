@@ -93,6 +93,20 @@ public class Game extends BaseEntity {
     @Column(name = "clock_turn_started_at")
     private Instant clockTurnStartedAt;
 
+    // Immutable display details captured by the normal game-creation path.
+    // Null values identify games created before snapshots were introduced.
+    @Column(name = "white_username_at_start", length = 30, updatable = false)
+    private String whiteUsernameAtStart;
+
+    @Column(name = "black_username_at_start", length = 30, updatable = false)
+    private String blackUsernameAtStart;
+
+    @Column(name = "white_rating_at_start", updatable = false)
+    private Integer whiteRatingAtStart;
+
+    @Column(name = "black_rating_at_start", updatable = false)
+    private Integer blackRatingAtStart;
+
     public Game(
             Long whitePlayerId,
             Long blackPlayerId,
@@ -211,6 +225,41 @@ public class Game extends BaseEntity {
     public void clearDrawOffer() {
         requireInProgress();
         drawOfferedByPlayerId = null;
+    }
+
+    /**
+     * Captures participant details once, before the game is persisted.
+     * Later profile edits and rating changes must not rewrite the snapshot.
+     */
+    public void captureParticipantDetails(
+            String whiteUsername,
+            String blackUsername,
+            int whiteRating,
+            int blackRating
+    ) {
+        requireInProgress();
+
+        if (id != null || whiteUsernameAtStart != null) {
+            throw new IllegalStateException(
+                    "Participant details have already been established"
+            );
+        }
+
+        requireSnapshotUsername(whiteUsername);
+        requireSnapshotUsername(blackUsername);
+
+        whiteUsernameAtStart = whiteUsername;
+        blackUsernameAtStart = blackUsername;
+        whiteRatingAtStart = whiteRating;
+        blackRatingAtStart = blackRating;
+    }
+
+    private static void requireSnapshotUsername(String username) {
+        if (username == null || username.isBlank() || username.length() > 30) {
+            throw new IllegalArgumentException(
+                    "A snapshot username must contain 1–30 characters"
+            );
+        }
     }
 
     private void requireInProgress() {

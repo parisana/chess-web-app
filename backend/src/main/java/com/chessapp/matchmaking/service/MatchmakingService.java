@@ -1,6 +1,7 @@
 package com.chessapp.matchmaking.service;
 
-import com.chessapp.game.service.GameService;
+import com.chessapp.game.service.GameQueryService;
+import com.chessapp.game.service.GameCommandService;
 import com.chessapp.matchmaking.dto.QueueStatusResponse;
 import com.chessapp.matchmaking.exception.MatchmakingPlayerUnavailableException;
 import com.chessapp.matchmaking.repository.MatchmakingLockRepository;
@@ -23,7 +24,8 @@ public class MatchmakingService {
     private final MatchmakingQueueRepository queueRepository;
     private final MatchmakingLockRepository lockRepository;
     private final PlayerService playerService;
-    private final GameService gameService;
+    private final GameCommandService gameCommandService;
+    private final GameQueryService gameQueryService;
     private final Clock clock;
 
     @Transactional
@@ -33,7 +35,7 @@ public class MatchmakingService {
         lockRepository.lockQueue();
         requirePlayer(playerId);
 
-        var activeGameId = gameService.findActiveGameId(playerId);
+        var activeGameId = gameQueryService.findActiveGameId(playerId);
 
         if (activeGameId.isPresent()) {
             // Remove any stale membership without cancelling the game.
@@ -82,7 +84,7 @@ public class MatchmakingService {
             boolean removedStaleEntry = false;
 
             for (var entry : entries) {
-                if (gameService.findActiveGameId(entry.getPlayerId())
+                if (gameQueryService.findActiveGameId(entry.getPlayerId())
                         .isPresent()) {
 
                     queueRepository.deleteEntryByPlayerId(
@@ -102,7 +104,7 @@ public class MatchmakingService {
             boolean firstIsWhite =
                     ThreadLocalRandom.current().nextBoolean();
 
-            gameService.createGame(
+            gameCommandService.createGame(
                     firstIsWhite ? firstPlayerId : secondPlayerId,
                     firstIsWhite ? secondPlayerId : firstPlayerId
             );
@@ -122,7 +124,7 @@ public class MatchmakingService {
     }
 
     private QueueStatusResponse currentStatus(Long playerId) {
-        var activeGameId = gameService.findActiveGameId(playerId);
+        var activeGameId = gameQueryService.findActiveGameId(playerId);
 
         return activeGameId.map(QueueStatusResponse::matched)
                 .orElseGet(() -> queueRepository.findByPlayerId(playerId)

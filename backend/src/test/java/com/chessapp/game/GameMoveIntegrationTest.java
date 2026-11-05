@@ -1,5 +1,6 @@
 package com.chessapp.game;
 
+import com.chessapp.game.service.GameQueryService;
 import com.chessapp.support.BoardTestRenderer;
 import com.chessapp.game.dto.GameMoveResult;
 import com.chessapp.game.dto.GameResponse;
@@ -13,7 +14,7 @@ import com.chessapp.game.rules.fen.FenParser;
 import com.chessapp.game.rules.model.Move;
 import com.chessapp.game.rules.model.PieceType;
 import com.chessapp.game.rules.model.Square;
-import com.chessapp.game.service.GameService;
+import com.chessapp.game.service.GameCommandService;
 import com.chessapp.matchmaking.dto.QueueStatus;
 import com.chessapp.matchmaking.service.MatchmakingService;
 import com.chessapp.player.dto.PlayerResponse;
@@ -61,7 +62,8 @@ class GameMoveIntegrationTest {
     private static final String BEFORE_WHITE_MATE =
             "7k/8/5KQ1/8/8/8/8/8 w - - 4 20";
 
-    @Autowired private GameService service;
+    @Autowired private GameCommandService service;
+    @Autowired private GameQueryService gameQueryService;
     @Autowired private GameRepository repository;
     @Autowired private GameMoveRepository moveRepository;
     @Autowired private PlayerService playerService;
@@ -176,7 +178,7 @@ class GameMoveIntegrationTest {
         assertEquals(Long.valueOf(2), persisted.getVersion());
         assertEquals(
                 second.currentFen(),
-                service.getGame(game.id(), black()).currentFen()
+                gameQueryService.getGame(game.id(), black()).currentFen()
         );
         assertReservations();
 
@@ -371,17 +373,17 @@ class GameMoveIntegrationTest {
                         response.finishedAt(), persisted.getFinishedAt()
                 ),
                 () -> assertTrue(
-                        service.findActiveGameId(white()).isEmpty()
+                        gameQueryService.findActiveGameId(white()).isEmpty()
                 ),
                 () -> assertTrue(
-                        service.findActiveGameId(black()).isEmpty()
+                        gameQueryService.findActiveGameId(black()).isEmpty()
                 ),
                 () -> assertEquals(0, reservationCount())
         );
 
         assertEquals(
                 GameStatus.FINISHED,
-                service.getGame(game.id(), white()).status()
+                gameQueryService.getGame(game.id(), white()).status()
         );
 
         var moves = history();
@@ -418,11 +420,11 @@ class GameMoveIntegrationTest {
 
         assertEquals(
                 nextGame.id(),
-                service.findActiveGameId(white()).orElseThrow()
+                gameQueryService.findActiveGameId(white()).orElseThrow()
         );
         assertEquals(
                 nextGame.id(),
-                service.findActiveGameId(black()).orElseThrow()
+                gameQueryService.findActiveGameId(black()).orElseThrow()
         );
     }
 
@@ -574,9 +576,9 @@ class GameMoveIntegrationTest {
         assertEquals(1, reservationCount());
         assertEquals(
                 game.id(),
-                service.findActiveGameId(white()).orElseThrow()
+                gameQueryService.findActiveGameId(white()).orElseThrow()
         );
-        assertTrue(service.findActiveGameId(black()).isEmpty());
+        assertTrue(gameQueryService.findActiveGameId(black()).isEmpty());
     }
 
     @Test
@@ -869,10 +871,10 @@ class GameMoveIntegrationTest {
                 () -> assertTrue(history().isEmpty()),
                 () -> assertEquals(0, reservationCount()),
                 () -> assertTrue(
-                        service.findActiveGameId(white()).isEmpty()
+                        gameQueryService.findActiveGameId(white()).isEmpty()
                 ),
                 () -> assertTrue(
-                        service.findActiveGameId(black()).isEmpty()
+                        gameQueryService.findActiveGameId(black()).isEmpty()
                 )
         );
     }
@@ -900,7 +902,7 @@ class GameMoveIntegrationTest {
     void finishedGameRejectsAnotherResignationBeforeVersionCheck() {
         service.resign(game.id(), white(), game.version());
 
-        var completed = service.getGame(game.id(), black());
+        var completed = gameQueryService.getGame(game.id(), black());
 
         assertThrows(
                 GameAlreadyFinishedException.class,
@@ -910,7 +912,7 @@ class GameMoveIntegrationTest {
         assertThat(completed)
                 .usingRecursiveComparison()
                 .ignoringFields("clock.calculatedAt")
-                .isEqualTo(service.getGame(game.id(), black()));
+                .isEqualTo(gameQueryService.getGame(game.id(), black()));
         assertEquals(0, reservationCount());
         assertTrue(history().isEmpty());
     }
@@ -968,7 +970,7 @@ class GameMoveIntegrationTest {
         assertEquals(1, reservationCount());
         assertEquals(
                 game.id(),
-                service.findActiveGameId(white()).orElseThrow()
+                gameQueryService.findActiveGameId(white()).orElseThrow()
         );
     }
 
@@ -1092,7 +1094,7 @@ class GameMoveIntegrationTest {
         );
 
         // History follows the game version even when no chess move was added.
-        var recorded = service.getHistory(game.id(), white());
+        var recorded = gameQueryService.getHistory(game.id(), white());
 
         assertEquals(accepted.version().longValue(), recorded.version());
         assertEquals(0L, recorded.recordedMoveCount());
@@ -1311,7 +1313,7 @@ class GameMoveIntegrationTest {
         assertEquals(1, reservationCount());
         assertEquals(
                 game.id(),
-                service.findActiveGameId(white()).orElseThrow()
+                gameQueryService.findActiveGameId(white()).orElseThrow()
         );
         verifyNoInteractions(outboundMessages);
     }
@@ -1565,11 +1567,11 @@ class GameMoveIntegrationTest {
         assertEquals(2, reservationCount());
         assertEquals(
                 game.id(),
-                service.findActiveGameId(white()).orElseThrow()
+                gameQueryService.findActiveGameId(white()).orElseThrow()
         );
         assertEquals(
                 game.id(),
-                service.findActiveGameId(black()).orElseThrow()
+                gameQueryService.findActiveGameId(black()).orElseThrow()
         );
     }
 

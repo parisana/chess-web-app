@@ -1,34 +1,61 @@
 @if (position(); as current) {
-<table class="board" aria-label="Current chess position">
-  <caption>
-    {{ current.sideToMove === 'WHITE' ? 'White' : 'Black' }}
-    to move
-  </caption>
+<div #boardSurface class="board-surface" tabindex="-1" role="group" aria-label="Chessboard">
+  <table class="board" aria-label="Current chess position">
+    <tbody>
+      @for (row of rows(); track row.rank) {
+      <tr>
+        @for (cell of row.cells; track cell.square) {
+        <td [class.dark]="cell.dark">
+          <button class="square-content" type="button" [disabled]="!enabled() || promotionMove() !== null"
+            [class.selected]="selectedSquare() === cell.square"
+            [class.legal-target]="legalDestinations().has(cell.square)"
+            [class.capture-target]="legalDestinations().get(cell.square) === true"
+            [class.rejected-from]="failedMove()?.from === cell.square"
+            [class.rejected-to]="failedMove()?.to === cell.square" [attr.aria-label]="
+              cell.label +
+              (
+                legalDestinations().has(cell.square)
+                  ? legalDestinations().get(cell.square)
+                    ? ', legal capture destination'
+                    : ', legal destination'
+                  : ''
+              )
+            " [attr.aria-pressed]="selectedSquare() === cell.square" (click)="selectSquare(cell.square)">
+            <span class="coordinate" aria-hidden="true">
+              {{ cell.square }}
+            </span>
 
-  <tbody>
-    @for (row of rows(); track row.rank) {
-    <tr>
-      @for (cell of row.cells; track cell.square) {
-      <td [class.dark]="cell.dark">
-        <button class="square-content" type="button" [disabled]="!enabled()"
-          [class.selected]="selectedSquare() === cell.square" [attr.aria-label]="cell.label"
-          [attr.aria-pressed]="selectedSquare() === cell.square" (click)="selectSquare(cell.square)">
-          <span class="coordinate" aria-hidden="true">
-            {{ cell.square }}
-          </span>
-
-          @if (cell.piece; as piece) {
-          <span class="piece" aria-hidden="true">
-            {{ piece.glyph }}
-          </span>
-          }
-        </button>
-      </td>
+            @if (cell.piece; as piece) {
+            <span class="piece" aria-hidden="true">
+              {{ piece.glyph }}
+            </span>
+            }
+          </button>
+        </td>
+        }
+      </tr>
       }
-    </tr>
+    </tbody>
+  </table>
+
+  @if (promotionMenu(); as menu) {
+  <button class="promotion-backdrop" type="button" tabindex="-1" aria-label="Cancel promotion"
+    (click)="dismissPromotion()"></button>
+
+  <div class="promotion-menu" [class.opens-up]="menu.opensUp" [style.left.%]="menu.left" [style.top.%]="menu.top"
+    role="dialog" aria-modal="true" [attr.aria-label]="'Choose promotion piece on ' + menu.destination" cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true">
+    @for (choice of menu.choices; track choice.piece; let first = $first) {
+    <button class="promotion-choice" [class.white-piece]="menu.color === 'WHITE'" type="button"
+      [disabled]="!promotionEnabled()" [attr.cdkFocusInitial]="first ? '' : null"
+      [attr.aria-label]="'Promote to ' + choice.label" [title]="'Promote to ' + choice.label"
+      (click)="selectPromotion(choice.piece)">
+      <span aria-hidden="true">{{ choice.glyph }}</span>
+    </button>
     }
-  </tbody>
-</table>
+  </div>
+  }
+</div>
 } @else {
 <p role="alert">
   The game position could not be displayed.

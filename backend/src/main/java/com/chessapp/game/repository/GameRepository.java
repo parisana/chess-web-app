@@ -1,6 +1,8 @@
 package com.chessapp.game.repository;
 
 import com.chessapp.game.entity.Game;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -51,6 +53,25 @@ public interface GameRepository extends JpaRepository<Game, Long> {
     List<Long> findExpiredClockCandidates(
             @Param("now") Instant now,
             @Param("batchSize") int batchSize
+    );
+
+    /**
+     * Ownership is part of the database query, before pagination.
+     * The ID breaks ties when multiple games share a finish timestamp.
+     */
+    @Query("""
+        select game
+        from Game game
+        where game.status = com.chessapp.game.entity.GameStatus.FINISHED
+          and (
+              game.whitePlayerId = :playerId
+              or game.blackPlayerId = :playerId
+          )
+        order by game.finishedAt desc, game.id desc
+        """)
+    Slice<Game> findFinishedForPlayer(
+            @Param("playerId") long playerId,
+            Pageable pageable
     );
 
 }

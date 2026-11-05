@@ -192,6 +192,10 @@ class PgnFormatterTest {
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
                 null
         );
     }

@@ -1,4 +1,4 @@
-import { GameClockResponse } from './game-clock';
+import { GameClockResponse } from './game-clock-response';
 import {
   GameResult,
   GameStatus,

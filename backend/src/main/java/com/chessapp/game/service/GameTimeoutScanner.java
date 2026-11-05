@@ -27,7 +27,7 @@ public class GameTimeoutScanner {
     private static final int BATCH_SIZE = 100;
 
     private final GameRepository gameRepository;
-    private final GameService gameService;
+    private final GameCommandService gameCommandService;
     private final Clock clock;
 
     /**
@@ -46,7 +46,7 @@ public class GameTimeoutScanner {
 
         for (Long gameId : candidates) {
             try {
-                gameService.expireGame(gameId);
+                gameCommandService.expireGame(gameId);
             } catch (StaleGameVersionException
                      | GameNotFoundException exception) {
                 // A competing command changed or removed this candidate.

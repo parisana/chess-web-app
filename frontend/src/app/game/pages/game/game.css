@@ -1,125 +1,311 @@
-.game-page {
-  max-width: 48rem;
-  margin: 2rem auto;
-  padding: 0 1rem;
+:host {
+  display: block;
 }
 
-header {
+.game-page {
+  padding: 1rem;
+}
+
+.game-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(19rem, 24rem);
+  align-items: start;
+  gap: 1.25rem;
+  max-width: 100rem;
+  margin-inline: auto;
+}
+
+.board-area {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.board-stage {
+  /* Leave height for the header, clocks and board caption. */
+  width: min(100%, max(16rem, calc(100dvh - 17rem)));
+}
+
+.right-panel {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.panel {
+  padding: 1rem;
+  border: 1px solid var(--chess-border);
+  border-radius: 0.65rem;
+  background: var(--chess-surface);
+}
+
+.panel-heading,
+.profile-summary,
+.action-buttons,
+.review-banner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.promotion-actions {
-  display: flex;
-  flex-wrap: wrap;
   gap: 0.5rem;
-  margin-bottom: 1rem;
 }
 
-mat-card-content {
-  padding-top: 1rem;
+.panel-heading,
+.review-banner {
+  justify-content: space-between;
 }
 
-pre {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+h1,
+h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
-[role="alert"] {
-  color: var(--mat-sys-error);
+p {
+  line-height: 1.5;
 }
 
-.move-history {
-  margin-top: 1.5rem;
+.profile-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--chess-border);
+  border-radius: 50%;
+  color: var(--chess-accent);
+  font-size: 1.5rem;
 }
 
-.move-history h2 {
-  font-size: 1.15rem;
+.profile-summary p {
+  margin: 0.15rem 0 0;
 }
 
-.move-history-scroll {
-  max-height: 20rem;
+.muted {
+  color: var(--chess-muted);
+  font-size: 0.8rem;
+}
+
+.game-state,
+.result {
+  color: var(--chess-accent);
+}
+
+.notation-scroll {
+  max-height: 12rem;
   overflow: auto;
+  scrollbar-width: thin;
 }
 
-.move-history table {
-  width: 100%;
-  border-collapse: collapse;
+.notation {
+  margin: 0.5rem 0;
+  line-height: 2;
 }
 
-.move-history caption {
-  text-align: left;
-  padding-bottom: 0.5rem;
-}
-
-.move-history th,
-.move-history td {
-  padding: 0.5rem 0.75rem;
-  text-align: left;
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
-}
-
-.move-coordinates {
+.notation-token {
+  display: inline-block;
+  margin-inline-end: 0.2rem;
   white-space: nowrap;
 }
 
-.game-actions {
-  margin-top: 1.5rem;
+.move-number {
+  margin-inline-end: 0.2rem;
+  color: var(--chess-muted);
+  font-size: 0.8rem;
 }
 
-.game-actions h2 {
-  font-size: 1.15rem;
+.move-token {
+  padding: 0.15rem 0.35rem;
+  border: 0;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: var(--chess-text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
 }
 
-.lifecycle-buttons {
+.move-token:hover:not(:disabled) {
+  background: var(--chess-background);
+}
+
+.move-token.selected {
+  background: var(--chess-accent);
+  color: var(--chess-on-accent);
+}
+
+.move-token:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.replay-toolbar {
   display: flex;
+  width: fit-content;
+  margin: 0.75rem auto 0;
+  padding: 0.15rem;
+  border: 1px solid var(--chess-border);
+  border-radius: 0.4rem;
+  background: var(--chess-background);
+}
+
+.replay-toolbar button {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: var(--chess-text);
+  cursor: pointer;
+}
+
+.replay-toolbar button:hover:not(:disabled) {
+  background: var(--chess-selection);
+}
+
+.replay-toolbar button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.replay-toolbar svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.replay-status {
+  text-align: center;
+}
+
+.action-buttons {
   flex-wrap: wrap;
-  gap: 0.5rem;
 }
 
-.action-confirmation {
-  padding: 1rem;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: 0.5rem;
+.action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--chess-accent);
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--chess-accent);
+  font: inherit;
+  font-size: 0.8rem;
+  text-decoration: none;
+  cursor: pointer;
 }
 
-.action-confirmation p {
+.action-button.neutral {
+  border-color: var(--chess-border);
+  color: var(--chess-text);
+}
+
+.action-button.danger {
+  border-color: var(--chess-danger);
+  color: var(--chess-danger);
+}
+
+.action-button:hover:not(:disabled) {
+  background: var(--chess-background);
+}
+
+.action-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.text-button {
+  padding: 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--chess-accent);
+  font: inherit;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.text-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+.notation-scroll:focus-visible {
+  outline: 2px solid var(--chess-accent);
+  outline-offset: 2px;
+}
+
+.review-banner,
+.confirmation {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--chess-border);
+  border-radius: 0.4rem;
+}
+
+.confirmation p {
   margin-top: 0;
 }
 
-.action-help {
-  color: var(--mat-sys-on-surface-variant);
-  font-size: 0.875rem;
+.chat-placeholder {
+  margin-bottom: 0;
+  padding-top: 1rem;
+  text-align: center;
 }
 
-.replay-controls {
-  margin: 1.5rem 0 1rem;
+.connection-panel p {
+  margin-top: 0;
 }
 
-.replay-controls h2 {
-  font-size: 1.15rem;
+details {
+  margin-top: 0.75rem;
 }
 
-.replay-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+summary {
+  color: var(--chess-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
 }
 
-.replay-help,
-.live-status-label {
-  color: var(--mat-sys-on-surface-variant);
-  font-size: 0.875rem;
+pre {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  font-size: 0.75rem;
 }
 
-.live-status-label {
-  margin-bottom: 0.25rem;
+[role='alert'] {
+  color: var(--chess-danger);
 }
 
-.selected-replay-entry {
-  background-color: var(--mat-sys-secondary-container);
-  color: var(--mat-sys-on-secondary-container);
+.empty-state {
+  max-width: 32rem;
+  margin: 2rem auto;
+}
+
+@media (max-width: 960px) {
+  .game-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .board-stage {
+    /* Reserve room for the header, participant rows and board caption. */
+    width: min(100%, max(16rem, calc(100dvh - 13rem)));
+  }
+
+  .right-panel {
+    width: 100%;
+    max-width: 38rem;
+    margin-inline: auto;
+  }
 }

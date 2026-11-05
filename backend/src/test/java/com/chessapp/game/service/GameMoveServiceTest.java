@@ -60,7 +60,7 @@ class GameMoveServiceTest {
     @Mock private com.chessapp.game.config.GameClockProperties gameClockProperties;
 
     @InjectMocks
-    private GameService service;
+    private GameCommandService service;
 
     private Game game;
 

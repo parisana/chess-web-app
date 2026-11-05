@@ -1,6 +1,6 @@
 package com.chessapp.player;
 
-import com.chessapp.game.service.GameService;
+import com.chessapp.game.service.GameCommandService;
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.repository.PlayerRepository;
 import com.chessapp.player.repository.PlayerStatisticsRepository;
@@ -40,7 +40,7 @@ class PlayerStatisticsHttpIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private PlayerService playerService;
-    @Autowired private GameService gameService;
+    @Autowired private GameCommandService gameCommandService;
     @Autowired private PlayerRepository playerRepository;
     @Autowired private PlayerStatisticsRepository statisticsRepository;
     @Autowired private EntityManager entityManager;
@@ -88,12 +88,12 @@ class PlayerStatisticsHttpIntegrationTest {
             throws Exception {
         PlayerResponse opponent = createPlayer();
 
-        var game = gameService.createGame(
+        var game = gameCommandService.createGame(
                 player.id(),
                 opponent.id()
         );
 
-        gameService.resign(
+        gameCommandService.resign(
                 game.id(),
                 opponent.id(),
                 game.version()

@@ -3,7 +3,8 @@ package com.chessapp.game;
 import com.chessapp.game.dto.GameResponse;
 import com.chessapp.game.entity.GameStatus;
 import com.chessapp.game.repository.GameRepository;
-import com.chessapp.game.service.GameService;
+import com.chessapp.game.service.GameQueryService;
+import com.chessapp.game.service.GameCommandService;
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.service.PlayerService;
 import com.chessapp.support.TestSessions;
@@ -25,7 +26,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
-import com.chessapp.support.TestSessions;
 import org.springframework.session.Session;
 import org.springframework.session.SessionRepository;
 import org.springframework.session.web.http.CookieSerializer;
@@ -61,7 +61,8 @@ class GameMoveHttpIntegrationTest {
                     + " w KQkq e6 0 2";
 
     @Autowired private MockMvc mockMvc;
-    @Autowired private GameService gameService;
+    @Autowired private GameCommandService gameCommandService;
+    @Autowired private GameQueryService gameQueryService;
     @Autowired private GameRepository repository;
     @Autowired private PlayerService playerService;
     @Autowired private JdbcTemplate jdbc;
@@ -87,7 +88,7 @@ class GameMoveHttpIntegrationTest {
                 ));
 
         assertNotNull(players);
-        game = gameService.createGame(white(), black());
+        game = gameCommandService.createGame(white(), black());
     }
 
     @AfterEach
@@ -452,8 +453,8 @@ class GameMoveHttpIntegrationTest {
                     .andExpect(jsonPath("$.moves.length()").value(1))
                     .andExpect(jsonPath("$.moves[0].resultingFen").value(expectedFen));
         }
-        assertTrue(gameService.findActiveGameId(white()).isEmpty());
-        assertTrue(gameService.findActiveGameId(black()).isEmpty());
+        assertTrue(gameQueryService.findActiveGameId(white()).isEmpty());
+        assertTrue(gameQueryService.findActiveGameId(black()).isEmpty());
     }
 
     @Test
@@ -666,8 +667,8 @@ class GameMoveHttpIntegrationTest {
                 .andExpect(jsonPath("$.recordedMoveCount").value(0))
                 .andExpect(jsonPath("$.moves").isEmpty());
 
-        assertTrue(gameService.findActiveGameId(white()).isEmpty());
-        assertTrue(gameService.findActiveGameId(black()).isEmpty());
+        assertTrue(gameQueryService.findActiveGameId(white()).isEmpty());
+        assertTrue(gameQueryService.findActiveGameId(black()).isEmpty());
     }
 
     @Test
@@ -836,8 +837,8 @@ class GameMoveHttpIntegrationTest {
                 .andExpect(jsonPath("$.recordedMoveCount").value(0))
                 .andExpect(jsonPath("$.moves").isEmpty());
 
-        assertTrue(gameService.findActiveGameId(white()).isEmpty());
-        assertTrue(gameService.findActiveGameId(black()).isEmpty());
+        assertTrue(gameQueryService.findActiveGameId(white()).isEmpty());
+        assertTrue(gameQueryService.findActiveGameId(black()).isEmpty());
 
         // Completion blocks subsequent moves.
         submit(white(), 6, "e2", "e4", null)

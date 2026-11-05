@@ -1,25 +1,51 @@
-@if (display(); as current) {
-<section class="clocks" aria-label="Live game clocks">
-  <div class="clock" [class.running]="current.runningColor === 'WHITE'">
-    <span class="color-label">White</span>
-    <span class="time">{{ current.white }}</span>
-    <span class="clock-state">
-      {{ current.runningColor === 'WHITE' ? 'Running' : 'Stopped' }}
+<ng-template #clockRow let-row>
+  <div class="clock-row" [class.running]="row.running" [class.your-row]="row.isYou">
+    <div class="participant">
+      <span class="colour-marker" [class.white]="row.color === 'WHITE'" aria-hidden="true"></span>
+
+      <span class="participant-name" [title]="row.name">
+        {{ row.name }}
+      </span>
+      @if (row.rating !== null) {
+      <span class="participant-rating" title="Rating when the match started">
+        · {{ row.rating }}
+      </span>
+      } @else {
+      <span class="participant-rating" title="Starting rating was not recorded for this game"
+        aria-label="Starting rating unavailable">
+        · —
+      </span>
+      }
+
+      <span class="identity-badge" [class.you]="row.isYou">
+        {{ row.isYou ? 'You' : 'Opponent' }}
+      </span>
+    </div>
+
+    <span class="time" [attr.aria-label]="
+        row.name + ', ' +
+        (row.color === 'WHITE' ? 'White' : 'Black') + ', ' +
+        (row.timed
+          ? row.time + (row.running ? ', running' : ', stopped')
+          : 'untimed')
+      ">
+      {{ row.time }}
     </span>
   </div>
+</ng-template>
 
-  <div class="clock" [class.running]="current.runningColor === 'BLACK'">
-    <span class="color-label">Black</span>
-    <span class="time">{{ current.black }}</span>
-    <span class="clock-state">
-      {{ current.runningColor === 'BLACK' ? 'Running' : 'Stopped' }}
-    </span>
+<div class="board-with-clocks">
+  <ng-container [ngTemplateOutlet]="clockRow" [ngTemplateOutletContext]="{ $implicit: topClock() }" />
+
+  <div class="board-slot">
+    <ng-content />
   </div>
-</section>
 
-@if (current.awaitingResult) {
-<p role="status">
+  <ng-container [ngTemplateOutlet]="clockRow" [ngTemplateOutletContext]="{ $implicit: bottomClock() }" />
+</div>
+
+@if (display()?.awaitingResult) {
+<p class="clock-notice" role="status">
   Time appears to have expired. Waiting for the server result.
 </p>
-}
 }

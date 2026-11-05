@@ -2,14 +2,13 @@ package com.chessapp.game.controller;
 
 import com.chessapp.game.dto.*;
 import com.chessapp.game.service.GameExportService;
-import com.chessapp.game.service.GameService;
+import com.chessapp.game.service.GameQueryService;
+import com.chessapp.game.service.GameCommandService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
@@ -22,7 +21,8 @@ import java.security.Principal;
 @RequiredArgsConstructor
 public class GameController {
 
-    private final GameService gameService;
+    private final GameCommandService gameCommandService;
+    private final GameQueryService gameQueryService;
     private final GameExportService gameExportService;
 
     @GetMapping("/{gameId}")
@@ -32,7 +32,7 @@ public class GameController {
     ) {
         Long requestingPlayerId = Long.parseLong(principal.getName());
 
-        return gameService.getGame(gameId, requestingPlayerId);
+        return gameQueryService.getGame(gameId, requestingPlayerId);
     }
 
     @GetMapping("/{gameId}/moves")
@@ -42,7 +42,24 @@ public class GameController {
     ) {
         Long requestingPlayerId = Long.parseLong(principal.getName());
 
-        return gameService.getHistory(gameId, requestingPlayerId);
+        return gameQueryService.getHistory(gameId, requestingPlayerId);
+    }
+
+    @GetMapping
+    public ResponseEntity<PlayedGamesResponse> getPlayedGames(Principal principal, @RequestParam(name = "page", defaultValue = "0") int page, @RequestParam(name = "size", defaultValue = "20") int size) {
+        // Reject invalid client input before calling the application service.
+        if (page < 0 || size < 1 || size > 50 || (long) page * size > Integer.MAX_VALUE
+        ) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Use page >= 0 and size between 1 and 50 "
+                            + "within the supported pagination range"
+            );
+        }
+        long requestingPlayerId = Long.parseLong(principal.getName());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(gameQueryService.getPlayedGames(requestingPlayerId, page, size));
     }
 
     @PostMapping("/{gameId}/moves")
@@ -53,12 +70,27 @@ public class GameController {
     ) {
         Long requestingPlayerId = Long.parseLong(principal.getName());
 
-        return gameService.submitMove(
+        return gameCommandService.submitMove(
                 gameId,
                 requestingPlayerId,
                 request.expectedVersion(),
                 request.toMove()
         );
+    }
+
+    @GetMapping("/{gameId}/legal-moves")
+    public ResponseEntity<GameLegalMovesResponse> getLegalMoves(
+            @PathVariable("gameId") Long gameId,
+            Principal principal
+    ) {
+        Long requestingPlayerId = Long.parseLong(principal.getName());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(gameQueryService.getLegalMoves(
+                        gameId,
+                        requestingPlayerId
+                ));
     }
 
     @PostMapping("/{gameId}/resignation")
@@ -70,7 +102,7 @@ public class GameController {
         // The authenticated subject determines who resigns.
         Long requestingPlayerId = Long.parseLong(principal.getName());
 
-        return gameService.resign(
+        return gameCommandService.resign(
                 gameId,
                 requestingPlayerId,
                 request.expectedVersion()
@@ -85,7 +117,7 @@ public class GameController {
     ) {
         Long requestingPlayerId = Long.parseLong(principal.getName());
 
-        return gameService.offerDraw(
+        return gameCommandService.offerDraw(
                 gameId,
                 requestingPlayerId,
                 request.expectedVersion()
@@ -100,7 +132,7 @@ public class GameController {
     ) {
         Long requestingPlayerId = Long.parseLong(principal.getName());
 
-        return gameService.acceptDraw(
+        return gameCommandService.acceptDraw(
                 gameId,
                 requestingPlayerId,
                 request.expectedVersion()
@@ -115,7 +147,7 @@ public class GameController {
     ) {
         Long requestingPlayerId = Long.parseLong(principal.getName());
 
-        return gameService.declineDraw(
+        return gameCommandService.declineDraw(
                 gameId,
                 requestingPlayerId,
                 request.expectedVersion()
@@ -130,7 +162,7 @@ public class GameController {
     ) {
         Long requestingPlayerId = Long.parseLong(principal.getName());
 
-        return gameService.withdrawDraw(
+        return gameCommandService.withdrawDraw(
                 gameId,
                 requestingPlayerId,
                 request.expectedVersion()

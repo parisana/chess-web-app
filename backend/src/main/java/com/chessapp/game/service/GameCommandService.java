@@ -2,13 +2,13 @@ package com.chessapp.game.service;
 
 import com.chessapp.game.clock.GameClockCalculator;
 import com.chessapp.game.config.GameClockProperties;
-import com.chessapp.game.dto.GameHistoryResponse;
-import com.chessapp.game.dto.GameMoveResponse;
 import com.chessapp.game.dto.GameMoveResult;
 import com.chessapp.game.dto.GameResponse;
 import com.chessapp.game.entity.*;
+import com.chessapp.game.event.GameChangedEvent;
 import com.chessapp.game.event.GameFinishedEvent;
 import com.chessapp.game.exception.*;
+import com.chessapp.game.repository.ActiveGamePlayerRepository;
 import com.chessapp.game.repository.GameMoveRepository;
 import com.chessapp.game.repository.GameRepository;
 import com.chessapp.game.rules.ChessRules;
@@ -18,21 +18,18 @@ import com.chessapp.game.rules.fen.FenSerializer;
 import com.chessapp.game.rules.model.Move;
 import com.chessapp.game.rules.model.PieceColor;
 import com.chessapp.game.rules.notation.SanFormatter;
+import com.chessapp.player.dto.PlayerGameDetails;
 import com.chessapp.player.service.PlayerService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.chessapp.game.event.GameChangedEvent;
-import org.springframework.context.ApplicationEventPublisher;
-
-import com.chessapp.game.repository.ActiveGamePlayerRepository;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -40,7 +37,7 @@ import java.util.Set;
  */
 @Service
 @RequiredArgsConstructor
-public class GameService {
+public class GameCommandService {
 
     private final GameRepository gameRepository;
     private final GameMoveRepository gameMoveRepository;
@@ -98,29 +95,8 @@ public class GameService {
         return true;
     }
 
-    @Transactional(readOnly = true)
-    public GameResponse getGame(Long gameId, Long requestingPlayerId) {
-        var game = gameRepository.findById(gameId)
-                .orElseThrow(GameNotFoundException::new);
-
-        // Enforce access here so callers cannot bypass participant checks
-        // by invoking the service outside the HTTP controller.
-        boolean isParticipant =
-                game.getWhitePlayerId().equals(requestingPlayerId)
-                        || game.getBlackPlayerId().equals(requestingPlayerId);
-
-        if (!isParticipant) {
-            throw new GameAccessDeniedException();
-        }
-
-        return GameResponse.from(game, clock.instant());
-    }
-
     @Transactional
-    public GameResponse createGame(
-            Long whitePlayerId,
-            Long blackPlayerId
-    ) {
+    public GameResponse createGame(Long whitePlayerId, Long blackPlayerId) {
         var initialPosition = chessRules.initialPosition();
         var initialFen = fenSerializer.serialize(initialPosition);
 
@@ -130,8 +106,15 @@ public class GameService {
                 initialFen
         );
 
-        requirePlayer(whitePlayerId);
-        requirePlayer(blackPlayerId);
+        var white = requirePlayer(whitePlayerId);
+        var black = requirePlayer(blackPlayerId);
+
+        game.captureParticipantDetails(
+                white.username(),
+                black.username(),
+                white.rating(),
+                black.rating()
+        );
 
         game.startClock(
                 gameClockProperties.initialTimeMillis(),
@@ -158,16 +141,9 @@ public class GameService {
         return GameResponse.from(savedGame, clock.instant());
     }
 
-    @Transactional(readOnly = true)
-    public Optional<Long> findActiveGameId(Long playerId) {
-        return activeGamePlayerRepository.findGameIdByPlayerId(playerId);
-    }
-
-    private void requirePlayer(Long playerId) {
-        playerService.findById(playerId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Player does not exist: " + playerId
-                ));
+    private PlayerGameDetails requirePlayer(Long playerId) {
+        return playerService.findGameDetails(playerId)
+                .orElseThrow(() -> new IllegalArgumentException("Player does not exist: " + playerId));
     }
 
     /**
@@ -187,40 +163,29 @@ public class GameService {
                 "Requesting player is required"
         );
         Objects.requireNonNull(move, "Move is required");
-
         if (expectedVersion < 0) {
             throw new IllegalArgumentException(
                     "Expected version must not be negative"
             );
         }
-
         var game = gameRepository.findById(gameId)
                 .orElseThrow(GameNotFoundException::new);
-
-        boolean isWhite =
-                game.getWhitePlayerId().equals(requestingPlayerId);
-
-        boolean isBlack =
-                game.getBlackPlayerId().equals(requestingPlayerId);
-
+        boolean isWhite = game.getWhitePlayerId().equals(requestingPlayerId);
+        boolean isBlack = game.getBlackPlayerId().equals(requestingPlayerId);
         // Check access before revealing lifecycle, version or turn failures.
         if (!isWhite && !isBlack) {
             throw new GameAccessDeniedException();
         }
-
         if (game.getStatus() != GameStatus.IN_PROGRESS) {
             throw new GameAlreadyFinishedException();
         }
-
         if (game.getVersion() != expectedVersion) {
             throw new StaleGameVersionException();
         }
-
         // Access, lifecycle and version have now been checked.
         if (game.hasClock()) {
             captureCommandTimeAndCheckExpiry(game);
         }
-
         var position = fenParser.parse(game.getCurrentFen());
 
         if (game.hasClock() && game.getClockRunningColor() != position.sideToMove()) {
@@ -281,7 +246,6 @@ public class GameService {
                         san
                 )
         );
-
         releaseReservationsIfFinished(game);
         publishGameFinishedIfNecessary(game); // handles updating of ratings synchronously
         publishGameChanged(game, GameChangedEvent.Type.GAME_UPDATED);
@@ -317,44 +281,6 @@ public class GameService {
         );
 
         return persistLifecycleChange(game);
-    }
-
-    @Transactional(readOnly = true)
-    public GameHistoryResponse getHistory(
-            Long gameId,
-            Long requestingPlayerId
-    ) {
-        var game = gameRepository.findById(gameId)
-                .orElseThrow(GameNotFoundException::new);
-
-        // Authorize before querying or exposing history.
-        boolean isParticipant =
-                game.getWhitePlayerId().equals(requestingPlayerId)
-                        || game.getBlackPlayerId().equals(requestingPlayerId);
-
-        if (!isParticipant) {
-            throw new GameAccessDeniedException();
-        }
-
-        // Capture the boundary before querying the append-only move records.
-        long recordedMoveCount = game.getRecordedMoveCount();
-
-        var moves = gameMoveRepository.findHistoryThrough(
-                        game.getId(),
-                        recordedMoveCount
-                )
-                .stream()
-                .map(GameMoveResponse::from)
-                .toList();
-
-        return new GameHistoryResponse(
-                game.getId(),
-                game.getVersion(),
-                game.getHistoryStartFen(),
-                game.isHistoryComplete(),
-                recordedMoveCount,
-                moves
-        );
     }
 
     /**

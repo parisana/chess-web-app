@@ -5,7 +5,8 @@ import com.chessapp.auth.service.AuthService;
 import com.chessapp.game.dto.GameResponse;
 import com.chessapp.game.entity.GameStatus;
 import com.chessapp.game.event.GameChangedEvent;
-import com.chessapp.game.service.GameService;
+import com.chessapp.game.service.GameQueryService;
+import com.chessapp.game.service.GameCommandService;
 import com.chessapp.notification.config.WebSocketProperties;
 import com.chessapp.notification.dto.PlayerUpdate;
 import com.chessapp.player.dto.PlayerResponse;
@@ -22,7 +23,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.messaging.converter.SimpleMessageConverter;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.*;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.socket.WebSocketHttpHeaders;
@@ -68,7 +68,8 @@ class WebSocketIntegrationTest {
     private int port;
 
     @Autowired private WebSocketProperties properties;
-    @Autowired private GameService gameService;
+    @Autowired private GameCommandService gameCommandService;
+    @Autowired private GameQueryService gameQueryService;
     @Autowired private SimpMessagingTemplate messaging;
     @Autowired private PlatformTransactionManager transactionManager;
     @Autowired private JdbcTemplate jdbc;
@@ -99,7 +100,7 @@ class WebSocketIntegrationTest {
 
         // Commit before connecting: these tests observe later changes,
         // rather than depending on receipt of the creation notification.
-        game = gameService.createGame(white(), black());
+        game = gameCommandService.createGame(white(), black());
     }
 
     @AfterEach
@@ -290,7 +291,7 @@ class WebSocketIntegrationTest {
         Peer outsiderPeer = connectReady(outsider());
 
         GameResponse finished = transaction().execute(status -> {
-            var response = gameService.resign(
+            var response = gameCommandService.resign(
                     game.id(),
                     white(),
                     game.version()
@@ -317,7 +318,7 @@ class WebSocketIntegrationTest {
         assertUpdate(blackPeer, expected);
         assertNoUpdate(outsiderPeer);
 
-        var stored = gameService.getGame(game.id(), white());
+        var stored = gameQueryService.getGame(game.id(), white());
         assertEquals(GameStatus.FINISHED, stored.status());
         assertEquals(finished.version(), stored.version());
     }
@@ -329,7 +330,7 @@ class WebSocketIntegrationTest {
         Peer outsiderPeer = connectReady(outsider());
 
         transaction().executeWithoutResult(status -> {
-            gameService.resign(
+            gameCommandService.resign(
                     game.id(),
                     white(),
                     game.version()
@@ -345,7 +346,7 @@ class WebSocketIntegrationTest {
         assertNoUpdate(blackPeer);
         assertNoUpdate(outsiderPeer);
 
-        var stored = gameService.getGame(game.id(), white());
+        var stored = gameQueryService.getGame(game.id(), white());
 
         assertEquals(GameStatus.IN_PROGRESS, stored.status());
         assertEquals(game.version(), stored.version());
@@ -386,7 +387,7 @@ class WebSocketIntegrationTest {
                 ).statusCode()
         );
 
-        GameResponse updated = gameService.offerDraw(
+        GameResponse updated = gameCommandService.offerDraw(
                 game.id(),
                 black(),
                 game.version()
@@ -423,7 +424,7 @@ class WebSocketIntegrationTest {
                     """, white().toString())
         );
 
-        GameResponse updated = gameService.offerDraw(
+        GameResponse updated = gameCommandService.offerDraw(
                 game.id(),
                 black(),
                 game.version()

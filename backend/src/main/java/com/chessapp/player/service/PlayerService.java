@@ -1,5 +1,6 @@
 package com.chessapp.player.service;
 
+import com.chessapp.player.dto.PlayerGameDetails;
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.entity.Player;
 import com.chessapp.player.entity.PlayerStatistics;
@@ -90,6 +91,27 @@ public class PlayerService {
                     playerRepository.flush();
 
                     return toPlayerResponse(player);
+                });
+    }
+
+    /**
+     * Reads current details for the caller to capture when creating a game.
+     * Uses ordinary reads; it does not lock both Players' statistics.
+     */
+    @Transactional(readOnly = true)
+    public Optional<PlayerGameDetails> findGameDetails(Long playerId) {
+        return playerRepository.findById(playerId)
+                .map(player -> {
+                    var statistics = playerStatisticsRepository
+                            .findById(playerId)
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "Statistics missing for Player " + playerId
+                            ));
+
+                    return new PlayerGameDetails(
+                            player.getUsername(),
+                            statistics.getRating()
+                    );
                 });
     }
 

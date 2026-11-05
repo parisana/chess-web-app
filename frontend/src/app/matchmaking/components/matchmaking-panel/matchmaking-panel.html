@@ -1,0 +1,69 @@
+<section class="matchmaking-panel" [class.embedded]="embedded()" [attr.aria-busy]="busy() || openingGame()"
+  aria-label="Matchmaking">
+  @if (queueStatusResponse(); as current) {
+  @switch (current.status) {
+  @case ('NOT_QUEUED') {
+  <h2>Ready to play</h2>
+
+  <button class="primary-button" type="button" [disabled]="busy() || openingGame()" (click)="join()">
+    {{ searchLabel() }}
+  </button>
+  }
+
+  @case ('WAITING') {
+  <h2>Finding an opponent</h2>
+
+  <p class="muted" role="status">
+    Searching since {{ current.enqueuedAt | date:'mediumTime' }}.
+    You can keep reviewing while you wait.
+  </p>
+
+  <button class="primary-button" type="button" [disabled]="busy() || openingGame()" (click)="leave()">
+    Cancel search
+  </button>
+  }
+
+  @case ('MATCHED') {
+  <h2>Your current game</h2>
+
+  @if (openingGame()) {
+  <p class="muted" role="status">Opening your game…</p>
+  } @else {
+  <p class="muted">You already have an active game.</p>
+
+  <button class="primary-button" type="button" [disabled]="busy()" (click)="openCurrentGame()">
+    Return to current game
+  </button>
+  }
+  }
+  }
+  } @else {
+  <h2>Matchmaking</h2>
+  <p class="muted" role="status">
+    {{ busy()
+    ? 'Checking your match status…'
+    : 'Match status is unavailable.' }}
+  </p>
+  }
+
+  @if (errorMessage(); as message) {
+  <p role="alert">{{ message }}</p>
+  }
+
+  <button class="text-button" type="button" [disabled]="busy() || openingGame()" (click)="refresh()">
+    {{ queueStatusResponse() === null
+    ? 'Retry match status'
+    : 'Refresh match status' }}
+  </button>
+
+  @if (realtime.state() !== 'CONNECTED') {
+  <p class="muted">
+    Live updates are reconnecting or unavailable.
+    Match status is checked periodically while searching or in a game.
+  </p>
+  }
+
+  @if (busy() || openingGame()) {
+  <mat-progress-bar mode="indeterminate" aria-label="Updating matchmaking" />
+  }
+</section>

@@ -5,6 +5,7 @@ import { GameResponse } from '../models/game-response';
 import { SubmitMoveRequest, GameMoveResult } from '../models/game-move';
 import { GameHistoryResponse } from '../models/game-history';
 import { GameLifecycleAction, GameLifecycleRequest } from '../models/game-lifecycle';
+import { GameLegalMovesResponse } from '../models/game-legal-moves';
 
 @Injectable({
   providedIn: 'root',
@@ -48,6 +49,12 @@ export class GameApiService {
     return this.http.post<GameResponse>(
       `${this.baseUrl}/${gameId}/${paths[action]}`,
       request,
+    );
+  }
+
+  getLegalMoves(gameId: number) {
+    return this.http.get<GameLegalMovesResponse>(
+      `${this.baseUrl}/${gameId}/legal-moves`,
     );
   }
 }

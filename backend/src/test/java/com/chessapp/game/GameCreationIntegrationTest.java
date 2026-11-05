@@ -1,8 +1,10 @@
 package com.chessapp.game;
 
+import com.chessapp.game.entity.Game;
 import com.chessapp.game.entity.GameStatus;
 import com.chessapp.game.repository.GameRepository;
-import com.chessapp.game.service.GameService;
+import com.chessapp.game.service.GameQueryService;
+import com.chessapp.game.service.GameCommandService;
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.repository.PlayerStatisticsRepository;
 import com.chessapp.player.service.PlayerService;
@@ -24,10 +26,13 @@ import static org.junit.jupiter.api.Assertions.*;
 class GameCreationIntegrationTest {
 
     @Autowired
-    private GameService gameService;
+    private GameCommandService gameCommandService;
 
     @Autowired
     private GameRepository gameRepository;
+
+    @Autowired
+    private GameQueryService gameQueryService;
 
     @Autowired
     private PlayerStatisticsRepository playerStatisticsRepository;
@@ -52,7 +57,7 @@ class GameCreationIntegrationTest {
 
     @Test
     void createGame_persistsInitialState() {
-        var response = gameService.createGame(
+        var response = gameCommandService.createGame(
                 white.id(),
                 black.id()
         );
@@ -106,7 +111,7 @@ class GameCreationIntegrationTest {
     void createGame_rejectsSamePlayerForBothColors() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> gameService.createGame(
+                () -> gameCommandService.createGame(
                         white.id(),
                         white.id()
                 )
@@ -130,10 +135,106 @@ class GameCreationIntegrationTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> gameService.createGame(
+                () -> gameCommandService.createGame(
                         white.id(),
                         deletedPlayerId
                 )
+        );
+    }
+
+    @Test
+    void participantSnapshotsSurviveProfileChangesAndCompletion() {
+        var created = gameCommandService.createGame(white.id(), black.id());
+
+        int whiteStartingRating = playerStatisticsRepository
+                .findById(white.id()).orElseThrow().getRating();
+        int blackStartingRating = playerStatisticsRepository
+                .findById(black.id()).orElseThrow().getRating();
+
+        assertEquals(white.username(), created.whiteUsernameAtStart());
+        assertEquals(black.username(), created.blackUsernameAtStart());
+        assertEquals(
+                Integer.valueOf(whiteStartingRating),
+                created.whiteRatingAtStart()
+        );
+        assertEquals(
+                Integer.valueOf(blackStartingRating),
+                created.blackRatingAtStart()
+        );
+
+        String suffix = UUID.randomUUID().toString()
+                .replace("-", "").substring(0, 12);
+
+        playerService.updateUsername(white.id(), "renamed_w_" + suffix)
+                .orElseThrow();
+        playerService.updateUsername(black.id(), "renamed_b_" + suffix)
+                .orElseThrow();
+
+        // Completion changes the actual ratings through the existing listener.
+        var finished = gameCommandService.resign(
+                created.id(),
+                white.id(),
+                created.version()
+        );
+
+        assertEquals(
+                created.whiteRatingAtStart(),
+                finished.whiteRatingAtStart()
+        );
+
+        entityManager.flush();
+        entityManager.clear();
+
+        var reloaded = gameQueryService.getGame(created.id(), white.id());
+
+        assertAll(
+                () -> assertEquals(
+                        white.username(), reloaded.whiteUsernameAtStart()
+                ),
+                () -> assertEquals(
+                        black.username(), reloaded.blackUsernameAtStart()
+                ),
+                () -> assertEquals(
+                        created.whiteRatingAtStart(),
+                        reloaded.whiteRatingAtStart()
+                ),
+                () -> assertEquals(
+                        created.blackRatingAtStart(),
+                        reloaded.blackRatingAtStart()
+                ),
+                () -> assertNotEquals(
+                        whiteStartingRating,
+                        playerStatisticsRepository.findById(white.id())
+                                .orElseThrow().getRating()
+                ),
+                () -> assertNotEquals(
+                        blackStartingRating,
+                        playerStatisticsRepository.findById(black.id())
+                                .orElseThrow().getRating()
+                )
+        );
+    }
+
+    @Test
+    void gameWithoutParticipantSnapshotsDoesNotInventHistoricalDetails() {
+        var legacy = new Game(
+                white.id(),
+                black.id(),
+                EXPECTED_INITIAL_FEN
+        );
+
+        entityManager.persist(legacy);
+        entityManager.flush();
+        Long gameId = legacy.getId();
+        entityManager.clear();
+
+        var response = gameQueryService.getGame(gameId, white.id());
+
+        assertAll(
+                () -> assertNull(response.whiteUsernameAtStart()),
+                () -> assertNull(response.blackUsernameAtStart()),
+                () -> assertNull(response.whiteRatingAtStart()),
+                () -> assertNull(response.blackRatingAtStart())
         );
     }
 

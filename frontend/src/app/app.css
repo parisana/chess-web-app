@@ -1,0 +1,146 @@
+:host {
+  /* Default palette: warm amber. */
+  --chess-accent: #d8aa65;
+  --chess-on-accent: #241b10;
+  --chess-selection: #634a29;
+  --chess-on-selection: #ffedcf;
+  --chess-board-light: #ebd9bd;
+  --chess-board-dark: #9b795b;
+
+  --chess-background: #171b1f;
+  --chess-surface: #22272c;
+  --chess-border: #41484f;
+  --chess-text: #edeef0;
+  --chess-muted: #bac0c7;
+  --chess-danger: #ffb4ab;
+
+  /* Let existing Material components share the application palette. */
+  --mat-sys-primary: var(--chess-accent);
+  --mat-sys-on-primary: var(--chess-on-accent);
+  --mat-sys-primary-container: var(--chess-selection);
+  --mat-sys-on-primary-container: var(--chess-on-selection);
+  --mat-sys-secondary-container: var(--chess-selection);
+  --mat-sys-on-secondary-container: var(--chess-on-selection);
+  --mat-sys-surface: var(--chess-surface);
+  --mat-sys-surface-container: #262c32;
+  --mat-sys-surface-container-low: #22272c;
+  --mat-sys-surface-container-high: #30363d;
+  --mat-sys-on-surface: var(--chess-text);
+  --mat-sys-on-surface-variant: var(--chess-muted);
+  --mat-sys-outline: #89929c;
+  --mat-sys-outline-variant: var(--chess-border);
+  --mat-sys-error: var(--chess-danger);
+
+  display: block;
+  min-height: 100dvh;
+  background: var(--chess-background);
+  color: var(--chess-text);
+}
+
+:host([data-theme='blue']) {
+  --chess-accent: #79a9dc;
+  --chess-on-accent: #102438;
+  --chess-selection: #304c68;
+  --chess-on-selection: #deedff;
+  --chess-board-light: #e9e4d8;
+  --chess-board-dark: #718aa1;
+}
+
+:host([data-theme='green']) {
+  --chess-accent: #a6c779;
+  --chess-on-accent: #1b2b10;
+  --chess-selection: #415633;
+  --chess-on-selection: #e5f3d5;
+  --chess-board-light: #e9e5cd;
+  --chess-board-dark: #879b69;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3.5rem;
+  padding: 0 1.25rem;
+  border-bottom: 1px solid var(--chess-border);
+  background: var(--chess-surface);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--chess-text);
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.brand-mark {
+  color: var(--chess-accent);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.logout-button {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--chess-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.logout-button:hover:not(:disabled) {
+  border-color: var(--chess-border);
+  background: var(--chess-background);
+}
+
+.logout-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.brand:focus-visible,
+.logout-button:focus-visible {
+  outline: 2px solid var(--chess-accent);
+  outline-offset: 3px;
+}
+
+.app-workspace {
+  min-height: 100dvh;
+}
+
+.app-workspace.authenticated {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  min-height: calc(100dvh - 3.5rem - 1px);
+}
+
+.sidebar {
+  border-right: 1px solid var(--chess-border);
+  background: var(--chess-surface);
+}
+
+.route-content {
+  min-width: 0;
+}
+
+.logout-error {
+  margin: 1rem;
+  color: var(--chess-danger);
+}
+
+@media (max-width: 700px) {
+  .app-workspace.authenticated {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .app-header {
+    padding-inline: 1rem;
+  }
+}

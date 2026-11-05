@@ -1,377 +1,325 @@
 <main class="game-page">
-  <header>
-    <h1>Game</h1>
-    <a mat-button routerLink="/home">Back to Home</a>
-  </header>
+  @if (loading()) {
+  <mat-progress-bar mode="indeterminate" aria-label="Loading game" />
+  }
 
-  <mat-card [attr.aria-busy]="loading()">
-    <mat-card-header>
-      <mat-card-title>
-        @if (game(); as current) {
-        Game #{{ current.id }}
-        } @else {
-        Game details
-        }
-        @if (moveMessage(); as message) {
-        <p role="status">{{ message }}</p>
-        }
-      </mat-card-title>
-    </mat-card-header>
-
-    <mat-card-content>
-      @if (loading()) {
-      <p role="status">Loading game…</p>
-      }
-
-      @if (errorMessage(); as message) {
-      <p role="alert">{{ message }}</p>
-      }
-
-      @if (game(); as current) {
-      <p>
-        You play
-        <strong>
-          {{
-          current.whitePlayerId === auth.currentPlayer()?.id
-          ? 'White'
-          : 'Black'
-          }}
-        </strong>.
-      </p>
-
-      <p class="live-status-label">Live game status</p>
-      @if (current.status === 'IN_PROGRESS') {
-      <p role="status">This game is in progress.</p>
-      } @else {
-      <p role="status">
-        {{ resultText(current) }}
-
-        @switch (current.terminationReason) {
-        @case ('CHECKMATE') {
-        — checkmate.
-        }
-        @case ('STALEMATE') {
-        — stalemate.
-        }
-        @case ('RESIGNATION') {
-        — resignation.
-        }
-        @case ('DRAW_AGREEMENT') {
-        — draw by agreement.
-        }
-        @case ('TIMEOUT') {
-        — time expired.
-        }
-        }
-      </p>
-
-      @if (current.finishedAt; as finishedAt) {
-      <p>Finished {{ finishedAt | date:'medium' }}.</p>
-      }
-      }
-
-      <p>Live version: {{ current.version }}</p>
-      @if (clockSnapshot(); as clock) {
-      <app-game-clocks [clock]="clock" />
-
-      @if (isReplaying()) {
-      <p class="replay-help">
-        Clocks show the live game, not the selected replay position.
-      </p>
-      }
-      } @else {
-      <p>This game is untimed.</p>
-      }
-      <section class="replay-controls" aria-labelledby="replay-title">
-        <h2 id="replay-title">Replay</h2>
-
-        <div class="replay-buttons">
-          <button mat-button type="button" [disabled]="!canNavigateReplay() || replayIndex() === 0"
-            (click)="showReplayPosition(0)">
-            Start
-          </button>
-
-          <button mat-button type="button" [disabled]="!canReplayPrevious()" (click)="replayPrevious()">
-            Previous
-          </button>
-
-          <button mat-button type="button" [disabled]="!canReplayNext()" (click)="replayNext()">
-            Next
-          </button>
-
-          <button mat-flat-button type="button" [disabled]="!isReplaying() || submitting()" (click)="returnToLatest()">
-            Latest
-          </button>
-        </div>
-
-        @if (isReplaying()) {
-        <p role="status">
-          @if (replayIndex() === 0) {
-          Viewing the recorded starting position.
+  @if (game(); as current) {
+  <div class="game-workspace">
+    <section class="board-area" aria-label="Chessboard">
+      <div class="board-stage">
+        <app-game-clocks [clock]="clockSnapshot()" [orientation]="playerColor()" [viewerColor]="playerColor()"
+          [whiteName]="whiteDisplayName()" [blackName]="blackDisplayName()" [whiteRating]="current.whiteRatingAtStart"
+          [blackRating]="current.blackRatingAtStart">
+          @if (displayedFen(); as fen) {
+          <app-chess-board [fen]="fen" [orientation]="playerColor()" [legalMoves]="boardLegalMoves()"
+            [rejectedMove]="boardRejectedMove()" [enabled]="canSubmitMove() && pendingPromotion() === null"
+            [promotionMove]="pendingPromotion()" [promotionEnabled]="canSubmitMove()"
+            (moveProposed)="proposeMove($event)" (promotionChosen)="choosePromotion($event)"
+            (promotionCancelled)="cancelPromotion()" />
           } @else {
-          Viewing the position after recorded entry {{ replayIndex() }}.
+          <p role="status">
+            This position is unavailable.
+            Select Latest to return to the current board.
+          </p>
           }
+        </app-game-clocks>
+      </div>
+    </section>
 
-          Game actions are disabled. Select Latest to return to the live board.
-        </p>
-        } @else {
-        <p role="status">Following the latest game position.</p>
-        }
-
-        @if (replayHistory(); as recorded) {
-        <p>{{ recorded.moves.length }} recorded moves available.</p>
-
-        @if (!recorded.historyComplete) {
-        <p>
-          Start shows the earliest saved position.
-          Moves before that position are unavailable.
-        </p>
-        }
-        }
-
-        @if (historyNeedsRefresh()) {
-        <p class="replay-help">
-          Replay uses the available recorded history while the move list updates.
-        </p>
-        }
-
-        <p class="replay-help">
-          Choosing a replay position cancels any pending promotion or action confirmation.
-        </p>
-      </section>
-
-      @if (displayedFen(); as fen) {
-      <app-chess-board [fen]="fen" [orientation]="
-      current.whitePlayerId === auth.currentPlayer()?.id
-        ? 'WHITE'
-        : 'BLACK'
-    " [enabled]="canSubmitMove() && pendingPromotion() === null" (moveProposed)="proposeMove($event)" />
-      } @else {
-      <p role="status">
-        This replay position is unavailable.
-        Select Latest to return to the live board.
-      </p>
-      }
-
-      @if (current.status === 'IN_PROGRESS') {
-      @if (isReplaying()) {
-      <p>Reviewing recorded positions. Select Latest before playing.</p>
-      } @else if (submitting()) {
-      <p role="status">Submitting action…</p>
-      } @else if (needsRefresh()) {
-      <p role="status">Synchronizing the game before further actions.</p>
-      } @else if (pendingLifecycleConfirmation() !== null) {
-      <p>Confirm or cancel the game action below.</p>
-      } @else if (canSubmitMove() && pendingPromotion() === null) {
-      <p>Select one of your pieces, then its destination.</p>
-      } @else if (pendingPromotion() === null) {
-      <p>Waiting for your opponent.</p>
-      }
-      }
-
-      @if (pendingPromotion(); as move) {
-      <section aria-label="Choose a promotion piece">
-        <p>
-          Promote the pawn moving from {{ move.from }} to {{ move.to }}:
-        </p>
-
-        <div class="promotion-actions">
-          @for (piece of promotionChoices; track piece) {
-          <button mat-flat-button type="button" [disabled]="!canSubmitMove()" (click)="choosePromotion(piece)">
-            {{ piece }}
-          </button>
-          }
-
-          <button mat-button type="button" (click)="cancelPromotion()">
-            Cancel
-          </button>
+    <aside class="right-panel" aria-label="Game information">
+      <section class="panel profile-summary" aria-label="Your profile">
+        <span class="profile-mark" aria-hidden="true">♟</span>
+        <div>
+          <strong>{{ auth.currentPlayer()?.username }}</strong>
+          <p class="muted">
+            You ·
+            {{ current.whitePlayerId === auth.currentPlayer()?.id
+            ? 'White'
+            : 'Black' }}
+          </p>
         </div>
       </section>
-      }
-      @if (current.status === 'IN_PROGRESS') {
-      <section class="game-actions" aria-labelledby="game-actions-title">
-        <h2 id="game-actions-title">Game actions</h2>
 
-        @if (pendingLifecycleConfirmation(); as action) {
-        <div class="action-confirmation">
-          @if (action === 'resign') {
-          <p>Resign this game? Your opponent will win.</p>
+      <section class="panel" aria-labelledby="game-title">
+        <div class="panel-heading">
+          <h1 id="game-title">
+            {{ current.status === 'IN_PROGRESS'
+            ? 'Game in progress'
+            : 'Game finished' }}
+          </h1>
+          <span class="muted">#{{ current.id }}</span>
+        </div>
+
+        @if (current.status === 'FINISHED') {
+        <p class="result" role="status">
+          {{ resultText(current) }}
+
+          @switch (current.terminationReason) {
+          @case ('CHECKMATE') { — checkmate }
+          @case ('STALEMATE') { — stalemate }
+          @case ('RESIGNATION') { — resignation }
+          @case ('DRAW_AGREEMENT') { — agreed draw }
+          @case ('TIMEOUT') { — time expired }
+          }
+        </p>
+
+        @if (current.finishedAt; as finishedAt) {
+        <p class="muted">
+          Finished {{ finishedAt | date:'medium' }}.
+        </p>
+        }
+        } @else {
+        <p class="game-state" role="status">
+          @if (isReplaying()) {
+          Reviewing · return to latest before playing
+          } @else if (submitting()) {
+          Submitting action…
+          } @else if (needsRefresh()) {
+          Synchronizing game…
+          } @else if (pendingLifecycleConfirmation() !== null) {
+          Confirmation required below
+          } @else if (pendingPromotion() !== null) {
+          Choose a promotion piece
+          } @else if (canSubmitMove()) {
+          Your turn
           } @else {
-          <p>Accept the draw offer? This game will end in a draw.</p>
+          Waiting for your opponent
+          }
+        </p>
+        }
+
+        <section class="move-history" aria-label="Recorded moves">
+          @if (current.status === 'IN_PROGRESS' && !isReplaying()) {
+          @if (legalMovesLoading()) {
+          <p class="muted" role="status">Loading move hints…</p>
           }
 
-          <div class="lifecycle-buttons">
-            <button mat-flat-button type="button" [disabled]="!canSubmitLifecycleAction()"
-              (click)="confirmLifecycleAction()">
-              {{ action === 'resign' ? 'Confirm resignation' : 'Confirm draw' }}
-            </button>
+          @if (legalMovesError(); as message) {
+          <p class="muted" role="status">{{ message }}</p>
 
-            <button mat-button type="button" (click)="cancelLifecycleConfirmation()">
-              Cancel
-            </button>
+          <button class="text-button" type="button" [disabled]="legalMovesLoading()" (click)="retryLegalMoves()">
+            Retry hints
+          </button>
+          }
+          }
+          @if (historyLoading()) {
+          <p class="muted" role="status">Updating moves…</p>
+          }
+
+          @if (historyError(); as message) {
+          <p role="alert">{{ message }}</p>
+          }
+
+          @if (history(); as recorded) {
+          @if (!recorded.historyComplete) {
+          <p class="muted">
+            Earlier moves are unavailable.
+            Numbering begins at the saved starting position.
+          </p>
+          }
+
+          @if (recorded.moves.length === 0) {
+          <p class="muted">No moves recorded yet.</p>
+          } @else {
+          <div class="notation-scroll" tabindex="0" aria-label="Scrollable move notation">
+            <p class="notation">
+              @for (move of moveTokens(); track move.sequenceNumber) {
+              <span class="notation-token">
+                @if (move.numberLabel) {
+                <span class="move-number">
+                  {{ move.numberLabel }}
+                </span>
+                }
+
+                <button class="move-token" type="button" [class.selected]="
+                            replayIndex() === move.sequenceNumber
+                          " [disabled]="!canNavigateReplay()" [attr.aria-current]="
+                            replayIndex() === move.sequenceNumber
+                              ? 'step'
+                              : null
+                          " [attr.aria-label]="
+                            'View recorded entry ' +
+                            move.sequenceNumber + ': ' + move.notation
+                          " [title]="move.from + '–' + move.to" (click)="showReplayPosition(move.sequenceNumber)">
+                  {{ move.notation }}
+                </button>
+              </span>
+              }
+            </p>
           </div>
-        </div>
-        } @else {
-        @if (current.drawOfferedByPlayerId === null) {
-        <p>No draw offer is pending.</p>
-        } @else if (
-        current.drawOfferedByPlayerId === auth.currentPlayer()?.id
-        ) {
-        <p role="status">You offered a draw. Waiting for your opponent.</p>
-        } @else {
-        <p role="status">Your opponent offered a draw.</p>
-        }
+          }
 
-        <div class="lifecycle-buttons">
+          @if (historyNeedsRefresh()) {
+          <p class="muted">
+            Showing available history while the list catches up.
+          </p>
+          }
+          } @else if (!historyLoading() && !historyError()) {
+          <p class="muted">Move history is unavailable. Try refreshing.</p>
+          }
+        </section>
+
+        <div class="replay-toolbar" role="group" aria-label="Replay controls">
+          <button type="button" title="Starting position" aria-label="Starting position"
+            [disabled]="!canNavigateReplay() || replayIndex() === 0" (click)="showReplayPosition(0)">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 5v14M19 5l-10 7 10 7Z" />
+            </svg>
+          </button>
+
+          <button type="button" title="Previous move" aria-label="Previous move" [disabled]="!canReplayPrevious()"
+            (click)="replayPrevious()">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m15 5-8 7 8 7" />
+            </svg>
+          </button>
+
+          <button type="button" title="Next move" aria-label="Next move" [disabled]="!canReplayNext()"
+            (click)="replayNext()">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 5 8 7-8 7" />
+            </svg>
+          </button>
+
+          <button type="button" title="Latest position" aria-label="Latest position"
+            [disabled]="!isReplaying() || submitting()" (click)="returnToLatest()">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M19 5v14M5 5l10 7-10 7Z" />
+            </svg>
+          </button>
+        </div>
+
+        <p class="replay-status muted" role="status">
+          @if (isReplaying()) {
+          Recorded position {{ replayIndex() }} · actions disabled
+          } @else {
+          Following the latest position
+          }
+        </p>
+
+        @if (current.status === 'IN_PROGRESS') {
+        <div class="action-buttons">
+          @if (pendingLifecycleConfirmation() === null) {
           @if (current.drawOfferedByPlayerId === null) {
-          <button mat-button type="button" [disabled]="!canSubmitLifecycleAction()"
+          <button class="action-button" type="button" [disabled]="!canSubmitLifecycleAction()"
             (click)="requestLifecycleAction('offer-draw')">
             Offer draw
           </button>
           } @else if (
           current.drawOfferedByPlayerId === auth.currentPlayer()?.id
           ) {
-          <button mat-button type="button" [disabled]="!canSubmitLifecycleAction()"
+          <button class="action-button" type="button" [disabled]="!canSubmitLifecycleAction()"
             (click)="requestLifecycleAction('withdraw-draw')">
             Withdraw offer
           </button>
           } @else {
-          <button mat-flat-button type="button" [disabled]="!canSubmitLifecycleAction()"
+          <button class="action-button" type="button" [disabled]="!canSubmitLifecycleAction()"
             (click)="requestLifecycleAction('accept-draw')">
             Accept draw
           </button>
-
-          <button mat-button type="button" [disabled]="!canSubmitLifecycleAction()"
+          <button class="action-button neutral" type="button" [disabled]="!canSubmitLifecycleAction()"
             (click)="requestLifecycleAction('decline-draw')">
             Decline
           </button>
           }
 
-          <button mat-button type="button" [disabled]="!canSubmitLifecycleAction()"
+          <button class="action-button neutral" type="button" [disabled]="!canSubmitLifecycleAction()"
             (click)="requestLifecycleAction('resign')">
             Resign
           </button>
+          }
         </div>
-
-        <p class="action-help">
-          Play continues while an offer is pending.
-          Any accepted move clears the offer.
-        </p>
-
-        @if (pendingPromotion() !== null) {
-        <p>Choose or cancel promotion before using game actions.</p>
-        }
+        } @else {
+        <app-matchmaking-panel [embedded]="true" searchLabel="Find another match" />
         }
       </section>
-      }
-      <section class="move-history" aria-labelledby="move-history-title">
-        <h2 id="move-history-title">Moves</h2>
 
-        @if (historyLoading()) {
-        <p role="status">Updating move list…</p>
-        }
+      <section class="panel activity-panel" aria-labelledby="activity-title">
+        <h2 id="activity-title">Messages & activity</h2>
 
-        @if (historyError(); as message) {
+        @if (errorMessage(); as message) {
         <p role="alert">{{ message }}</p>
         }
 
-        @if (history(); as recorded) {
-        @if (!recorded.historyComplete) {
-        <p>
-          Earlier moves are unavailable. This list begins from the
-          position saved when history recording was introduced.
-        </p>
+        @if (moveMessage(); as message) {
+        <p role="status">{{ message }}</p>
         }
 
-        @if (historyNeedsRefresh() && !historyLoading() && !historyError()) {
-        <p role="status">
-          The move list is catching up. Refresh the game if it stays out of date.
-        </p>
-        }
+        @if (pendingLifecycleConfirmation(); as action) {
+        <div class="confirmation" role="group" aria-label="Confirm game action">
+          <p>
+            {{ action === 'resign'
+            ? 'Resign this game? Your opponent will win.'
+            : 'Accept this offer? The game will end in a draw.' }}
+          </p>
 
-        @if (recorded.moves.length === 0) {
-        <p>No moves have been recorded in this history yet.</p>
-        } @else {
-        <div class="move-history-scroll">
-          <table>
-            <caption>
-              Recorded moves in order
-            </caption>
-
-            <thead>
-              <tr>
-                <th scope="col">Entry</th>
-                <th scope="col">Player</th>
-                <th scope="col">Move</th>
-                <th scope="col">SAN</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              @for (move of recorded.moves; track move.sequenceNumber) {
-              <tr [class.selected-replay-entry]="replayIndex() === move.sequenceNumber">
-                <th scope="row">
-                  <button mat-button type="button" [disabled]="!canNavigateReplay()" [attr.aria-label]="
-                        'View position after recorded entry ' + move.sequenceNumber
-                      " [attr.aria-current]="
-                        replayIndex() === move.sequenceNumber ? 'step' : null
-                      " (click)="showReplayPosition(move.sequenceNumber)">
-                    {{ move.sequenceNumber }}
-                  </button>
-                </th>
-                <td>
-                  {{
-                  move.playerId === current.whitePlayerId
-                  ? 'White'
-                  : 'Black'
-                  }}
-                </td>
-                <td class="move-coordinates">
-                  {{ move.from }}–{{ move.to }}
-                  @if (move.promotion) {
-                  = {{ move.promotion }}
-                  }
-                </td>
-                <td class="move-coordinates">{{ move.san ?? '—' }}</td>
-              </tr>
-              }
-            </tbody>
-          </table>
+          <div class="action-buttons">
+            <button class="action-button" [class.danger]="action === 'resign'" type="button"
+              [disabled]="!canSubmitLifecycleAction()" (click)="confirmLifecycleAction()">
+              Confirm
+            </button>
+            <button class="action-button neutral" type="button" (click)="cancelLifecycleConfirmation()">
+              Cancel
+            </button>
+          </div>
         </div>
         }
-        } @else if (!historyLoading() && !historyError()) {
-        <p>The move list has not loaded yet. Refresh the game to try again.</p>
+
+        @if (
+        current.status === 'IN_PROGRESS' &&
+        current.drawOfferedByPlayerId !== null
+        ) {
+        <p role="status">
+          {{ current.drawOfferedByPlayerId === auth.currentPlayer()?.id
+          ? 'You offered a draw. Waiting for your opponent.'
+          : 'Your opponent offered a draw.' }}
+        </p>
+        <p class="muted">
+          Play continues. An accepted move clears the offer.
+        </p>
         }
+
+        <p class="chat-placeholder muted">Chat coming later</p>
       </section>
-      <details>
-        <summary>
-          {{ isReplaying() ? 'Replay position FEN' : 'Live position FEN' }}
-        </summary>
-        <pre>{{ displayedFen() ?? 'Position unavailable' }}</pre>
-      </details>
 
-      @if (realtimeService.state() === 'CONNECTED') {
-      <p role="status">
-        Live updates are connected.
-      </p>
-      } @else {
-      <p role="status">
-        Live updates are unavailable or reconnecting.
-        Active games are checked periodically while this page is visible.
-        You can also refresh manually.
-      </p>
-      }
-      }
-    </mat-card-content>
+      <section class="panel connection-panel" aria-label="Connection">
+        <p class="muted" role="status">
+          @if (realtimeService.state() === 'CONNECTED') {
+          Live updates connected
+          } @else {
+          Live updates unavailable or reconnecting.
+          Active games are checked periodically.
+          }
+        </p>
 
-    <mat-card-actions>
-      <button mat-button type="button" [disabled]="loading() || submitting() || !validGameId()" (click)="refresh()">
-        Refresh game
-      </button>
-    </mat-card-actions>
+        <button class="text-button" type="button" [disabled]="loading() || submitting() || !validGameId()"
+          (click)="refresh()">
+          Refresh game
+        </button>
 
+        <details>
+          <summary>Position details</summary>
+          <p class="muted">Live version: {{ current.version }}</p>
+          <pre>{{ displayedFen() ?? 'Position unavailable' }}</pre>
+        </details>
+      </section>
+    </aside>
+  </div>
+  } @else {
+  <section class="panel empty-state">
     @if (loading()) {
-    <mat-progress-bar mode="indeterminate" aria-label="Loading game" />
+    <p role="status">Loading game…</p>
     }
-  </mat-card>
+
+    @if (errorMessage(); as message) {
+    <p role="alert">{{ message }}</p>
+    }
+
+    <button class="action-button" type="button" [disabled]="loading() || !validGameId()" (click)="refresh()">
+      Refresh game
+    </button>
+
+    <a class="text-button" routerLink="/home">Return home</a>
+  </section>
+  }
 </main>

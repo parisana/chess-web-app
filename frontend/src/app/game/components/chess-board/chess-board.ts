@@ -3,9 +3,12 @@ import {
   Component,
   computed,
   effect,
+  ElementRef,
+  HostListener,
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 
 import {
@@ -14,7 +17,9 @@ import {
   DisplayPosition,
   parseFenForDisplay,
 } from '../../models/fen-display';
-import { ProposedMove } from '../../models/game-move';
+import { PromotionPiece, ProposedMove } from '../../models/game-move';
+import { A11yModule } from '@angular/cdk/a11y';
+import { LegalMoveHint } from '../../models/game-legal-moves';
 
 interface BoardCell {
   square: string;
@@ -28,7 +33,26 @@ interface BoardRow {
   cells: BoardCell[];
 }
 
+const PROMOTION_GLYPHS: Record<
+  BoardColor,
+  Record<PromotionPiece, string>
+> = {
+  WHITE: {
+    QUEEN: '♕',
+    ROOK: '♖',
+    BISHOP: '♗',
+    KNIGHT: '♘',
+  },
+  BLACK: {
+    QUEEN: '♛',
+    ROOK: '♜',
+    BISHOP: '♝',
+    KNIGHT: '♞',
+  },
+};
+
 @Component({
+  imports: [A11yModule],
   selector: 'app-chess-board',
   standalone: true,
   templateUrl: './chess-board.html',
@@ -50,6 +74,15 @@ export class ChessBoard {
       return null;
     }
   });
+
+  readonly promotionMove = input<ProposedMove | null>(null);
+  readonly promotionEnabled = input(false);
+
+  readonly promotionChosen = output<PromotionPiece>();
+  readonly promotionCancelled = output<void>();
+
+  private readonly boardSurface =
+    viewChild<ElementRef<HTMLElement>>('boardSurface');
 
   readonly rows = computed<BoardRow[]>(() => {
     const position = this.position();
@@ -89,6 +122,87 @@ export class ChessBoard {
     }));
   });
 
+  /**
+   * Locate the destination in the displayed board, accounting for orientation.
+   * The queen sits on that square; the other options extend toward the centre.
+   */
+  readonly promotionMenu = computed(() => {
+    const move = this.promotionMove();
+    const position = this.position();
+
+    if (move === null || position === null) {
+      return null;
+    }
+
+    const pawn = position.pieces.get(move.from);
+
+    if (pawn?.name !== 'pawn') {
+      return null;
+    }
+
+    const rows = this.rows();
+    const rowIndex = rows.findIndex(row =>
+      row.cells.some(cell => cell.square === move.to)
+    );
+
+    if (rowIndex < 0) {
+      return null;
+    }
+
+    const columnIndex = rows[rowIndex].cells.findIndex(
+      cell => cell.square === move.to
+    );
+
+    const opensUp = rowIndex >= 4;
+    const pieces: readonly PromotionPiece[] = [
+      'QUEEN',
+      'ROOK',
+      'BISHOP',
+      'KNIGHT',
+    ];
+
+    return {
+      color: pawn.color,
+      destination: move.to,
+      left: columnIndex * 12.5,
+      top: (opensUp ? rowIndex - 3 : rowIndex) * 12.5,
+      opensUp,
+      choices: pieces.map(piece => ({
+        piece,
+        label: piece.toLowerCase(),
+        glyph: PROMOTION_GLYPHS[pawn.color][piece],
+      })),
+    };
+  });
+
+  readonly legalMoves = input<readonly LegalMoveHint[] | null>(null);
+  readonly rejectedMove = input<ProposedMove | null>(null);
+
+  readonly failedMove = signal<ProposedMove | null>(null);
+
+  /**
+   * Multiple promotion choices share one destination.
+   * A Map keeps one marker per destination and records whether it is a capture.
+   */
+  readonly legalDestinations = computed(() => {
+    const selected = this.selectedSquare();
+    const moves = this.legalMoves();
+
+    const destinations = new Map<string, boolean>();
+
+    if (!this.enabled() || selected === null || moves === null) {
+      return destinations;
+    }
+
+    for (const move of moves) {
+      if (move.from === selected) {
+        destinations.set(move.to, move.capture);
+      }
+    }
+
+    return destinations;
+  });
+
   constructor() {
     effect(() => {
       // A changed position, orientation or interaction state clears selection.
@@ -98,19 +212,34 @@ export class ChessBoard {
 
       this.selectedSquare.set(null);
     });
+
+    effect(onCleanup => {
+      const rejected = this.rejectedMove();
+
+      this.failedMove.set(rejected);
+
+      if (rejected === null) {
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        this.failedMove.set(null);
+      }, 700);
+
+      onCleanup(() => clearTimeout(timeout));
+    });
   }
 
   selectSquare(square: string): void {
-    if (!this.enabled()) {
+    if (!this.enabled() || this.promotionMove() !== null) {
       return;
     }
-
+    this.failedMove.set(null);
     const position = this.position();
 
     if (!position) {
       return;
     }
-
     const selected = this.selectedSquare();
     const piece = position.pieces.get(square);
 
@@ -134,5 +263,39 @@ export class ChessBoard {
         to: square,
       });
     }
+  }
+
+  selectPromotion(piece: PromotionPiece): void {
+    if (!this.promotionEnabled() || this.promotionMenu() === null) {
+      return;
+    }
+
+    this.promotionChosen.emit(piece);
+    this.restoreBoardFocus();
+  }
+
+  dismissPromotion(): void {
+    if (this.promotionMove() === null) {
+      return;
+    }
+
+    this.promotionCancelled.emit();
+    this.restoreBoardFocus();
+  }
+
+  @HostListener('document:keydown.escape', ['$event'])
+  onEscape(event: Event): void {
+    if (this.promotionMove() !== null) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.dismissPromotion();
+    }
+  }
+
+  private restoreBoardFocus(): void {
+    // Wait for the popup and its focus trap to be removed.
+    requestAnimationFrame(() => {
+      this.boardSurface()?.nativeElement.focus();
+    });
   }
 }

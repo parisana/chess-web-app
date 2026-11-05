@@ -1,80 +1,56 @@
 <main class="home-page">
   @if (auth.currentPlayer(); as player) {
-  <header>
-    <h1>Welcome, {{ player.username }}</h1>
-    <button mat-button type="button" [disabled]="busy() || signingOut()" (click)="logout()">
-      {{ signingOut() ? 'Signing out…' : 'Sign out' }}
-    </button>
-  </header>
-  <app-profile-editor />
-  <app-player-statistics />
-  <mat-card [attr.aria-busy]="busy()">
-    <mat-card-header>
-      <mat-card-title>Matchmaking</mat-card-title>
-      <mat-card-subtitle>
-        Join or leave the waiting queue
-      </mat-card-subtitle>
-    </mat-card-header>
+  <div class="home-workspace">
+    <section class="board-area" aria-label="Waiting board">
+      <div class="board-stage">
+        <div class="participant-row">
+          <span class="muted">Opponent</span>
+          <span class="waiting-clock" aria-label="No opponent clock">
+            —:—
+          </span>
+        </div>
 
-    <mat-card-content>
-      @if (queueStatusResponse(); as current) {
-      @if (current.status === 'WAITING') {
-      <p role="status">
-        You are in the queue.
-        Joined at {{ current.enqueuedAt | date:'mediumTime' }}.
-      </p>
-      } @else if (current.status === 'MATCHED') {
-      <p role="status">
-        Match found. Your game ID is {{ current.gameId }}.
-      </p>
-      <a mat-flat-button [routerLink]="['/games', current.gameId]">
-        Open game
-      </a>
-      } @else {
-      <p role="status">You are not in the queue.</p>
-      }
-      } @else {
-      <p>Queue status has not been loaded.</p>
-      }
+        <app-chess-board [fen]="initialFen" orientation="WHITE" [enabled]="false" />
 
-      @if (realtimeService.state() === 'CONNECTED') {
-      <p role="status">
-        Live updates are connected. Match status updates automatically.
-      </p>
-      } @else {
-      <p role="status">
-        Live updates are unavailable or reconnecting.
-        Queue status is checked periodically while waiting or matched.
-        You can also refresh manually.
-      </p>
-      }
+        <div class="participant-row your-row">
+          <div class="participant-name">
+            <strong>{{ player.username }}</strong>
+            <span class="you-badge">You</span>
+          </div>
 
-      @if (errorMessage(); as message) {
-      <p role="alert">{{ message }}</p>
-      }
-    </mat-card-content>
+          <span class="waiting-clock" aria-label="No active clock">
+            —:—
+          </span>
+        </div>
 
-    <mat-card-actions>
-      @if (queueStatusResponse()?.status === 'NOT_QUEUED') {
-      <button mat-flat-button type="button" [disabled]="busy() || signingOut()" (click)="join()">
-        Join queue
-      </button>
-      }
+        <p class="board-help muted">
+          Find a match to start playing.
+        </p>
+      </div>
+    </section>
 
-      @if (queueStatusResponse()?.status === 'WAITING') {
-      <button mat-flat-button type="button" [disabled]="busy() || signingOut()" (click)="leave()">
-        Leave queue
-      </button>
-      }
+    <aside class="right-panel" aria-label="Play and profile">
+      <section class="panel profile-summary" aria-label="Your profile">
+        <span class="profile-mark" aria-hidden="true">♟</span>
+        <strong>{{ player.username }}</strong>
+      </section>
 
-      <button mat-button type="button" [disabled]="busy() || signingOut()" (click)="loadStatus()">
-        Refresh status
-      </button>
-    </mat-card-actions>
+      <app-matchmaking-panel [autoOpenExistingGame]="true" />
 
-    @if (busy()) {
-    <mat-progress-bar mode="indeterminate" aria-label="Updating queue status" />
-    }
-  </mat-card>
+      <section class="panel" aria-labelledby="activity-title">
+        <h2 id="activity-title">Messages & activity</h2>
+        <p class="chat-placeholder muted">Chat coming later</p>
+      </section>
+
+      <details class="panel profile-details">
+        <summary>Profile & statistics</summary>
+
+        <div class="profile-content">
+          <app-player-statistics />
+          <app-profile-editor />
+        </div>
+      </details>
+    </aside>
+  </div>
   }
 </main>

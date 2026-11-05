@@ -1,4 +1,4 @@
-import { GameClockResponse } from "./game-clock";
+import { GameClockResponse } from "./game-clock-response";
 
 export type GameStatus = 'IN_PROGRESS' | 'FINISHED';
 
@@ -19,4 +19,8 @@ export interface GameResponse {
   finishedAt: string | null;
   drawOfferedByPlayerId: number | null;
   clock: GameClockResponse | null;
+  whiteUsernameAtStart: string | null;
+  blackUsernameAtStart: string | null;
+  whiteRatingAtStart: number | null;
+  blackRatingAtStart: number | null;
 }

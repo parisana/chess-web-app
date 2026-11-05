@@ -3,8 +3,10 @@ package com.chessapp.game;
 import com.chessapp.game.dto.GameResponse;
 import com.chessapp.game.entity.Game;
 import com.chessapp.game.rules.model.Move;
+import com.chessapp.game.rules.model.PieceType;
 import com.chessapp.game.rules.model.Square;
-import com.chessapp.game.service.GameService;
+import com.chessapp.game.service.GameQueryService;
+import com.chessapp.game.service.GameCommandService;
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.service.PlayerService;
 import com.chessapp.support.TestSessions;
@@ -25,10 +27,13 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 /**
@@ -44,7 +49,9 @@ class GameReadIntegrationTest {
 
     @Autowired private EntityManager entityManager;
 
-    @Autowired private GameService gameService;
+    @Autowired private GameCommandService gameCommandService;
+
+    @Autowired private GameQueryService gameQueryService;
 
     @Autowired private PlayerService playerService;
 
@@ -69,7 +76,7 @@ class GameReadIntegrationTest {
         black = createPlayer();
         outsider = createPlayer();
 
-        game = gameService.createGame(white.id(), black.id());
+        game = gameCommandService.createGame(white.id(), black.id());
     }
 
     @AfterEach
@@ -132,7 +139,7 @@ class GameReadIntegrationTest {
 
     @Test
     void getGame_returnsAdvancedPositionAndVersion() throws Exception {
-        var moved = gameService.submitMove(
+        var moved = gameCommandService.submitMove(
                 game.id(),
                 white.id(),
                 game.version(),
@@ -194,9 +201,9 @@ class GameReadIntegrationTest {
 
         // JPA fixture mutation increments the version, so observe it rather
         // than assuming this seeded game still has version zero.
-        var beforeMove = gameService.getGame(game.id(), white.id());
+        var beforeMove = gameQueryService.getGame(game.id(), white.id());
 
-        var completed = gameService.submitMove(
+        var completed = gameCommandService.submitMove(
                 game.id(),
                 white.id(),
                 beforeMove.version(),
@@ -209,7 +216,7 @@ class GameReadIntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        var reloaded = gameService.getGame(game.id(), black.id());
+        var reloaded = gameQueryService.getGame(game.id(), black.id());
 
         assertEquals(beforeMove.version() + 1, completed.version().longValue());
         assertEquals(completed.finishedAt(), reloaded.finishedAt());
@@ -295,7 +302,7 @@ class GameReadIntegrationTest {
 
     @Test
     void pgnUsesPersistedMovesAndLifecycleResult() throws Exception {
-        var moved = gameService.submitMove(
+        var moved = gameCommandService.submitMove(
                 game.id(),
                 white.id(),
                 game.version(),
@@ -306,7 +313,7 @@ class GameReadIntegrationTest {
         );
 
         // A lifecycle command advances the version without adding a SAN move.
-        gameService.resign(game.id(), black.id(), moved.version());
+        gameCommandService.resign(game.id(), black.id(), moved.version());
 
         entityManager.flush();
         entityManager.clear();
@@ -328,7 +335,7 @@ class GameReadIntegrationTest {
 
     @Test
     void pgnRejectsPersistedPreSanMove() throws Exception {
-        gameService.submitMove(
+        gameCommandService.submitMove(
                 game.id(),
                 white.id(),
                 game.version(),
@@ -355,6 +362,166 @@ class GameReadIntegrationTest {
                         .cookie(sessions.forPlayer(white.id())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PGN_EXPORT_UNAVAILABLE"));
+    }
+
+    @Test
+    void legalMovesReturnsVersionedInitialHintsWithoutChangingGame()
+            throws Exception {
+        mockMvc.perform(get(
+                        "/api/v1/games/{gameId}/legal-moves",
+                        game.id()
+                ).cookie(sessions.forPlayer(white.id())))
+                .andExpect(status().isOk())
+                .andExpect(header().string(
+                        HttpHeaders.CACHE_CONTROL,
+                        "no-store"
+                ))
+                .andExpect(jsonPath("$.gameId").value(game.id()))
+                .andExpect(jsonPath("$.version").value(game.version()))
+                .andExpect(jsonPath("$.moves.length()").value(20));
+
+        var hints = gameQueryService.getLegalMoves(game.id(), white.id());
+
+        assertTrue(hints.moves().stream().anyMatch(move ->
+                move.from().equals("e2")
+                        && move.to().equals("e4")
+                        && move.promotion() == null
+                        && !move.capture()
+        ));
+
+        var after = gameQueryService.getGame(game.id(), white.id());
+
+        assertEquals(game.version(), after.version());
+        assertEquals(game.currentFen(), after.currentFen());
+        assertEquals(0, gameQueryService.getHistory(game.id(), white.id())
+                .recordedMoveCount());
+    }
+
+    @Test
+    void otherParticipantCanReadTheSameSideToMoveHints()
+            throws Exception {
+        mockMvc.perform(get(
+                        "/api/v1/games/{gameId}/legal-moves",
+                        game.id()
+                ).cookie(sessions.forPlayer(black.id())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.moves.length()").value(20));
+    }
+
+    @Test
+    void legalMovesRejectsOutsider() throws Exception {
+        mockMvc.perform(get(
+                        "/api/v1/games/{gameId}/legal-moves",
+                        game.id()
+                ).cookie(sessions.forPlayer(outsider.id())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("GAME_ACCESS_DENIED"))
+                .andExpect(jsonPath("$.moves").doesNotExist());
+    }
+
+    @Test
+    void legalMovesRequiresSession() throws Exception {
+        mockMvc.perform(get(
+                        "/api/v1/games/{gameId}/legal-moves",
+                        game.id()
+                ))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void legalMovesMissingGameReturnsNotFound() throws Exception {
+        mockMvc.perform(get(
+                        "/api/v1/games/{gameId}/legal-moves",
+                        -1L
+                ).cookie(sessions.forPlayer(white.id())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("GAME_NOT_FOUND"));
+    }
+
+    @Test
+    void finishedGameReturnsNoLegalMoveHints() throws Exception {
+        var finished = gameCommandService.resign(
+                game.id(),
+                white.id(),
+                game.version()
+        );
+
+        mockMvc.perform(get(
+                        "/api/v1/games/{gameId}/legal-moves",
+                        game.id()
+                ).cookie(sessions.forPlayer(white.id())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(finished.version()))
+                .andExpect(jsonPath("$.moves").isEmpty());
+    }
+
+    @Test
+    void legalMoveHintsExcludeMovesThatExposeTheKing() {
+        setHintPosition(
+                "4r2k/8/8/8/8/8/4R3/4K3 w - - 0 1"
+        );
+
+        var hints = gameQueryService.getLegalMoves(game.id(), white.id());
+
+        assertTrue(hints.moves().stream().noneMatch(move ->
+                move.from().equals("e2") && move.to().equals("d2")
+        ));
+
+        // The pinned rook can still move along the pin line.
+        assertTrue(hints.moves().stream().anyMatch(move ->
+                move.from().equals("e2") && move.to().equals("e3")
+        ));
+    }
+
+    @Test
+    void enPassantHintIsMarkedAsCaptureDespiteEmptyDestination() {
+        setHintPosition(
+                "7k/8/8/3pP3/8/8/8/K7 w - d6 0 2"
+        );
+
+        var hints = gameQueryService.getLegalMoves(game.id(), white.id());
+
+        assertTrue(hints.moves().stream().anyMatch(move ->
+                move.from().equals("e5")
+                        && move.to().equals("d6")
+                        && move.capture()
+        ));
+    }
+
+    @Test
+    void promotionHintsRetainAllFourChoices() {
+        setHintPosition(
+                "7k/P7/8/8/8/8/8/K7 w - - 0 1"
+        );
+
+        var hints = gameQueryService.getLegalMoves(game.id(), white.id());
+
+        var choices = hints.moves().stream()
+                .filter(move ->
+                        move.from().equals("a7") && move.to().equals("a8")
+                )
+                .map(move -> move.promotion())
+                .collect(Collectors.toSet());
+
+        assertEquals(
+                Set.of(
+                        PieceType.QUEEN,
+                        PieceType.ROOK,
+                        PieceType.BISHOP,
+                        PieceType.KNIGHT
+                ),
+                choices
+        );
+    }
+
+    /**
+     * Controlled position fixture for the read-only hints endpoint.
+     * Does not represent a game played through the move/history pipeline.
+     */
+    private void setHintPosition(String fen) {
+        entityManager.find(Game.class, game.id()).updatePosition(fen);
+        entityManager.flush();
+        entityManager.clear();
     }
 
     private PlayerResponse createPlayer() {

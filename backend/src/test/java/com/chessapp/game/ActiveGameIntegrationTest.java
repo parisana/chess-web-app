@@ -1,7 +1,8 @@
 package com.chessapp.game;
 
 import com.chessapp.game.exception.PlayerAlreadyInGameException;
-import com.chessapp.game.service.GameService;
+import com.chessapp.game.service.GameQueryService;
+import com.chessapp.game.service.GameCommandService;
 import com.chessapp.matchmaking.dto.QueueStatus;
 import com.chessapp.matchmaking.dto.QueueStatusResponse;
 import com.chessapp.matchmaking.repository.MatchmakingQueueRepository;
@@ -32,7 +33,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class ActiveGameIntegrationTest {
 
     @Autowired
-    private GameService gameService;
+    private GameCommandService gameCommandService;
+
+    @Autowired
+    private GameQueryService gameQueryService;
 
     @Autowired
     private PlayerService playerService;
@@ -116,29 +120,29 @@ class ActiveGameIntegrationTest {
         Long occupied = players.get(1).id();
         Long opponent = players.get(2).id();
 
-        var existing = gameService.createGame(occupied, opponent);
+        var existing = gameCommandService.createGame(occupied, opponent);
 
         assertEquals(
                 existing.id(),
-                gameService.findActiveGameId(occupied).orElseThrow()
+                gameQueryService.findActiveGameId(occupied).orElseThrow()
         );
         assertEquals(
                 existing.id(),
-                gameService.findActiveGameId(opponent).orElseThrow()
+                gameQueryService.findActiveGameId(opponent).orElseThrow()
         );
 
         // "available" is inserted first; "occupied" then conflicts.
         // The occupied player also changes color between the games.
         assertThrows(
                 PlayerAlreadyInGameException.class,
-                () -> gameService.createGame(available, occupied)
+                () -> gameCommandService.createGame(available, occupied)
         );
 
-        assertTrue(gameService.findActiveGameId(available).isEmpty());
+        assertTrue(gameQueryService.findActiveGameId(available).isEmpty());
         assertEquals(1L, fixtureGameCount());
         assertEquals(
                 existing.id(),
-                gameService.findActiveGameId(occupied).orElseThrow()
+                gameQueryService.findActiveGameId(occupied).orElseThrow()
         );
     }
 
@@ -171,7 +175,7 @@ class ActiveGameIntegrationTest {
             assertNotEquals(firstCreated, otherCreated);
             assertEquals(1L, fixtureGameCount());
 
-            Long gameId = gameService.findActiveGameId(shared)
+            Long gameId = gameQueryService.findActiveGameId(shared)
                     .orElseThrow();
 
             Long winningOpponent = firstCreated ? second : third;
@@ -179,11 +183,11 @@ class ActiveGameIntegrationTest {
 
             assertEquals(
                     gameId,
-                    gameService.findActiveGameId(winningOpponent)
+                    gameQueryService.findActiveGameId(winningOpponent)
                             .orElseThrow()
             );
             assertTrue(
-                    gameService.findActiveGameId(losingOpponent).isEmpty()
+                    gameQueryService.findActiveGameId(losingOpponent).isEmpty()
             );
         } finally {
             start.countDown();
@@ -219,11 +223,11 @@ class ActiveGameIntegrationTest {
 
         assertEquals(
                 matched.gameId(),
-                gameService.findActiveGameId(first).orElseThrow()
+                gameQueryService.findActiveGameId(first).orElseThrow()
         );
         assertEquals(
                 matched.gameId(),
-                gameService.findActiveGameId(second).orElseThrow()
+                gameQueryService.findActiveGameId(second).orElseThrow()
         );
 
         // Rejoining must not create another game.
@@ -260,8 +264,8 @@ class ActiveGameIntegrationTest {
         );
 
         assertEquals(0L, fixtureGameCount());
-        assertTrue(gameService.findActiveGameId(first).isEmpty());
-        assertTrue(gameService.findActiveGameId(second).isEmpty());
+        assertTrue(gameQueryService.findActiveGameId(first).isEmpty());
+        assertTrue(gameQueryService.findActiveGameId(second).isEmpty());
 
         assertEquals(originalWaiting, matchmakingService.status(first));
         assertEquals(
@@ -347,7 +351,7 @@ class ActiveGameIntegrationTest {
             }
 
             try {
-                gameService.createGame(whitePlayerId, blackPlayerId);
+                gameCommandService.createGame(whitePlayerId, blackPlayerId);
                 return true;
             } catch (PlayerAlreadyInGameException exception) {
                 return false;

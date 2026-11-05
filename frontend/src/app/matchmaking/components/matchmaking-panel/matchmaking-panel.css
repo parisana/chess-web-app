@@ -1,0 +1,80 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.matchmaking-panel {
+  padding: 1rem;
+  border: 1px solid var(--chess-border);
+  border-radius: 0.65rem;
+  background: var(--chess-surface);
+}
+
+.matchmaking-panel.embedded {
+  margin-top: 1rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+p {
+  line-height: 1.5;
+}
+
+.muted {
+  color: var(--chess-muted);
+  font-size: 0.8rem;
+}
+
+.primary-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: var(--chess-accent);
+  color: var(--chess-on-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary-button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.text-button {
+  display: block;
+  margin: 0.75rem auto;
+  padding: 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--chess-accent);
+  font: inherit;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--chess-accent);
+  outline-offset: 3px;
+}
+
+[role='alert'] {
+  color: var(--chess-danger);
+}

@@ -9,12 +9,13 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   catchError,
   combineLatest,
   defer,
+  distinctUntilChanged,
   EMPTY,
   exhaustMap,
   filter,
@@ -32,22 +33,23 @@ import {
   tap,
 } from 'rxjs';
 
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 import { AuthService } from '../../../auth/services/auth.service';
 import { GameResponse } from '../../models/game-response';
 import { GameApiService } from '../../services/game-api.service';
 import { ChessBoard } from '../../components/chess-board/chess-board';
-import { parseFenForDisplay } from '../../models/fen-display';
+import { BoardColor, parseFenForDisplay } from '../../models/fen-display';
 import { ProposedMove, PromotionPiece } from '../../models/game-move';
 import { REALTIME_CONFIG } from '../../../notification/config/realtime.config';
 import { RealtimeService } from '../../../notification/services/realtime.service';
 import { GameHistoryResponse } from '../../models/game-history';
 import { GameLifecycleAction } from '../../models/game-lifecycle';
-import { GameClockResponse } from '../../models/game-clock';
+import { GameClockResponse } from '../../models/game-clock-response';
 import { GameClocks } from '../../components/game-clocks/game-clocks';
+import { AuthSessionStore } from '../../../auth/services/auth-session.store';
+import { GameLegalMovesResponse, RejectedMoveFeedback, LegalMoveHint } from '../../models/game-legal-moves';
+import { MatchmakingPanel } from '../../../matchmaking/components/matchmaking-panel/matchmaking-panel';
 
 @Component({
   selector: 'app-game',
@@ -55,11 +57,10 @@ import { GameClocks } from '../../components/game-clocks/game-clocks';
   imports: [
     DatePipe,
     RouterLink,
-    MatButtonModule,
-    MatCardModule,
     MatProgressBarModule,
     ChessBoard,
-    GameClocks
+    GameClocks,
+    MatchmakingPanel
   ],
   templateUrl: './game.html',
   styleUrl: './game.css',
@@ -104,19 +105,36 @@ export class Game implements OnInit {
   private readonly realtimeConfig = inject(REALTIME_CONFIG);
   private readonly cancelReads = new Subject<void>();
 
+  readonly playerColor = computed<BoardColor>(() =>
+    this.game()?.whitePlayerId === this.auth.currentPlayer()?.id
+      ? 'WHITE'
+      : 'BLACK'
+  );
+
+  readonly whiteDisplayName = computed(() =>
+    this.game()?.whiteUsernameAtStart ??
+    (
+      this.playerColor() === 'WHITE'
+        ? this.auth.currentPlayer()?.username ?? 'You'
+        : 'Opponent'
+    )
+  );
+
+  readonly blackDisplayName = computed(() =>
+    this.game()?.blackUsernameAtStart ??
+    (
+      this.playerColor() === 'BLACK'
+        ? this.auth.currentPlayer()?.username ?? 'You'
+        : 'Opponent'
+    )
+  );
+
   private activeGameId: number | null = null;
   private latestNotifiedVersion = -1;
 
   private reading = false;
   private readPending = false;
   private readScheduled = false;
-
-  readonly promotionChoices: readonly PromotionPiece[] = [
-    'QUEEN',
-    'ROOK',
-    'BISHOP',
-    'KNIGHT',
-  ];
 
   /**
  * null follows the live game.
@@ -247,6 +265,198 @@ export class Game implements OnInit {
     }
   });
 
+  private readonly session = inject(AuthSessionStore);
+
+  // Distinguish route visits, including reopening the same game/version.
+  private readonly hintRouteRevision = signal(0);
+  private readonly hintRetryRequests = new Subject<void>();
+
+  readonly legalMoveHints = signal<GameLegalMovesResponse | null>(null);
+  readonly legalMovesLoading = signal(false);
+  readonly legalMovesError = signal<string | null>(null);
+
+  readonly rejectedMove = signal<RejectedMoveFeedback | null>(null);
+
+  readonly boardLegalMoves = computed<readonly LegalMoveHint[] | null>(() => {
+    const current = this.game();
+    const hints = this.legalMoveHints();
+
+    if (
+      !this.canSubmitMove() ||
+      current === null ||
+      hints === null ||
+      hints.gameId !== current.id ||
+      hints.version !== current.version
+    ) {
+      return null;
+    }
+
+    return hints.moves;
+  });
+
+  readonly boardRejectedMove = computed(() => {
+    const current = this.game();
+    const rejected = this.rejectedMove();
+
+    if (
+      current === null ||
+      rejected === null ||
+      !this.auth.isAuthenticated() ||
+      this.isReplaying() ||
+      this.needsRefresh() ||
+      current.id !== rejected.gameId ||
+      current.version !== rejected.version
+    ) {
+      return null;
+    }
+
+    return rejected;
+  });
+
+  /**
+ * Number moves from the recorded baseline, including legacy positions
+ * that begin with Black to move or a fullmove number greater than one.
+ * Sequence numbers remain the replay identifiers.
+ */
+  readonly moveTokens = computed(() => {
+    const recorded = this.history();
+
+    if (recorded === null) {
+      return [];
+    }
+
+    const fields = recorded.historyStartFen.trim().split(/\s+/);
+    const startsWithBlack = fields[1] === 'b';
+    const firstMoveNumber = Number(fields[5]);
+
+    return recorded.moves.map((move, index) => {
+      const halfMoveOffset = index + (startsWithBlack ? 1 : 0);
+      const whiteMove = halfMoveOffset % 2 === 0;
+      const moveNumber =
+        firstMoveNumber + Math.floor(halfMoveOffset / 2);
+
+      return {
+        ...move,
+        numberLabel: whiteMove
+          ? `${moveNumber}.`
+          : index === 0 ? `${moveNumber}…` : '',
+        notation: move.san ??
+          `${move.from}–${move.to}${move.promotion ? '=' + move.promotion : ''}`,
+      };
+    });
+  });
+
+  constructor() {
+    const hintScope = computed(() => {
+      const current = this.game();
+      const revision = this.session.revision();
+      const routeRevision = this.hintRouteRevision();
+
+      if (
+        current === null ||
+        !this.session.isAuthenticated() ||
+        current.status !== 'IN_PROGRESS'
+      ) {
+        return null;
+      }
+
+      return {
+        gameId: current.id,
+        version: current.version,
+        revision,
+        routeRevision,
+      };
+    });
+
+    toObservable(hintScope).pipe(
+      distinctUntilChanged((previous, current) =>
+        previous?.gameId === current?.gameId &&
+        previous?.version === current?.version &&
+        previous?.revision === current?.revision &&
+        previous?.routeRevision === current?.routeRevision
+      ),
+
+      switchMap(scope => {
+        this.legalMoveHints.set(null);
+        this.legalMovesError.set(null);
+        this.legalMovesLoading.set(false);
+
+        if (scope === null) {
+          return EMPTY;
+        }
+
+        const isCurrent = () => {
+          const current = this.game();
+
+          return this.session.isAuthenticated() &&
+            this.session.revision() === scope.revision &&
+            this.hintRouteRevision() === scope.routeRevision &&
+            current?.id === scope.gameId &&
+            current.version === scope.version &&
+            current.status === 'IN_PROGRESS';
+        };
+
+        return this.hintRetryRequests.pipe(
+          startWith(undefined),
+
+          switchMap(() => defer(() => {
+            if (!isCurrent()) {
+              return EMPTY;
+            }
+
+            this.legalMoveHints.set(null);
+            this.legalMovesError.set(null);
+            this.legalMovesLoading.set(true);
+
+            return this.gameApi.getLegalMoves(scope.gameId).pipe(
+              tap(hints => {
+                if (!isCurrent()) {
+                  return;
+                }
+
+                if (
+                  hints.gameId !== scope.gameId ||
+                  hints.version !== scope.version
+                ) {
+                  this.legalMovesError.set(
+                    'Move hints do not match the displayed position.',
+                  );
+
+                  if (
+                    hints.gameId === scope.gameId &&
+                    hints.version > scope.version
+                  ) {
+                    this.requestSynchronization(true);
+                  }
+
+                  return;
+                }
+
+                this.legalMoveHints.set(hints);
+              }),
+
+              catchError(() => {
+                if (isCurrent()) {
+                  this.legalMovesError.set(
+                    'Move hints are unavailable. You can still play.',
+                  );
+                }
+
+                return EMPTY;
+              }),
+
+              finalize(() => {
+                this.legalMovesLoading.set(false);
+              }),
+            );
+          })),
+        );
+      }),
+
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe();
+  }
+
   ngOnInit(): void {
     this.route.paramMap.pipe(
       switchMap(params => {
@@ -255,6 +465,10 @@ export class Game implements OnInit {
         this.activeGameId = null;
         this.latestNotifiedVersion = -1;
         this.readPending = false;
+
+        this.hintRouteRevision.update(value => value + 1);
+        this.legalMoveHints.set(null);
+        this.rejectedMove.set(null);
 
         this.replayIndex.set(null);
         this.game.set(null);
@@ -353,6 +567,12 @@ export class Game implements OnInit {
       // An actual newer snapshot will update them if necessary.
       this.requestSynchronization(false);
     });
+  }
+
+  retryLegalMoves(): void {
+    if (!this.legalMovesLoading()) {
+      this.hintRetryRequests.next();
+    }
   }
 
   /**
@@ -618,6 +838,7 @@ export class Game implements OnInit {
         // Every accepted move clears any pending offer.
         drawOfferedByPlayerId: null,
       }),
+      move
     );
   }
 
@@ -630,6 +851,7 @@ export class Game implements OnInit {
     current: GameResponse,
     command: () => Observable<T>,
     toSnapshot: (result: T) => GameResponse,
+    attemptedMove?: ProposedMove
   ): void {
     if (
       !this.canSubmitGameCommand() ||
@@ -675,7 +897,19 @@ export class Game implements OnInit {
         if (this.game() !== current) {
           return;
         }
-
+        if (
+          attemptedMove !== undefined &&
+          error instanceof HttpErrorResponse &&
+          error.status === 422 &&
+          error.error?.code === 'ILLEGAL_GAME_MOVE'
+        ) {
+          this.rejectedMove.set({
+            gameId: current.id,
+            version: current.version,
+            from: attemptedMove.from,
+            to: attemptedMove.to,
+          });
+        }
         this.handleCommandError(error);
       },
     });

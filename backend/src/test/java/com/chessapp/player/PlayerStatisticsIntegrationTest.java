@@ -5,7 +5,8 @@ import com.chessapp.game.entity.GameResult;
 import com.chessapp.game.event.GameFinishedEvent;
 import com.chessapp.game.rules.model.Move;
 import com.chessapp.game.rules.model.Square;
-import com.chessapp.game.service.GameService;
+import com.chessapp.game.service.GameQueryService;
+import com.chessapp.game.service.GameCommandService;
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.service.PlayerService;
 import org.junit.jupiter.api.AfterEach;
@@ -38,7 +39,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class PlayerStatisticsIntegrationTest {
 
     @Autowired private PlayerService playerService;
-    @Autowired private GameService gameService;
+    @Autowired private GameCommandService gameCommandService;
+    @Autowired private GameQueryService gameQueryService;
     @Autowired private ApplicationEventPublisher events;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private PlatformTransactionManager transactionManager;
@@ -54,7 +56,7 @@ class PlayerStatisticsIntegrationTest {
         ));
 
         assertNotNull(players);
-        game = gameService.createGame(white(), black());
+        game = gameCommandService.createGame(white(), black());
     }
 
     @AfterEach
@@ -154,7 +156,7 @@ class PlayerStatisticsIntegrationTest {
 
         assertThrows(
                 ArithmeticException.class,
-                () -> gameService.resign(
+                () -> gameCommandService.resign(
                         game.id(),
                         black(),
                         game.version()
@@ -227,7 +229,7 @@ class PlayerStatisticsIntegrationTest {
     ) {
         seedFen(fen);
 
-        gameService.submitMove(
+        gameCommandService.submitMove(
                 game.id(),
                 whiteMoves ? white() : black(),
                 game.version(),
@@ -236,7 +238,7 @@ class PlayerStatisticsIntegrationTest {
 
         assertEquals(
                 expectedResult,
-                gameService.getGame(game.id(), white()).result()
+                gameQueryService.getGame(game.id(), white()).result()
         );
 
         assertEquals(1L, markerCount());
@@ -267,7 +269,7 @@ class PlayerStatisticsIntegrationTest {
 
         assertThrows(
                 ArithmeticException.class,
-                () -> gameService.submitMove(
+                () -> gameCommandService.submitMove(
                         game.id(),
                         white(),
                         game.version(),
@@ -278,7 +280,7 @@ class PlayerStatisticsIntegrationTest {
                 )
         );
 
-        var persisted = gameService.getGame(game.id(), white());
+        var persisted = gameQueryService.getGame(game.id(), white());
 
         assertEquals(beforeMate, persisted.currentFen());
         assertEquals(game.version(), persisted.version());
@@ -392,7 +394,7 @@ class PlayerStatisticsIntegrationTest {
 
     @Test
     void ordinaryMoveAndDrawNegotiationDoNotUpdateStatistics() {
-        var moved = gameService.submitMove(
+        var moved = gameCommandService.submitMove(
                 game.id(),
                 white(),
                 game.version(),
@@ -402,25 +404,25 @@ class PlayerStatisticsIntegrationTest {
                 )
         );
 
-        var offered = gameService.offerDraw(
+        var offered = gameCommandService.offerDraw(
                 game.id(),
                 white(),
                 moved.version()
         );
 
-        var declined = gameService.declineDraw(
+        var declined = gameCommandService.declineDraw(
                 game.id(),
                 black(),
                 offered.version()
         );
 
-        var offeredAgain = gameService.offerDraw(
+        var offeredAgain = gameCommandService.offerDraw(
                 game.id(),
                 black(),
                 declined.version()
         );
 
-        gameService.withdrawDraw(
+        gameCommandService.withdrawDraw(
                 game.id(),
                 black(),
                 offeredAgain.version()
@@ -432,7 +434,7 @@ class PlayerStatisticsIntegrationTest {
         assertEquals(2L, reservationCount());
 
         assertNull(
-                gameService.getGame(game.id(), white()).result()
+                gameQueryService.getGame(game.id(), white()).result()
         );
     }
 
@@ -445,7 +447,7 @@ class PlayerStatisticsIntegrationTest {
         var thrown = assertThrows(
                 IllegalStateException.class,
                 () -> transaction().executeWithoutResult(status -> {
-                    gameService.resign(
+                    gameCommandService.resign(
                             game.id(),
                             black(),
                             game.version()
@@ -464,7 +466,7 @@ class PlayerStatisticsIntegrationTest {
         assertSame(failure, thrown);
 
         // Fresh reads after rollback must observe the original committed state.
-        var persisted = gameService.getGame(game.id(), white());
+        var persisted = gameQueryService.getGame(game.id(), white());
 
         assertEquals(game.version(), persisted.version());
         assertNull(persisted.result());
@@ -478,17 +480,17 @@ class PlayerStatisticsIntegrationTest {
 
     private GameResponse finish(GameResult result) {
         return switch (result) {
-            case WHITE_WIN -> gameService.resign(
+            case WHITE_WIN -> gameCommandService.resign(
                     game.id(), black(), game.version()
             );
-            case BLACK_WIN -> gameService.resign(
+            case BLACK_WIN -> gameCommandService.resign(
                     game.id(), white(), game.version()
             );
             case DRAW -> {
-                var offered = gameService.offerDraw(
+                var offered = gameCommandService.offerDraw(
                         game.id(), white(), game.version()
                 );
-                yield gameService.acceptDraw(
+                yield gameCommandService.acceptDraw(
                         game.id(), black(), offered.version()
                 );
             }

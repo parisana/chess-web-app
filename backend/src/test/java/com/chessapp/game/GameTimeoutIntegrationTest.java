@@ -12,7 +12,7 @@ import com.chessapp.game.repository.GameRepository;
 import com.chessapp.game.rules.model.Move;
 import com.chessapp.game.rules.model.PieceColor;
 import com.chessapp.game.rules.model.Square;
-import com.chessapp.game.service.GameService;
+import com.chessapp.game.service.GameCommandService;
 import com.chessapp.player.dto.PlayerResponse;
 import com.chessapp.player.service.PlayerService;
 import org.junit.jupiter.api.AfterEach;
@@ -52,7 +52,7 @@ class GameTimeoutIntegrationTest {
     private static final Instant START =
             Instant.parse("2026-11-02T08:00:00Z");
 
-    @Autowired private GameService service;
+    @Autowired private GameCommandService service;
     @Autowired private GameRepository repository;
     @Autowired private PlayerService playerService;
     @Autowired private JdbcTemplate jdbc;

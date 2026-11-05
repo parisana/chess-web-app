@@ -23,7 +23,11 @@ public record GameResponse(
         GameTerminationReason terminationReason,
         Instant finishedAt,
         Long drawOfferedByPlayerId,
-        GameClockResponse clock
+        GameClockResponse clock,
+        String whiteUsernameAtStart,
+        String blackUsernameAtStart,
+        Integer whiteRatingAtStart,
+        Integer blackRatingAtStart
 ) {
     public static GameResponse from(Game game, Instant capturedAt) {
         return new GameResponse(
@@ -38,7 +42,11 @@ public record GameResponse(
                 game.getTerminationReason(),
                 game.getFinishedAt(),
                 game.getDrawOfferedByPlayerId(),
-                GameClockResponse.from(game, capturedAt)
+                GameClockResponse.from(game, capturedAt),
+                game.getWhiteUsernameAtStart(),
+                game.getBlackUsernameAtStart(),
+                game.getWhiteRatingAtStart(),
+                game.getBlackRatingAtStart()
         );
     }
 }

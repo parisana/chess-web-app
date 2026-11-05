@@ -1,1 +1,26 @@
-<router-outlet />
+@if (auth.isAuthenticated()) {
+<header class="app-header">
+  <a class="brand" routerLink="/home" aria-label="Chess home">
+    <span class="brand-mark" aria-hidden="true">♞</span>
+    <span>Chess</span>
+  </a>
+
+  <button class="logout-button" type="button" [disabled]="signingOut()" (click)="logout()">
+    {{ signingOut() ? 'Signing out…' : 'Log out' }}
+  </button>
+</header>
+}
+
+<div class="app-workspace" [class.authenticated]="auth.isAuthenticated()">
+  @if (auth.isAuthenticated()) {
+  <aside class="sidebar" aria-hidden="true"></aside>
+  }
+
+  <div class="route-content">
+    @if (auth.isAuthenticated() && logoutError(); as message) {
+    <p class="logout-error" role="alert">{{ message }}</p>
+    }
+
+    <router-outlet />
+  </div>
+</div>

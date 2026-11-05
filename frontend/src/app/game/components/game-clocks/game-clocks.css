@@ -1,36 +1,142 @@
-.clocks {
+:host {
+  display: block;
+  width: 100%;
+}
+
+.board-with-clocks {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-  margin: 1rem 0;
+  gap: 0.4rem;
 }
 
-.clock {
+.board-slot {
+  min-width: 0;
+}
+
+.clock-row {
+  position: relative;
+  overflow: hidden;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.75rem;
-  border: 2px solid var(--mat-sys-outline-variant);
-  border-radius: 0.5rem;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--chess-border);
+  border-radius: 0.4rem;
+  background: var(--chess-surface);
 }
 
-.clock.running {
-  border-color: var(--mat-sys-primary);
-  background: var(--mat-sys-primary-container);
-  color: var(--mat-sys-on-primary-container);
+.clock-row.your-row {
+  border-inline-start: 3px solid var(--chess-accent);
+}
+
+.participant {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.participant-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.colour-marker {
+  flex: 0 0 0.65rem;
+  height: 0.65rem;
+  border: 1px solid #aeb4bc;
+  border-radius: 50%;
+  background: #17191c;
+}
+
+.colour-marker.white {
+  background: #eee9df;
+}
+
+.identity-badge {
+  flex-shrink: 0;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  background: var(--chess-background);
+  color: var(--chess-muted);
+  font-size: 0.7rem;
+}
+
+.identity-badge.you {
+  background: var(--chess-accent);
+  color: var(--chess-on-accent);
 }
 
 .time {
-  font-size: 2rem;
-  font-weight: 600;
+  flex-shrink: 0;
+  min-width: 4.75rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--chess-muted);
+  opacity: 0.6;
+  transition: opacity 150ms ease, background-color 150ms ease;
+}
+
+.running .time {
+  /* background: var(--chess-selection); */
+  color: var(--chess-on-selection);
+  opacity: 1;
+}
+
+.clock-notice {
+  color: var(--chess-muted);
+  font-size: 0.8rem;
+}
+
+.participant-rating {
+  flex-shrink: 0;
+  color: var(--chess-muted);
+  font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
 }
 
-.color-label {
-  font-weight: 500;
+.clock-row.running::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  pointer-events: none;
+
+  background: linear-gradient(90deg,
+      transparent,
+      color-mix(in srgb, var(--chess-accent) 20%, transparent),
+      transparent);
+
+  animation: clock-running 3s ease-in-out infinite;
 }
 
-.clock-state {
-  font-size: 0.8rem;
+@keyframes clock-running {
+  from {
+    transform: translateX(-160%) skewX(-25deg);
+  }
+
+  to {
+    transform: translateX(360%) skewX(-25deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clock-row.running::after {
+    top: auto;
+    width: 100%;
+    height: 2px;
+    background: var(--chess-accent);
+    opacity: 0.5;
+    animation: none;
+    transform: none;
+  }
 }

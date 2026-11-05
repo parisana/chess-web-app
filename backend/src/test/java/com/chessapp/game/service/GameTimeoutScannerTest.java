@@ -25,7 +25,7 @@ class GameTimeoutScannerTest {
             Instant.parse("2026-11-03T08:00:00Z");
 
     @Mock private GameRepository repository;
-    @Mock private GameService service;
+    @Mock private GameCommandService service;
     @Mock private Clock clock;
 
     @InjectMocks
