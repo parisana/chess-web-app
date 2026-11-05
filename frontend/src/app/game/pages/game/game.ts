@@ -50,6 +50,7 @@ import { GameClocks } from '../../components/game-clocks/game-clocks';
 import { AuthSessionStore } from '../../../auth/services/auth-session.store';
 import { GameLegalMovesResponse, RejectedMoveFeedback, LegalMoveHint } from '../../models/game-legal-moves';
 import { MatchmakingPanel } from '../../../matchmaking/components/matchmaking-panel/matchmaking-panel';
+import { MoveHistoryReplay } from '../../components/move-history-replay/move-history-replay';
 
 @Component({
   selector: 'app-game',
@@ -60,7 +61,8 @@ import { MatchmakingPanel } from '../../../matchmaking/components/matchmaking-pa
     MatProgressBarModule,
     ChessBoard,
     GameClocks,
-    MatchmakingPanel
+    MatchmakingPanel,
+    MoveHistoryReplay
   ],
   templateUrl: './game.html',
   styleUrl: './game.css',

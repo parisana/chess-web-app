@@ -1,0 +1,151 @@
+:host {
+  display: block;
+}
+
+.played-games-page {
+  max-width: 75rem;
+  margin-inline: auto;
+  padding: 1.5rem;
+}
+
+.page-header,
+.page-actions,
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.page-header {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.page-actions {
+  flex-wrap: wrap;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.muted {
+  color: var(--chess-muted);
+  font-size: 0.8rem;
+}
+
+.games-panel {
+  padding: 1rem;
+  border: 1px solid var(--chess-border);
+  border-radius: 0.65rem;
+  background: var(--chess-surface);
+}
+
+.game-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.game-list li+li {
+  border-top: 1px solid var(--chess-border);
+}
+
+.game-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 0.5rem;
+  border-radius: 0.35rem;
+  color: var(--chess-text);
+  text-decoration: none;
+}
+
+.game-entry:hover {
+  background: var(--chess-background);
+}
+
+.opponent,
+.game-result,
+.game-date {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.game-date {
+  align-items: flex-end;
+  color: var(--chess-muted);
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.review-label,
+.outcome.win {
+  color: var(--chess-accent);
+}
+
+.outcome.loss {
+  color: var(--chess-danger);
+}
+
+.pagination {
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.action-button {
+  min-height: 2rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--chess-border);
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--chess-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.action-button:hover:not(:disabled) {
+  background: var(--chess-background);
+}
+
+.action-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.text-link {
+  color: var(--chess-accent);
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--chess-accent);
+  outline-offset: 3px;
+}
+
+[role='alert'] {
+  color: var(--chess-danger);
+}
+
+@media (max-width: 700px) {
+  .played-games-page {
+    padding: 1rem;
+  }
+
+  .game-entry {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .game-date {
+    align-items: flex-start;
+    text-align: left;
+  }
+}

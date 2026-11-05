@@ -131,6 +131,27 @@
   color: var(--chess-danger);
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.history-link {
+  color: var(--chess-accent);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.history-link:hover {
+  text-decoration: underline;
+}
+
+.history-link:focus-visible {
+  outline: 2px solid var(--chess-accent);
+  outline-offset: 3px;
+}
+
 @media (max-width: 700px) {
   .app-workspace.authenticated {
     grid-template-columns: minmax(0, 1fr);

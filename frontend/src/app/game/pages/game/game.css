@@ -39,6 +39,10 @@
   background: var(--chess-surface);
 }
 
+.profile-summary {
+  min-height: 4rem;
+}
+
 .panel-heading,
 .profile-summary,
 .action-buttons,
@@ -75,6 +79,10 @@ p {
   font-size: 1.5rem;
 }
 
+.activity-panel {
+  min-height: 8rem;
+}
+
 .profile-summary p {
   margin: 0.15rem 0 0;
 }
@@ -87,100 +95,6 @@ p {
 .game-state,
 .result {
   color: var(--chess-accent);
-}
-
-.notation-scroll {
-  max-height: 12rem;
-  overflow: auto;
-  scrollbar-width: thin;
-}
-
-.notation {
-  margin: 0.5rem 0;
-  line-height: 2;
-}
-
-.notation-token {
-  display: inline-block;
-  margin-inline-end: 0.2rem;
-  white-space: nowrap;
-}
-
-.move-number {
-  margin-inline-end: 0.2rem;
-  color: var(--chess-muted);
-  font-size: 0.8rem;
-}
-
-.move-token {
-  padding: 0.15rem 0.35rem;
-  border: 0;
-  border-radius: 0.25rem;
-  background: transparent;
-  color: var(--chess-text);
-  font: inherit;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.move-token:hover:not(:disabled) {
-  background: var(--chess-background);
-}
-
-.move-token.selected {
-  background: var(--chess-accent);
-  color: var(--chess-on-accent);
-}
-
-.move-token:disabled {
-  opacity: 0.65;
-  cursor: default;
-}
-
-.replay-toolbar {
-  display: flex;
-  width: fit-content;
-  margin: 0.75rem auto 0;
-  padding: 0.15rem;
-  border: 1px solid var(--chess-border);
-  border-radius: 0.4rem;
-  background: var(--chess-background);
-}
-
-.replay-toolbar button {
-  display: grid;
-  place-items: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border: 0;
-  border-radius: 0.25rem;
-  background: transparent;
-  color: var(--chess-text);
-  cursor: pointer;
-}
-
-.replay-toolbar button:hover:not(:disabled) {
-  background: var(--chess-selection);
-}
-
-.replay-toolbar button:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.replay-toolbar svg {
-  width: 1rem;
-  height: 1rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.replay-status {
-  text-align: center;
 }
 
 .action-buttons {
@@ -291,6 +205,29 @@ pre {
 .empty-state {
   max-width: 32rem;
   margin: 2rem auto;
+}
+
+.game-actions {
+  margin-top: 1rem;
+}
+
+.game-actions h2 {
+  margin-bottom: 0.75rem;
+}
+
+.incoming-offer,
+.action-confirmation {
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--chess-accent);
+  border-radius: 0.4rem;
+  background: var(--chess-selection);
+}
+
+.incoming-offer p,
+.action-confirmation p {
+  margin-top: 0;
+  color: var(--chess-on-selection);
 }
 
 @media (max-width: 960px) {

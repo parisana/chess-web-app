@@ -2,6 +2,8 @@ package com.chessapp.game;
 
 import com.chessapp.game.dto.GameResponse;
 import com.chessapp.game.entity.Game;
+import com.chessapp.game.entity.GameResult;
+import com.chessapp.game.entity.GameTerminationReason;
 import com.chessapp.game.rules.model.Move;
 import com.chessapp.game.rules.model.PieceType;
 import com.chessapp.game.rules.model.Square;
@@ -27,6 +29,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -512,6 +515,210 @@ class GameReadIntegrationTest {
                 ),
                 choices
         );
+    }
+
+    @Test
+    void playedGamesIncludesBothColorsAndExcludesActiveAndUnrelatedGames()
+            throws Exception {
+        Instant finish = Instant.parse("2026-11-05T08:00:00Z");
+
+        var win = finishedListFixture(
+                white,
+                black,
+                GameResult.WHITE_WIN,
+                finish
+        );
+
+        var loss = finishedListFixture(
+                black,
+                white,
+                GameResult.WHITE_WIN,
+                finish.plusSeconds(1)
+        );
+
+        var draw = finishedListFixture(
+                white,
+                black,
+                GameResult.DRAW,
+                finish.plusSeconds(2)
+        );
+
+        // Neither participant is the requesting Player.
+        finishedListFixture(
+                outsider,
+                createPlayer(),
+                GameResult.WHITE_WIN,
+                finish.plusSeconds(3)
+        );
+
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc.perform(get("/api/v1/games")
+                        .cookie(sessions.forPlayer(white.id())))
+                .andExpect(status().isOk())
+                .andExpect(header().string(
+                        HttpHeaders.CACHE_CONTROL,
+                        "no-store"
+                ))
+                .andExpect(jsonPath("$.games.length()").value(3))
+                .andExpect(jsonPath("$.games[0].gameId").value(draw.getId()))
+                .andExpect(jsonPath("$.games[0].outcome").value("DRAW"))
+                .andExpect(jsonPath("$.games[1].gameId").value(loss.getId()))
+                .andExpect(jsonPath("$.games[1].playerColor").value("BLACK"))
+                .andExpect(jsonPath("$.games[1].outcome").value("LOSS"))
+                .andExpect(jsonPath("$.games[1].opponentPlayerId")
+                        .value(black.id()))
+                .andExpect(jsonPath("$.games[1].opponentUsernameAtStart")
+                        .value(black.username()))
+                .andExpect(jsonPath("$.games[1].opponentRatingAtStart")
+                        .value(1200))
+                .andExpect(jsonPath("$.games[2].gameId").value(win.getId()))
+                .andExpect(jsonPath("$.games[2].outcome").value("WIN"))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.hasNext").value(false));
+    }
+
+    @Test
+    void playedGamesPaginatesWithIdTieBreaker() throws Exception {
+        Instant finish = Instant.parse("2026-11-05T08:00:00Z");
+
+        var first = finishedListFixture(
+                white, black, GameResult.DRAW, finish
+        );
+        var second = finishedListFixture(
+                white, black, GameResult.DRAW, finish
+        );
+        var third = finishedListFixture(
+                white, black, GameResult.DRAW, finish
+        );
+
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc.perform(get("/api/v1/games")
+                        .param("page", "0")
+                        .param("size", "2")
+                        .cookie(sessions.forPlayer(white.id())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.games.length()").value(2))
+                .andExpect(jsonPath("$.games[0].gameId").value(third.getId()))
+                .andExpect(jsonPath("$.games[1].gameId").value(second.getId()))
+                .andExpect(jsonPath("$.hasNext").value(true));
+
+        mockMvc.perform(get("/api/v1/games")
+                        .param("page", "1")
+                        .param("size", "2")
+                        .cookie(sessions.forPlayer(white.id())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.games.length()").value(1))
+                .andExpect(jsonPath("$.games[0].gameId").value(first.getId()))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.hasNext").value(false));
+
+        mockMvc.perform(get("/api/v1/games")
+                        .param("page", "2")
+                        .param("size", "2")
+                        .cookie(sessions.forPlayer(white.id())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.games").isEmpty())
+                .andExpect(jsonPath("$.hasNext").value(false));
+    }
+
+    @Test
+    void playedGamesReturnsEmptyListWhenOnlyActiveGameExists()
+            throws Exception {
+        mockMvc.perform(get("/api/v1/games")
+                        .cookie(sessions.forPlayer(white.id())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.games").isEmpty())
+                .andExpect(jsonPath("$.hasNext").value(false));
+    }
+
+    @Test
+    void playedGamesRequiresSession() throws Exception {
+        mockMvc.perform(get("/api/v1/games"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "-1,20",
+            "0,0",
+            "0,51",
+            "2147483647,50"
+    })
+    void playedGamesRejectsInvalidPagination(String page, String size)
+            throws Exception {
+        mockMvc.perform(get("/api/v1/games")
+                        .param("page", page)
+                        .param("size", size)
+                        .cookie(sessions.forPlayer(white.id())))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void playedGamesPreservesMissingLegacySnapshots() throws Exception {
+        var legacy = new Game(
+                white.id(),
+                black.id(),
+                EXPECTED_INITIAL_FEN
+        );
+
+        legacy.finish(
+                GameResult.DRAW,
+                GameTerminationReason.DRAW_AGREEMENT,
+                Instant.parse("2026-11-05T08:00:00Z")
+        );
+
+        entityManager.persist(legacy);
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc.perform(get("/api/v1/games")
+                        .cookie(sessions.forPlayer(white.id())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.games.length()").value(1))
+                .andExpect(jsonPath("$.games[0].opponentUsernameAtStart")
+                        .value(nullValue()))
+                .andExpect(jsonPath("$.games[0].opponentRatingAtStart")
+                        .value(nullValue()));
+    }
+
+    /**
+     * Controlled finished-game fixtures for listing tests.
+     * These do not exercise command completion, ratings or reservation release.
+     */
+    private Game finishedListFixture(
+            PlayerResponse whitePlayer,
+            PlayerResponse blackPlayer,
+            GameResult result,
+            Instant finishedAt
+    ) {
+        var finished = new Game(
+                whitePlayer.id(),
+                blackPlayer.id(),
+                EXPECTED_INITIAL_FEN
+        );
+
+        finished.captureParticipantDetails(
+                whitePlayer.username(),
+                blackPlayer.username(),
+                1200,
+                1200
+        );
+
+        finished.finish(
+                result,
+                result == GameResult.DRAW
+                        ? GameTerminationReason.DRAW_AGREEMENT
+                        : GameTerminationReason.RESIGNATION,
+                finishedAt
+        );
+
+        entityManager.persist(finished);
+        return finished;
     }
 
     /**

@@ -26,6 +26,13 @@ export const routes: Routes = [
     path: '',
     pathMatch: 'full',
     redirectTo: 'home',
+  }, {
+    path: 'games',
+    title: 'Games played | Chess',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./game/pages/played-games/played-games')
+        .then(module => module.PlayedGames),
   },
   {
     path: 'games/:gameId',

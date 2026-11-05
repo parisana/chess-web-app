@@ -1,0 +1,90 @@
+<section class="move-history" aria-label="Recorded moves and replay">
+  @if (historyLoading()) {
+  <p class="muted" role="status">Updating move list…</p>
+  }
+
+  @if (historyError(); as message) {
+  <p role="alert">{{ message }}</p>
+  }
+
+  @if (history(); as recorded) {
+  @if (!recorded.historyComplete) {
+  <p class="muted">
+    Earlier moves are unavailable.
+    Numbering begins at the saved starting position.
+  </p>
+  }
+
+  @if (recorded.moves.length === 0) {
+  <p class="muted">No moves recorded yet.</p>
+  } @else {
+  <div class="notation-scroll" tabindex="0" aria-label="Scrollable move notation">
+    <p class="notation">
+      @for (move of moveTokens(); track move.sequenceNumber) {
+      <span class="notation-token">
+        @if (move.numberLabel) {
+        <span class="move-number">{{ move.numberLabel }}</span>
+        }
+
+        <button class="move-token" type="button" [class.selected]="replayIndex() === move.sequenceNumber"
+          [disabled]="!canNavigate()" [attr.aria-current]="
+                  replayIndex() === move.sequenceNumber ? 'step' : null
+                " [attr.aria-label]="
+                  'View recorded entry ' +
+                  move.sequenceNumber + ': ' + move.notation
+                " [title]="move.from + '–' + move.to" (click)="positionSelected.emit(move.sequenceNumber)">
+          {{ move.notation }}
+        </button>
+      </span>
+      }
+    </p>
+  </div>
+  }
+
+  @if (historyNeedsRefresh()) {
+  <p class="muted">
+    Showing available history while the list catches up.
+  </p>
+  }
+  } @else if (!historyLoading() && !historyError()) {
+  <p class="muted">Move history is unavailable. Try refreshing.</p>
+  }
+
+  <div class="replay-toolbar" role="group" aria-label="Replay controls">
+    <button type="button" title="Starting position" aria-label="Starting position"
+      [disabled]="!canNavigate() || replayIndex() === 0" (click)="positionSelected.emit(0)">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 5v14M19 5l-10 7 10 7Z" />
+      </svg>
+    </button>
+
+    <button type="button" title="Previous move" aria-label="Previous move" [disabled]="!canPrevious()"
+      (click)="previousRequested.emit()">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m15 5-8 7 8 7" />
+      </svg>
+    </button>
+
+    <button type="button" title="Next move" aria-label="Next move" [disabled]="!canNext()"
+      (click)="nextRequested.emit()">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m9 5 8 7-8 7" />
+      </svg>
+    </button>
+
+    <button type="button" title="Latest position" aria-label="Latest position" [disabled]="!canReturnLatest()"
+      (click)="latestRequested.emit()">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M19 5v14M5 5l10 7-10 7Z" />
+      </svg>
+    </button>
+  </div>
+
+  <p class="replay-status muted" role="status">
+    @if (isReplaying()) {
+    Recorded position {{ replayIndex() }} · actions disabled
+    } @else {
+    Following the latest position
+    }
+  </p>
+</section>

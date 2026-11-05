@@ -5,9 +5,13 @@
     <span>Chess</span>
   </a>
 
-  <button class="logout-button" type="button" [disabled]="signingOut()" (click)="logout()">
-    {{ signingOut() ? 'Signing out…' : 'Log out' }}
-  </button>
+  <nav class="header-actions" aria-label="Main navigation">
+    <a class="history-link" routerLink="/games">Games played</a>
+
+    <button class="logout-button" type="button" [disabled]="signingOut()" (click)="logout()">
+      {{ signingOut() ? 'Signing out…' : 'Log out' }}
+    </button>
+  </nav>
 </header>
 }
 

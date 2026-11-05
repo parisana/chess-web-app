@@ -1,0 +1,105 @@
+<main class="played-games-page">
+  @if (session.isAuthenticated()) {
+  <header class="page-header">
+    <div>
+      <h1>Games played</h1>
+      <p class="muted">Finished games · newest first</p>
+    </div>
+
+    <div class="page-actions">
+      <a class="text-link" routerLink="/home">Return to play</a>
+
+      <button class="action-button" type="button" [disabled]="loading() || requestedPage() === null"
+        (click)="refresh()">
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <section class="games-panel" [attr.aria-busy]="loading()">
+    @if (loading()) {
+    <p class="muted" role="status">Loading your games…</p>
+    }
+
+    @if (errorMessage(); as message) {
+    <p role="alert">{{ message }}</p>
+
+    <div class="page-actions">
+      @if (requestedPage() !== null) {
+      <button class="action-button" type="button" [disabled]="loading()" (click)="refresh()">
+        Retry
+      </button>
+      }
+
+      <a class="text-link" routerLink="/games">Go to first page</a>
+    </div>
+    }
+
+    @if (result(); as page) {
+    @if (page.games.length === 0) {
+    <p role="status">
+      {{ page.page === 0
+      ? 'You haven’t finished any games yet.'
+      : 'There are no games on this page.' }}
+    </p>
+    } @else {
+    <ul class="game-list" aria-label="Your finished games">
+      @for (game of page.games; track game.gameId) {
+      <li>
+        <a class="game-entry" [routerLink]="['/games', game.gameId]">
+          <div class="opponent">
+            <strong>
+              {{ game.opponentUsernameAtStart ??
+              ('Opponent #' + game.opponentPlayerId) }}
+            </strong>
+
+            <span class="muted">
+              Starting rating:
+              {{ game.opponentRatingAtStart ?? '—' }}
+            </span>
+          </div>
+
+          <div class="game-result">
+            <strong class="outcome" [class.win]="game.outcome === 'WIN'" [class.loss]="game.outcome === 'LOSS'">
+              {{ outcomeLabels[game.outcome] }}
+            </strong>
+
+            <span class="muted">
+              {{ terminationLabels[game.terminationReason] }}
+              · You played
+              {{ game.playerColor === 'WHITE' ? 'White' : 'Black' }}
+            </span>
+          </div>
+
+          <div class="game-date">
+            <time [attr.datetime]="game.finishedAt">
+              {{ game.finishedAt | date:'medium' }}
+            </time>
+
+            <span class="review-label">
+              Review game #{{ game.gameId }}
+            </span>
+          </div>
+        </a>
+      </li>
+      }
+    </ul>
+    }
+
+    <nav class="pagination" aria-label="Game history pages">
+      <button class="action-button" type="button" [disabled]="loading() || page.page === 0" (click)="previous()">
+        Previous
+      </button>
+
+      <span class="muted" role="status">
+        Page {{ page.page + 1 }}
+      </span>
+
+      <button class="action-button" type="button" [disabled]="loading() || !page.hasNext" (click)="next()">
+        Next
+      </button>
+    </nav>
+    }
+  </section>
+  }
+</main>

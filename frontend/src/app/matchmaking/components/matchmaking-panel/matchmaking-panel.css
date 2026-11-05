@@ -4,6 +4,7 @@
 }
 
 .matchmaking-panel {
+  min-height: 12rem;
   padding: 1rem;
   border: 1px solid var(--chess-border);
   border-radius: 0.65rem;
