@@ -4,14 +4,15 @@ A backend-focused chess portfolio project built as a modular monolith with conve
 
 ## Current checkpoint
 
-Day 27 replaces JWT authentication with persistent Spring Security sessions backed by PostgreSQL. Source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. See [review](docs/day27-sessions-review.md), [session/WebSocket authentication](docs/session-authentication-flow.md), [detailed tab synchronization](docs/tab-synchronization-flow.md) and [handoff](docs/day27-handoff.md).
+Day 28 delivers the warm amber workspace, saved starting Player details, legal hints, clearer actions, shared matchmaking and Games played. Source-reviewed on 5 November 2026 against actual user chess-web-app-day28-end.zip. See [review](docs/day28-ui-review.md), [readability cleanup](docs/day28-readability-cleanup.md) and [handoff](docs/day28-handoff.md).
 
-User reports the previously reported failures resolved and browser login/flow working. No assistant tests/builds/migrations/database/browser runs; detailed cross-tab/restart/deployment acceptance is not independently established. The shared test profile now disables timeout scanning and session cleanup. An intermittent game-action click observation remains deferred in the review.
-
-**Session continuity is implemented.** Angular PGN download and post-MVP replay polish remain deferred.
+User reports everything green. No assistant tests/builds/migrations/database/browser runs; the review distinguishes inspected coverage from acceptance limits. The optional closing code cleanup is proposed, not applied to the uploaded source. Session continuity remains implemented; Angular PGN download and post-MVP replay polish remain deferred.
 
 ## Capabilities
 
+- Games played: a bounded self-only finished-game list linking to the same participant-protected game/replay route.
+- Saved starting usernames/ratings, icon promotion selection, inline SAN replay controls and versioned legal-move hints.
+- Warm amber shell with blue/green alternatives selected in code, header navigation/logout and a reserved sidebar.
 - New timed games start White with configured 10m/no increment; old games remain untimed.
 - Versioned timeout completion freezes clocks, releases reservations and updates ratings atomically.
 - Live countdowns remain live during replay; same-version GETs refresh clock estimates.
@@ -30,7 +31,7 @@ User reports the previously reported failures resolved and browser login/flow wo
 - Participant-protected `GET /api/v1/games/{gameId}/pgn` with UTF-8 PGN, result markers, custom-baseline support and legacy export rejection.
 - Private live notifications, automatic queue/game reads, deferred reconciliation during commands, heartbeats and reconnect recovery.
 
-**Pairing does not automatically navigate to the board.** Home updates to show the matched game; the Player clicks **Open game**. This is the intended Day 20 behavior.
+**Home resumes an existing game and follows a search into the matched game.** Finished-game review instead offers Return to current game for an existing match; Find another match joins the queue immediately. The shared panel reconciles uncertain commands through GET without repeating them.
 
 ## Stack
 
@@ -38,7 +39,7 @@ Java 21, Spring Boot 4.1.1, Gradle wrapper 9.8.1, PostgreSQL, JPA, Flyway, Sprin
 
 ## Run locally
 
-Keep database, cookie and session configuration user-managed in `backend/src/main/resources/application.yaml`. Flyway migrations V1–V14 provide the schema; Hibernate validates it.
+Keep database, cookie and session configuration user-managed in `backend/src/main/resources/application.yaml`. Flyway migrations V1–V15 provide the schema; Hibernate validates it.
 
 From `backend/`:
 
@@ -93,15 +94,17 @@ npm test -- --watch=false
 npm run build
 ```
 
-Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests cover six auth-flow cases and three mocked tab-sync coordinator cases; this document does not establish their execution. The [Day 23 review](docs/day23-reliability-review.md) distinguishes inspected coverage, user-reported execution and remaining limits. Migration tests create and drop unique schemas and require schema creation permission. The broad notification test pattern now includes a database-backed socket test.
+Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests cover six auth-flow cases, three mocked tab-sync coordinator cases and four mocked matchmaking coordinator cases; this document does not establish their execution. The [Day 23 review](docs/day23-reliability-review.md) distinguishes inspected coverage, user-reported execution and remaining limits. Migration tests create and drop unique schemas and require schema creation permission. The broad notification test pattern now includes a database-backed socket test.
 
 ## Current limits
 
 Notifications are best-effort live hints. Accepted moves are separately persisted in the database; notification delivery is not guaranteed. HTTP reads recover current state; commands are never automatically replayed. Angular restores its in-memory profile using the persisted session cookie after reload; session and cookie expiry still apply.
 
-Existing games record forward from their migration-time FEN; earlier moves cannot be reconstructed. Entries recorded before SAN support retain null SAN, displayed as “—” beside their coordinates. Replay supports available legacy positions, but PGN requires complete history, contiguous records and SAN on every move. There is no Angular PGN download button, SAN backfill, repetition/move-count/dead-position draws, acceptance stage or abandonment policy. Closing the page, disconnecting or logging out does not directly finish a game or release reservations. Timed games continue counting and can later finish by TIMEOUT. Spectators, chat, AI, external brokers and distributed deployment remain outside current scope. The custom board has no legal-move highlighting, drag-and-drop or persistent check indicator. Promotion selection may appear before a proposed promotion is rejected for king safety; this UI improvement is intentionally deferred. The local profile/revision cache is distinct from PostgreSQL-persisted authentication sessions and games/history.
+Existing games record forward from their migration-time FEN; earlier moves cannot be reconstructed. Entries recorded before SAN support retain null SAN; the inline move list uses a coordinate fallback. Replay supports available legacy positions, but PGN requires complete history, contiguous records and SAN on every move. There is no Angular PGN download button, SAN backfill, repetition/move-count/dead-position draws, acceptance stage or abandonment policy. Closing the page, disconnecting or logging out does not directly finish a game or release reservations. Timed games continue counting and can later finish by TIMEOUT. Spectators, chat, AI, external brokers and distributed deployment remain outside current scope. The custom board displays server-supplied legal-move hints and explicit illegal-move feedback; drag-and-drop and a persistent check indicator remain absent. Promotion selection may appear before a proposed promotion is rejected for king safety; this UI improvement is intentionally deferred. The local profile/revision cache is distinct from PostgreSQL-persisted authentication sessions and games/history.
 
 ## Documentation
+
+- [Day 28 review](docs/day28-ui-review.md), [closing cleanup](docs/day28-readability-cleanup.md) and [handoff](docs/day28-handoff.md).
 
 - [Day 27 review](docs/day27-sessions-review.md), [session and WebSocket authentication](docs/session-authentication-flow.md), [tab synchronization diagrams](docs/tab-synchronization-flow.md) and [handoff](docs/day27-handoff.md).
 

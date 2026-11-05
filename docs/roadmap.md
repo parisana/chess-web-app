@@ -1,10 +1,10 @@
-# Roadmap — after Day 27
+# Roadmap — after Day 28
 
-Day 27 delivers persistent browser sessions, CSRF-protected HTTP, session-authenticated WebSockets, startup recovery and cross-tab hints. See [review](day27-sessions-review.md), [authentication](session-authentication-flow.md), [tab diagrams](tab-synchronization-flow.md) and [handoff](day27-handoff.md). User reports the observed failures resolved and browser login/flow working; no assistant execution. The original roughly 30-working-day estimate is not a promise to implement every candidate below.
+Day 28 delivers the workspace UI, starting Player snapshots, legal hints, shared matchmaking, Games played and focused component/service separation. See [review](day28-ui-review.md), [closing cleanup](day28-readability-cleanup.md) and [handoff](day28-handoff.md). User reports everything green; no assistant application execution. The initial working-day estimate does not authorize every candidate below.
 
 ## Current scope
 
-The modular monolith has authentication/profile, queue/pairing/reservations, pure Java chess rules, versioned commands, live hints/recovery, history/SAN, read-only replay, backend PGN export, resignation/agreed draws, transactional Elo/statistics and server-authoritative clocks/timeouts. The custom board remains the MVP choice. Sessions and clocks remain persisted across page closure; closing/disconnecting does not directly finish a game, although clocks continue toward TIMEOUT.
+The modular monolith has authentication/profile, queue/pairing/reservations, pure Java chess rules, versioned commands, live hints/recovery, history/SAN, read-only replay, backend PGN export, resignation/agreed draws, transactional Elo/statistics and server-authoritative clocks/timeouts. The custom board remains the MVP choice, now with legal hints, destination promotion icons and rejected-move feedback. Games played and immediate search/live-game navigation are implemented. Warm amber is the default; blue/green are code-selectable alternatives. Sessions and clocks remain persisted across page closure; closing/disconnecting does not directly finish a game, although clocks continue toward TIMEOUT.
 
 The shared test-profile timeout scanner follow-up from Day 26 is now applied: false. Session cleanup is disabled in tests and configured every minute in production. Session continuity is no longer pending, and refresh tokens are not an active implementation plan.
 
@@ -14,15 +14,17 @@ Some Offer draw/Accept draw/other buttons reportedly need another attempt. No ru
 
 ## Choose the next milestone separately
 
-Portfolio preparation is a useful candidate now that the main end-to-end path is implemented. Other options include additional chess draws or match acceptance/abandonment. These remain choices, not authorization. Start the next major milestone in a new chat using the handoff and actual user source.
+The optional small readability cleanup can close within Day 28; a larger Game state-service refactor is deferred. Portfolio preparation is a useful candidate now that the main end-to-end path is implemented. Other options include additional chess draws or match acceptance/abandonment. These remain choices, not authorization. Start the next major milestone in a new chat using the handoff and actual user source.
 
 | Capability | Remaining decision |
 | --- | --- |
+| Chat/rematch | Placeholder only; messaging delivery and targeted rematch invitations require a separately selected milestone |
+| Other-Player history | Choose visibility and individual-game access policy; current list is self-only |
 | Portfolio | Demo/run instructions, deployment scope, architecture presentation and interview narratives |
 | Extra outcomes | Repetition, move-count and dead-position draws; full timeout mating-possibility exception |
 | Match lifecycle | Acceptance, grace, abandonment, cancellation and queue expiry |
 | PGN UI | Optional authenticated download; backend export already exists |
-| Promotion chooser | Version-associated legal candidates before opening; intentionally deferred |
+| Promotion chooser | Legal hints now exist; using them to gate chooser opening remains intentionally deferred |
 | Replay polish | Square-click return, stronger banner/Return-to-live UI, sounds, new-live-move indicators and Next-to-live are post-MVP |
 | Clock extensions | Selectable controls, increment, lag compensation and scheduler scaling |
 | Session extensions | OIDC/provider linking, all-device logout, session UI, absolute cap/renewal policy or stronger auth-race coordination only if selected |

@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
@@ -57,6 +57,7 @@ import { MoveHistoryReplay } from '../../components/move-history-replay/move-his
   standalone: true,
   imports: [
     DatePipe,
+    NgTemplateOutlet,
     RouterLink,
     MatProgressBarModule,
     ChessBoard,
@@ -315,260 +316,16 @@ export class Game implements OnInit {
     return rejected;
   });
 
-  /**
- * Number moves from the recorded baseline, including legacy positions
- * that begin with Black to move or a fullmove number greater than one.
- * Sequence numbers remain the replay identifiers.
- */
-  readonly moveTokens = computed(() => {
-    const recorded = this.history();
-
-    if (recorded === null) {
-      return [];
-    }
-
-    const fields = recorded.historyStartFen.trim().split(/\s+/);
-    const startsWithBlack = fields[1] === 'b';
-    const firstMoveNumber = Number(fields[5]);
-
-    return recorded.moves.map((move, index) => {
-      const halfMoveOffset = index + (startsWithBlack ? 1 : 0);
-      const whiteMove = halfMoveOffset % 2 === 0;
-      const moveNumber =
-        firstMoveNumber + Math.floor(halfMoveOffset / 2);
-
-      return {
-        ...move,
-        numberLabel: whiteMove
-          ? `${moveNumber}.`
-          : index === 0 ? `${moveNumber}…` : '',
-        notation: move.san ??
-          `${move.from}–${move.to}${move.promotion ? '=' + move.promotion : ''}`,
-      };
-    });
-  });
-
   constructor() {
-    const hintScope = computed(() => {
-      const current = this.game();
-      const revision = this.session.revision();
-      const routeRevision = this.hintRouteRevision();
-
-      if (
-        current === null ||
-        !this.session.isAuthenticated() ||
-        current.status !== 'IN_PROGRESS'
-      ) {
-        return null;
-      }
-
-      return {
-        gameId: current.id,
-        version: current.version,
-        revision,
-        routeRevision,
-      };
-    });
-
-    toObservable(hintScope).pipe(
-      distinctUntilChanged((previous, current) =>
-        previous?.gameId === current?.gameId &&
-        previous?.version === current?.version &&
-        previous?.revision === current?.revision &&
-        previous?.routeRevision === current?.routeRevision
-      ),
-
-      switchMap(scope => {
-        this.legalMoveHints.set(null);
-        this.legalMovesError.set(null);
-        this.legalMovesLoading.set(false);
-
-        if (scope === null) {
-          return EMPTY;
-        }
-
-        const isCurrent = () => {
-          const current = this.game();
-
-          return this.session.isAuthenticated() &&
-            this.session.revision() === scope.revision &&
-            this.hintRouteRevision() === scope.routeRevision &&
-            current?.id === scope.gameId &&
-            current.version === scope.version &&
-            current.status === 'IN_PROGRESS';
-        };
-
-        return this.hintRetryRequests.pipe(
-          startWith(undefined),
-
-          switchMap(() => defer(() => {
-            if (!isCurrent()) {
-              return EMPTY;
-            }
-
-            this.legalMoveHints.set(null);
-            this.legalMovesError.set(null);
-            this.legalMovesLoading.set(true);
-
-            return this.gameApi.getLegalMoves(scope.gameId).pipe(
-              tap(hints => {
-                if (!isCurrent()) {
-                  return;
-                }
-
-                if (
-                  hints.gameId !== scope.gameId ||
-                  hints.version !== scope.version
-                ) {
-                  this.legalMovesError.set(
-                    'Move hints do not match the displayed position.',
-                  );
-
-                  if (
-                    hints.gameId === scope.gameId &&
-                    hints.version > scope.version
-                  ) {
-                    this.requestSynchronization(true);
-                  }
-
-                  return;
-                }
-
-                this.legalMoveHints.set(hints);
-              }),
-
-              catchError(() => {
-                if (isCurrent()) {
-                  this.legalMovesError.set(
-                    'Move hints are unavailable. You can still play.',
-                  );
-                }
-
-                return EMPTY;
-              }),
-
-              finalize(() => {
-                this.legalMovesLoading.set(false);
-              }),
-            );
-          })),
-        );
-      }),
-
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe();
+    this.initializeLegalMoveHints();
   }
 
   ngOnInit(): void {
-    this.route.paramMap.pipe(
-      switchMap(params => {
-        // Navigation establishes a new synchronization scope.
-        // switchMap cancels the previous route's read stream first.
-        this.activeGameId = null;
-        this.latestNotifiedVersion = -1;
-        this.readPending = false;
-
-        this.hintRouteRevision.update(value => value + 1);
-        this.legalMoveHints.set(null);
-        this.rejectedMove.set(null);
-
-        this.replayIndex.set(null);
-        this.game.set(null);
-        this.clockSnapshot.set(null);
-        this.history.set(null);
-        this.historyError.set(null);
-        this.pendingPromotion.set(null);
-        this.pendingLifecycleConfirmation.set(null);
-        this.errorMessage.set(null);
-        this.moveMessage.set(null);
-        this.needsRefresh.set(false);
-        this.validGameId.set(false);
-
-        const rawId = params.get('gameId');
-        const gameId = rawId === null ? NaN : Number(rawId);
-
-        if (
-          rawId === null ||
-          !/^[1-9][0-9]*$/.test(rawId) ||
-          !Number.isSafeInteger(gameId)
-        ) {
-          this.errorMessage.set('The game URL is invalid.');
-          return EMPTY;
-        }
-
-        this.activeGameId = gameId;
-        this.validGameId.set(true);
-
-        return this.refreshRequests.pipe(
-          startWith(undefined),
-
-          // Only one GET runs for this route at a time.
-          // Additional work is remembered by readPending.
-          exhaustMap(() => this.readSnapshot(gameId)),
-        );
-      }),
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe();
-
-    this.realtimeService.updates$.pipe(
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe(update => {
-      if (update.gameId !== this.activeGameId) {
-        return;
-      }
-
-      const current = this.game();
-
-      // Duplicate or delayed notifications need no additional read.
-      if (current && update.version <= current.version) {
-        return;
-      }
-
-      this.latestNotifiedVersion = Math.max(
-        this.latestNotifiedVersion,
-        update.version,
-      );
-
-      this.pendingPromotion.set(null);
-      this.requestSynchronization(true);
-    });
-
-    this.realtimeService.connections$.pipe(
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe(() => {
-      // Initial connection and reconnect may follow missed notifications.
-      this.requestSynchronization(true);
-    });
-
-    merge(
-      fromEvent(window, 'focus'),
-      fromEvent(document, 'visibilitychange').pipe(
-        filter(() => document.visibilityState === 'visible'),
-      ),
-    ).pipe(
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe(() => {
-      this.requestSynchronization(true);
-    });
-
-    interval(this.realtimeConfig.reconciliationIntervalMs).pipe(
-      filter(() => {
-        const current = this.game();
-
-        return document.visibilityState === 'visible' &&
-          current !== null &&
-          (
-            current.status === 'IN_PROGRESS' ||
-            this.needsRefresh() ||
-            this.historyNeedsRefresh()
-          );
-      }),
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe(() => {
-      // A safety read does not disable the board or cancel promotion.
-      // An actual newer snapshot will update them if necessary.
-      this.requestSynchronization(false);
-    });
+    this.initializeRouteReads();
+    this.initializeGameUpdates();
+    this.initializeConnectionRecovery();
+    this.initializeVisibilityRecovery();
+    this.initializePeriodicRecovery();
   }
 
   retryLegalMoves(): void {
@@ -755,9 +512,7 @@ export class Game implements OnInit {
     this.pendingLifecycleConfirmation.set(null);
   }
 
-  private canPerformLifecycleAction(
-    action: GameLifecycleAction,
-  ): boolean {
+  private canPerformLifecycleAction(action: GameLifecycleAction,): boolean {
     if (!this.canSubmitLifecycleAction()) {
       return false;
     }
@@ -807,10 +562,7 @@ export class Game implements OnInit {
     );
   }
 
-  private sendMove(
-    move: ProposedMove,
-    promotion: PromotionPiece | null,
-  ): void {
+  private sendMove(move: ProposedMove, promotion: PromotionPiece | null,): void {
     if (!this.canSubmitMove()) {
       return;
     }
@@ -1045,9 +797,7 @@ export class Game implements OnInit {
     });
   }
 
-  private readHistorySnapshot(
-    gameId: number,
-  ): Observable<GameHistoryResponse | null> {
+  private readHistorySnapshot(gameId: number,): Observable<GameHistoryResponse | null> {
     return defer(() => {
       this.historyLoading.set(true);
       this.historyError.set(null);
@@ -1189,5 +939,236 @@ export class Game implements OnInit {
     }
 
     return 'Unable to load the game. Please try again.';
+  }
+  //////////////// INITIALIZATION HELPERS //////////////////////
+  private initializeLegalMoveHints(): void {
+    const hintScope = computed(() => {
+      const current = this.game();
+      const revision = this.session.revision();
+      const routeRevision = this.hintRouteRevision();
+
+      if (
+        current === null ||
+        !this.session.isAuthenticated() ||
+        current.status !== 'IN_PROGRESS'
+      ) {
+        return null;
+      }
+
+      return {
+        gameId: current.id,
+        version: current.version,
+        revision,
+        routeRevision,
+      };
+    });
+
+    toObservable(hintScope).pipe(
+      distinctUntilChanged((previous, current) =>
+        previous?.gameId === current?.gameId &&
+        previous?.version === current?.version &&
+        previous?.revision === current?.revision &&
+        previous?.routeRevision === current?.routeRevision
+      ),
+
+      switchMap(scope => {
+        this.legalMoveHints.set(null);
+        this.legalMovesError.set(null);
+        this.legalMovesLoading.set(false);
+
+        if (scope === null) {
+          return EMPTY;
+        }
+
+        const isCurrent = () => {
+          const current = this.game();
+
+          return this.session.isAuthenticated() &&
+            this.session.revision() === scope.revision &&
+            this.hintRouteRevision() === scope.routeRevision &&
+            current?.id === scope.gameId &&
+            current.version === scope.version &&
+            current.status === 'IN_PROGRESS';
+        };
+
+        return this.hintRetryRequests.pipe(
+          startWith(undefined),
+
+          switchMap(() => defer(() => {
+            if (!isCurrent()) {
+              return EMPTY;
+            }
+
+            this.legalMoveHints.set(null);
+            this.legalMovesError.set(null);
+            this.legalMovesLoading.set(true);
+
+            return this.gameApi.getLegalMoves(scope.gameId).pipe(
+              tap(hints => {
+                if (!isCurrent()) {
+                  return;
+                }
+
+                if (
+                  hints.gameId !== scope.gameId ||
+                  hints.version !== scope.version
+                ) {
+                  this.legalMovesError.set(
+                    'Move hints do not match the displayed position.',
+                  );
+
+                  if (
+                    hints.gameId === scope.gameId &&
+                    hints.version > scope.version
+                  ) {
+                    this.requestSynchronization(true);
+                  }
+
+                  return;
+                }
+
+                this.legalMoveHints.set(hints);
+              }),
+
+              catchError(() => {
+                if (isCurrent()) {
+                  this.legalMovesError.set(
+                    'Move hints are unavailable. You can still play.',
+                  );
+                }
+
+                return EMPTY;
+              }),
+
+              finalize(() => {
+                this.legalMovesLoading.set(false);
+              }),
+            );
+          })),
+        );
+      }),
+
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe();
+  }
+
+  private initializeRouteReads(): void {
+    this.route.paramMap.pipe(
+      switchMap(params => {
+        // Navigation establishes a new synchronization scope.
+        // switchMap cancels the previous route's read stream first.
+        this.activeGameId = null;
+        this.latestNotifiedVersion = -1;
+        this.readPending = false;
+
+        this.hintRouteRevision.update(value => value + 1);
+        this.legalMoveHints.set(null);
+        this.rejectedMove.set(null);
+
+        this.replayIndex.set(null);
+        this.game.set(null);
+        this.clockSnapshot.set(null);
+        this.history.set(null);
+        this.historyError.set(null);
+        this.pendingPromotion.set(null);
+        this.pendingLifecycleConfirmation.set(null);
+        this.errorMessage.set(null);
+        this.moveMessage.set(null);
+        this.needsRefresh.set(false);
+        this.validGameId.set(false);
+
+        const rawId = params.get('gameId');
+        const gameId = rawId === null ? NaN : Number(rawId);
+
+        if (
+          rawId === null ||
+          !/^[1-9][0-9]*$/.test(rawId) ||
+          !Number.isSafeInteger(gameId)
+        ) {
+          this.errorMessage.set('The game URL is invalid.');
+          return EMPTY;
+        }
+
+        this.activeGameId = gameId;
+        this.validGameId.set(true);
+
+        return this.refreshRequests.pipe(
+          startWith(undefined),
+
+          // Only one GET runs for this route at a time.
+          // Additional work is remembered by readPending.
+          exhaustMap(() => this.readSnapshot(gameId)),
+        );
+      }),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe();
+  }
+
+  private initializeGameUpdates(): void {
+    this.realtimeService.updates$.pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(update => {
+      if (update.gameId !== this.activeGameId) {
+        return;
+      }
+
+      const current = this.game();
+
+      // Duplicate or delayed notifications need no additional read.
+      if (current && update.version <= current.version) {
+        return;
+      }
+
+      this.latestNotifiedVersion = Math.max(
+        this.latestNotifiedVersion,
+        update.version,
+      );
+
+      this.pendingPromotion.set(null);
+      this.requestSynchronization(true);
+    });
+  }
+
+  private initializeConnectionRecovery(): void {
+    this.realtimeService.connections$.pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => {
+      // Initial connection and reconnect may follow missed notifications.
+      this.requestSynchronization(true);
+    });
+  }
+
+  private initializeVisibilityRecovery(): void {
+    merge(
+      fromEvent(window, 'focus'),
+      fromEvent(document, 'visibilitychange').pipe(
+        filter(() => document.visibilityState === 'visible'),
+      ),
+    ).pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => {
+      this.requestSynchronization(true);
+    });
+  }
+
+  private initializePeriodicRecovery(): void {
+    interval(this.realtimeConfig.reconciliationIntervalMs).pipe(
+      filter(() => {
+        const current = this.game();
+
+        return document.visibilityState === 'visible' &&
+          current !== null &&
+          (
+            current.status === 'IN_PROGRESS' ||
+            this.needsRefresh() ||
+            this.historyNeedsRefresh()
+          );
+      }),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(() => {
+      // A safety read does not disable the board or cancel promotion.
+      // An actual newer snapshot will update them if necessary.
+      this.requestSynchronization(false);
+    });
   }
 }

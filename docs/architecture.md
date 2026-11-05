@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes Day 27, source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. See [review](day27-sessions-review.md), [session/WebSocket flow](session-authentication-flow.md) and [tab synchronization](tab-synchronization-flow.md). No assistant application execution. Prior document text is preserved in [history](history/main-documents-through-day26.md).
+This document describes Day 28, reviewed on 5 November 2026 against actual user chess-web-app-day28-end.zip. See [review](day28-ui-review.md) and [handoff](day28-handoff.md). No assistant application execution. Previous main-document text is preserved in [history](history/main-documents-through-day27.md). Session/WebSocket and tab companions retain their detailed Day 27 behavior.
 
 ## Application structure
 
@@ -20,7 +20,7 @@ Controllers translate transport input. Services own authorization, use-case orch
 
 ```mermaid
 flowchart TD
-    M["MatchmakingService"] --> G["GameService"]
+    M["MatchmakingService"] --> G["GameCommandService"]
     G --> R["Pure ChessRules"]
     G --> P["Game persistence and reservations"]
     G --> E["GameChangedEvent"]
@@ -55,12 +55,14 @@ PostgreSQL is durable storage. Applied Flyway migrations are immutable; future s
 | V11 | Player statistics and per-game processing/exclusion markers |
 | V12 | Nullable game clocks; active/frozen/untimed shape constraint |
 | V13 | TIMEOUT with a winning outcome |
+| V14 | Spring Session JDBC session and attribute tables |
+| V15 | Nullable immutable starting usernames/ratings for both participants |
 
 BaseEntity timestamps use JPA callbacks. SQL defaults support non-JPA insertion; direct SQL updates do not automatically advance `updated_at`. Identity sequences need not rewind after rollback.
 
-Queue operations acquire the same PostgreSQL transaction-level advisory lock. This serializes cooperating operations on the single queue, including status reads. Repeated join preserves enqueue time through an upsert. Pairing selects the oldest eligible entries, assigns colors, invokes GameService and removes both queue entries in one transaction.
+Queue operations acquire the same PostgreSQL transaction-level advisory lock. This serializes cooperating operations on the single queue, including status reads. Repeated join preserves enqueue time through an upsert. Pairing selects the oldest eligible entries, assigns colors, invokes GameCommandService and removes both queue entries in one transaction.
 
-GameService flushes game creation before inserting JDBC reservations that reference it. JPA and JdbcTemplate share the datasource and transaction. The reservation table’s Player primary key enforces one active game across either color. Incomplete reservation or release counts fail the transaction. Leaving the waiting queue does not cancel an established game.
+GameCommandService flushes game creation before inserting JDBC reservations that reference it. JPA and JdbcTemplate share the datasource and transaction. The reservation table’s Player primary key enforces one active game across either color. Incomplete reservation or release counts fail the transaction. Leaving the waiting queue does not cancel an established game.
 
 ## Pure chess rules
 
@@ -83,13 +85,13 @@ The facade does not own authorization, persistence, version checks or transactio
 
 Both participants may read a game, including after completion. Commands derive the acting Player from the authenticated session principal, never from request-supplied identity.
 
-For a well-formed move command, GameService checks existence, membership, lifecycle, expected version, clock expiry, turn and legal membership. It applies and evaluates the move through ChessRules before mutating the managed game. SAN is formatted from the original position, accepted move, complete legal set and resulting assessment before managed state changes. The recorded sequence advances on the versioned Game row. Flush advances the optimistic version and detects competing writes before history insertion. A losing optimistic update becomes STALE_GAME_VERSION.
+For a well-formed move command, GameCommandService checks existence, membership, lifecycle, expected version, clock expiry, turn and legal membership. It applies and evaluates the move through ChessRules before mutating the managed game. SAN is formatted from the original position, accepted move, complete legal set and resulting assessment before managed state changes. The recorded sequence advances on the versioned Game row. Flush advances the optimistic version and detects competing writes before history insertion. A losing optimistic update becomes STALE_GAME_VERSION.
 
 Checkmate sets the mover’s winning result; stalemate sets DRAW. Position, recorded count, move record including SAN, result/reason/time and deletion of both reservations commit or roll back together. The move and any completion share a Clock-derived timestamp truncated to microseconds. History is explicitly flushed before reservation release and event publication. Flush is not commit. Version is a concurrency token, not a separately defined move number.
 
 ## Internal events and real-time delivery
 
-GameService publishes immutable GameChangedEvent values after creation/reservation success or after game/history flush and any reservation release succeed. They carry game/participant IDs, version and GAME_CREATED/GAME_UPDATED. The game feature imports no WebSocket transport.
+GameCommandService publishes immutable GameChangedEvent values after creation/reservation success or after game/history flush and any reservation release succeed. They carry game/participant IDs, version and GAME_CREATED/GAME_UPDATED. The game feature imports no WebSocket transport.
 
 GameNotificationListener runs AFTER_COMMIT and sends a small PlayerUpdate to both participant user destinations. During matchmaking it waits for the outer pairing transaction, including queue removal. A rollback produces no notification. Terminal moves use GAME_UPDATED; HTTP GET supplies the result.
 
@@ -107,7 +109,7 @@ JDBC session reads do not extend activity. Each outgoing application message can
 
 App instantiates RealtimeService and SessionSyncService independently of route navigation after startup restoration. It recreates private subscriptions after reconnecting, ignores stale-session callbacks, validates incoming update shape and exposes signals/observables. STOMP errors mark live delivery unavailable; HTTP still determines session validity.
 
-Home reads queue state on entry, notifications and connection events. One pending read is drained after any current queue command/read. Periodic checks run for unknown, WAITING and MATCHED state; NOT_QUEUED is idle. Pairing reveals an Open game link rather than forcing navigation.
+Home embeds MatchmakingPanel. It reads status on entry, notifications, connections and periodic recovery; pending reads coalesce during requests. Home auto-resumes an existing game. Finished-game review offers Return to current game instead of redirecting on initial discovery, while a started/observed waiting search follows the resulting match. Find another match joins immediately. Commands reconcile through GET and are not automatically repeated.
 
 Game owns authoritative snapshots, promotion, commands and recovery. Route switchMap cancels old-route reads; exhaustMap permits one GET at a time. Notifications received during GET/POST coalesce into a pending read. A safety GET may be cancelled before a move POST starts. Unchanged versions preserve snapshot identity and promotion; older responses cannot replace newer state. Known-newer notifications block proposals until reconciliation. There is no automatic command retry.
 
@@ -139,7 +141,7 @@ Angular reads the board, then history, within the same coordinated read operatio
 
 ## Day 22 explicit lifecycle commands
 
-GameService owns resign, offerDraw, acceptDraw, declineDraw and withdrawDraw. Public methods own transactions. loadActiveGameForCommand performs existence, participant, active lifecycle and expected-version checks in that order. requireDrawOfferActor checks offer presence and sender/recipient roles. These application commands do not evaluate pure chess rules.
+GameCommandService owns resign, offerDraw, acceptDraw, declineDraw and withdrawDraw. Public methods own transactions. loadActiveGameForCommand performs existence, participant, active lifecycle and expected-version checks in that order. requireDrawOfferActor checks offer presence and sender/recipient roles. These application commands do not evaluate pure chess rules.
 
 persistLifecycleChange flushes the optimistic game update, releases exactly two reservations if finished, publishes GAME_UPDATED and maps GameResponse. It does not commit. An enclosing failure restores completion, pending offer and reservations and suppresses AFTER_COMMIT delivery. A concurrent move or lifecycle command may win; another write based on the same loaded version must fail. Private helpers do not create transaction boundaries.
 
@@ -174,13 +176,13 @@ Replay navigation clears pending promotion/confirmation, is blocked during POST,
 
 PlayerStatistics is a separate player-owned entity keyed by scalar playerId, with a database foreign key, rating, wins/draws/losses and optimistic version. gamesPlayed is derived. PlayerService.createPlayer is transactional and flushes the Player before saving statistics; AuthService registration provides the enclosing credentials transaction. V11 initializes existing Players at 1200 with zero counts. It marks already FINISHED games excluded (statistics_applied=false); existing active games remain eligible.
 
-GameService publishes GameFinishedEvent after a terminal move's history flush or a lifecycle game flush and after exact reservation release. The player.event.PlayerStatisticsGameFinishedEventListener is a regular synchronous @EventListener. It maps the game result and calls PlayerStatisticsService.recordFinishedGame with MANDATORY propagation. No @Async/custom asynchronous multicaster is introduced. Rating failure propagates and rolls back the game, history, reservations, marker and both statistics. A later outer failure rolls them back too. GameChangedEvent is published afterward; notification delivery remains AFTER_COMMIT and best-effort.
+GameCommandService publishes GameFinishedEvent after a terminal move's history flush or a lifecycle game flush and after exact reservation release. The player.event.PlayerStatisticsGameFinishedEventListener is a regular synchronous @EventListener. It maps the game result and calls PlayerStatisticsService.recordFinishedGame with MANDATORY propagation. No @Async/custom asynchronous multicaster is introduced. Rating failure propagates and rolls back the game, history, reservations, marker and both statistics. A later outer failure rolls them back too. GameChangedEvent is published afterward; notification delivery remains AFTER_COMMIT and best-effort.
 
 PlayerStatisticsRepository owns both the JPA entity operations and native insertFinishedGameClaim, wrapped by default boolean claimFinishedGame. ON CONFLICT DO NOTHING uses the game primary key to reject repeated/excluded processing. Successful claims are transactional, not durable work queues. The service then locks statistics by ascending Player ID with PESSIMISTIC_WRITE, maps back to colors, calculates from both old ratings, updates and flushes. The event is a trusted internal contract; the consumer does not reload/verify game membership/result through another feature's repository.
 
 EloCalculator is pure Java in player.rating: initial 1200, K=32, scale 400, actual scores 1/0.5/0. One Math.round adjustment is applied oppositely to conserve the pair's total. There is no floor, provisional policy, time-control separation, backfill or rating audit ledger. Overflow checks fail rather than wrap. The /players/me/statistics read uses ordinary findById, checks account existence and maps a DTO. No rating-write lock is needed for display. The statistics profile contract is unchanged; Day 27 independently replaces transport authentication with sessions.
 
-Home embeds PlayerStatistics with separate TS/HTML/CSS. Initial/manual/live-hint/reconnect triggers switch to a fresh GET, guarded by captured token/Player ID. Inner tap updates signals; inner catchError returns EMPTY so later triggers remain active. Inner finalize handles completion/error/cancellation; downstream takeUntilDestroyed tears down active GETs. No polling, focus retry or new frontend test suite is added for this card. See [statistics flow](player-statistics-flow.md).
+Home embeds PlayerStatistics with separate TS/HTML/CSS. Initial/manual/live-hint/reconnect triggers switch to a fresh GET, guarded by captured session revision/Player ID. Inner tap updates signals; inner catchError returns EMPTY so later triggers remain active. Inner finalize handles completion/error/cancellation; downstream takeUntilDestroyed tears down active GETs. No polling, focus retry or new frontend test suite is added for this card. See [statistics flow](player-statistics-flow.md).
 
 ## Day 26 clocks and timeout extension
 
@@ -195,3 +197,15 @@ See [clock flow and pseudocode](game-clocks-flow.md) for timing, configuration, 
 Spring Boot supplies the session filter/repository through its JDBC session starter. The schema has no cross-feature Player entity relation; authentication uses a scalar identity in serialized SecurityContext. Session persistence uses its own framework transactions and is not part of a game completion transaction. Production cleanup runs every minute; fixture tests disable it. Cookie age and inactivity expiry are distinct. CSRF reset clears the browser cookie, not a server-side revocation list.
 
 SessionSyncService consumes only hints and rechecks the backend. It resets revision/profile before navigation, guards against a newer local operation, then restores with another revision and opens Home on success. It does not replay commands or lock all tab mutations. See the detailed [tab flow](tab-synchronization-flow.md).
+
+## Day 28 read services and presentation boundaries
+
+GameQueryService owns getGame, getHistory, getLegalMoves, getPlayedGames and findActiveGameId. GameCommandService owns creation, moves, negotiations, resignation and timeout mutation. GameExportService retains export. Read transactions use REQUIRED propagation and join an outer matchmaking transaction; this service split does not introduce a separate database or transaction mechanism.
+
+GameQueryService maps all legal commands for the side to move to versioned hints, including promotion choices and en-passant capture flags. Angular caches one accepted hint set per game version/authentication/route scope, retries only the read on request and filters selected origins locally. Hints do not authorize commands or prevent timeout races. Explicit illegal-move rejection briefly distinguishes source and destination; other failures retain their existing recovery behavior.
+
+New games capture both Players' usernames/ratings through PlayerService and store immutable V15 fields before saving. Legacy rows keep an entirely null snapshot. Completion changes current statistics without rewriting match-start display values. This is distinct from PGN's existing current-name policy.
+
+The self-only finished-games controller supplies the authenticated subject to GameQueryService. Slice pagination filters in SQL and maps saved scalar fields without per-opponent reads. Future public history needs its own authorization policy, including access to individual game details.
+
+GameClocks projects the Game-declared ChessBoard between shared clockRow templates. MoveHistoryReplay owns notation display and emits replay events; Game retains cursor, permissions, commands and reconciliation. Game actions and confirmations remain local markup; activity is feedback/future chat. See the component ownership diagram in the Day 28 review. Optional cleanup in the companion guide is not assumed applied.

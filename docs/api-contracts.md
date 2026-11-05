@@ -1,6 +1,6 @@
 # API Contracts
 
-Current Day 27 contracts, source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. Session cookies and CSRF replace bearer JWTs; game/clock contracts remain. No assistant application execution. See [review](day27-sessions-review.md) and [authentication flow](session-authentication-flow.md).
+Current Day 28 contracts, reviewed on 5 November 2026 against actual user chess-web-app-day28-end.zip. See [review](day28-ui-review.md). Session/CSRF contracts remain; legal hints, starting snapshots and finished-game discovery are added. No assistant application execution.
 
 ## Shared conventions
 
@@ -27,6 +27,8 @@ Current Day 27 contracts, source-reviewed on 4 November 2026 against actual user
 | POST | `/api/v1/matchmaking/queue` | Session cookie | 200; queue status |
 | GET | `/api/v1/matchmaking/queue/me` | Session cookie | 200; queue status |
 | DELETE | `/api/v1/matchmaking/queue/me` | Session cookie | 204; no body |
+| GET | `/api/v1/games` | Session cookie | 200; self-only PlayedGamesResponse; no-store |
+| GET | `/api/v1/games/{gameId}/legal-moves` | Participant session | 200; versioned legal commands; no-store |
 | GET | `/api/v1/games/{gameId}` | Participant session | 200; game state |
 | GET | `/api/v1/games/{gameId}/pgn` | Participant session | 200; UTF-8 PGN attachment |
 | POST | `/api/v1/games/{gameId}/moves` | Participant session | 200; GameMoveResult |
@@ -37,7 +39,7 @@ Current Day 27 contracts, source-reviewed on 4 November 2026 against actual user
 | POST | `/api/v1/games/{gameId}/draw-offer/decline` | Participant session | 200; GameResponse |
 | POST | `/api/v1/games/{gameId}/draw-offer/withdraw` | Participant session | 200; GameResponse |
 
-There is no public game-creation endpoint: pairing invokes creation internally. Participant-authenticated POST /api/v1/games/{gameId}/moves delegates to GameService. Pure rules exceptions are not themselves the HTTP contract; game-owned application exceptions map gameplay rejections.
+There is no public game-creation endpoint: pairing invokes creation internally. Participant-authenticated POST /api/v1/games/{gameId}/moves delegates to GameCommandService. Pure rules exceptions are not themselves the HTTP contract; game-owned application exceptions map gameplay rejections.
 
 ## Register — POST `/api/v1/auth/register`
 
@@ -157,7 +159,7 @@ An ordinary repeated join by an already matched player returns 200 `MATCHED`; it
 
 ## Read game — GET `/api/v1/games/{gameId}`
 
-No request body. Success returns id, whitePlayerId, blackPlayerId, status, currentFen, createdAt, version, result, terminationReason, finishedAt and nullable drawOfferedByPlayerId through GameResponse.from(game). Either participant can read; opponent profile/email is not returned. New games start in IN_PROGRESS at the initial FEN. Accepted commands advance FEN/version and may produce FINISHED. Completion fields are null during active play. GET does not reevaluate the position and has no positionStatus.
+No request body. Success returns id, whitePlayerId, blackPlayerId, status, currentFen, createdAt, version, result, terminationReason, finishedAt and nullable drawOfferedByPlayerId through GameResponse.from(game). GameResponse also includes projected clock and nullable whiteUsernameAtStart, blackUsernameAtStart, whiteRatingAtStart and blackRatingAtStart. Either participant can read; opponent email is not returned. Snapshots remain fixed after profile/rating changes; legacy values are null. New games start in IN_PROGRESS at the initial FEN. Accepted commands advance FEN/version and may produce FINISHED. Completion fields are null during active play. GET does not reevaluate the position and has no positionStatus.
 
 | Failure | Status | Application code |
 | --- | --- | --- |
@@ -322,7 +324,7 @@ No game-topic, spectator or client-publication contract is supplied. Raw broker 
 }
 ```
 
-Type is GAME_CREATED or GAME_UPDATED. GameService events provide both stored participant IDs; the notification listener sends the hint to each Player after commit. GAME_UPDATED includes terminal moves and all accepted lifecycle changes. Each Player’s subscribed sessions may receive the notification; the payload has no FEN, move, result or opponent profile.
+Type is GAME_CREATED or GAME_UPDATED. GameCommandService events provide both stored participant IDs; the notification listener sends the hint to each Player after commit. GAME_UPDATED includes terminal moves and all accepted lifecycle changes. Each Player’s subscribed sessions may receive the notification; the payload has no FEN, move, result or opponent profile.
 
 Angular validates recognized type, positive safe-integer gameId and nonnegative safe-integer version. Unknown/malformed payloads are ignored. The version is an observed game concurrency version, not a separate move-history index.
 
@@ -371,3 +373,15 @@ See [clock flow and pseudocode](game-clocks-flow.md) for timing, configuration, 
 GET /api/v1/auth/csrf returns 204/no-store and resolves the deferred CSRF cookie. POST logout is handled by Spring Security, invalidates the current session and returns 204/no-store; it is not a game command or all-device logout. All protected application writes pass CSRF before MVC validation and service authorization. Missing/incorrect CSRF can therefore produce 403 even if authentication is also missing; the 401 rows above assume CSRF is satisfied where required. CSRF/security failures do not guarantee MVC application codes. Reinitialize CSRF after login/logout; cookie clearing is not a server-side CSRF-token blacklist.
 
 See [tab synchronization](tab-synchronization-flow.md) for client publication/restore order and concurrency limits.
+
+## Day 28 legal hints — GET `/api/v1/games/{gameId}/legal-moves`
+
+Participant-protected, no request body, 200/no-store. Response: gameId, version, moves. Each move has from, to, nullable promotion (QUEEN/ROOK/BISHOP/KNIGHT) and capture. Promotions remain four commands even when their destinations match. En passant is capture=true despite an empty destination. Either participant receives hints for the side to move; finished games return an empty moves list. Existence/membership errors follow game GET. Hints describe the captured position; they do not reserve a move or authorize playing after expiry/version change.
+
+## Day 28 finished games — GET `/api/v1/games`
+
+Authenticated self-only list, 200/no-store. Query parameters page default 0 and size default 20. Require page >= 0, size 1..50 and page * size <= Integer.MAX_VALUE; invalid requests return 400. No subject ID is accepted from the client.
+
+Response has games, page, size, hasNext. Each entry has gameId, playerColor (WHITE/BLACK), opponentPlayerId, nullable opponentUsernameAtStart/opponentRatingAtStart, outcome (WIN/LOSS/DRAW), terminationReason and finishedAt. Perspective is the authenticated subject. Only their FINISHED games are included, ordered by finishedAt descending and ID descending. There is no total count. Offset pagination is not a snapshot across requests.
+
+GameQueryService supplies reads; GameCommandService supplies writes. Future other-Player history requires an explicit access policy. Existing individual-game, history and export endpoints remain participant-only.

@@ -1,3 +1,7 @@
+# Frontend gameplay flow — Day 28 update
+
+The detailed earlier flows below retain historical descriptions where marked. This update supersedes their Day 20 no-auto-navigation and no-hint claims. Source reviewed on 5 November 2026; no application execution.
+
 # Frontend gameplay flow
 
 Day 27 update, source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. Session/CSRF authentication supersedes earlier bearer/token statements. See [review](day27-sessions-review.md), [authentication and WebSocket diagrams](session-authentication-flow.md) and [tab synchronization](tab-synchronization-flow.md). No assistant application execution; older Day-labelled sections describe their historical checkpoint.
@@ -159,7 +163,7 @@ The frontend opens promotion selection when a proposed pawn move reaches the las
 
 After piece selection, the existing backend must reject a move outside the legal set, preserving position, version and history. A chooser appearing is a UI limitation; accepting a self-check move would be a separate rules defect. This review does not claim a new runtime reproduction or dedicated promotion-chooser test.
 
-A future extension can expose version-associated legal moves from the existing rules engine and open the chooser only for a matching legal promotion candidate. The work is moderate API/frontend integration; keeping legal data aligned with the current version matters more than adding another promotion-rank check. Backend legality/version validation remains authoritative. No legal-move endpoint or client chess engine is added now.
+A future extension can expose version-associated legal moves from the existing rules engine and open the chooser only for a matching legal promotion candidate. The work is moderate API/frontend integration; keeping legal data aligned with the current version matters more than adding another promotion-rank check. Backend legality/version validation remains authoritative. Day 28 now adds a legal-move endpoint and versioned hints. Gating chooser opening on those hints remains deferred; no client chess engine is introduced.
 
 Future checks: a promotion that fails king safety never opens the chooser; a legal promotion still offers explicit piece selection; stale legal data cannot authorize a command; rejected moves preserve position/version/history. Cancelling a chooser continues to send no POST.
 
@@ -182,3 +186,13 @@ See [clock flow and pseudocode](game-clocks-flow.md) for timing, configuration, 
 App initialization restores csrf/profile before route guards. Local revision replaces JWT comparisons in profile/statistics/socket callbacks. SessionSyncService leaves the old page before restoring another identity; see the detailed tab diagrams. Game command/replay/read coordination itself is unchanged in Day 27.
 
 User reports some lifecycle clicks need another attempt. Accept draw/resign deliberately require confirmation. needsRefresh, replay, pending promotion, loading/submission or changed snapshots can gate/clear interaction. An unchanged-version nonblocking safety read alone does not block commands. No runtime trace establishes whether the reported case is no POST, confirmation clearing, CSRF 403, stale 409 or another cause. Investigation and fixes remain deferred; do not add automatic command replay.
+
+## Day 28 current presentation and discovery
+
+See [component projection and ownership](day28-ui-review.md#component-ownership-and-projection). Game declares/configures both GameClocks and ChessBoard; the latter is projected into the former's layout slot. MoveHistoryReplay owns notation presentation/events; Game owns permissions and state.
+
+MatchmakingPanel replaces Home's inline queue orchestration and is reused after a finished game. Home resumes an existing match; review offers a return link. New search joins immediately and follows its match. Games played uses /games?page=n, then opens the existing /games/:gameId route; reviewing a game is not a separate backend resource.
+
+Hints are captured by game/version/authentication revision/route visit, with local source filtering. Newer versions cancel old hint reads; manual retry only retries hints. Explicit illegal-move rejection sends a transient two-square signal to ChessBoard. Promotion icon selection is on the destination but still uses the existing shape-first proposal flow.
+
+Current draw responses and confirmations belong in Game actions. Activity retains informational feedback and placeholder chat. Starting names/Elo come from V15 snapshots and remain fixed after completion. Clock shimmer/dimming are presentation only; countdown authority and calculatedAt remain unchanged. The closing readability guide is proposed work, not a new runtime flow already applied.

@@ -42,18 +42,13 @@
 
       <section class="panel" aria-labelledby="game-title">
         <div class="panel-heading">
-          <h1 id="game-title">
-            {{ current.status === 'IN_PROGRESS'
-            ? 'Game in progress'
-            : 'Game finished' }}
-          </h1>
+          <h1 id="game-title">{{ current.status === 'IN_PROGRESS' ? 'Game in progress' : 'Game finished' }}</h1>
           <span class="muted">#{{ current.id }}</span>
         </div>
 
         @if (current.status === 'FINISHED') {
         <p class="result" role="status">
           {{ resultText(current) }}
-
           @switch (current.terminationReason) {
           @case ('CHECKMATE') { — checkmate }
           @case ('STALEMATE') { — stalemate }
@@ -108,84 +103,7 @@
           (previousRequested)="replayPrevious()" (nextRequested)="replayNext()" (latestRequested)="returnToLatest()" />
 
         @if (current.status === 'IN_PROGRESS') {
-        <section class="game-actions" aria-labelledby="game-actions-title">
-          <h2 id="game-actions-title">Game actions</h2>
-
-          @if (pendingLifecycleConfirmation(); as action) {
-          <div class="action-confirmation">
-            <p role="status">
-              {{ action === 'resign'
-              ? 'Resign this game? Your opponent will win.'
-              : 'Accept the draw offer? This game will end in a draw.' }}
-            </p>
-
-            <div class="action-buttons">
-              <button class="action-button" [class.danger]="action === 'resign'" type="button"
-                [disabled]="!canSubmitLifecycleAction()" (click)="confirmLifecycleAction()">
-                {{ action === 'resign' ? 'Confirm resignation' : 'Confirm draw' }}
-              </button>
-
-              <button class="action-button neutral" type="button" (click)="cancelLifecycleConfirmation()">
-                Cancel
-              </button>
-            </div>
-          </div>
-          } @else {
-          @if (
-          current.drawOfferedByPlayerId !== null &&
-          current.drawOfferedByPlayerId !== auth.currentPlayer()?.id
-          ) {
-          <div class="incoming-offer">
-            <p role="status">
-              <strong>Your opponent offered a draw.</strong>
-            </p>
-
-            <div class="action-buttons">
-              <button class="action-button" type="button" [disabled]="!canSubmitLifecycleAction()"
-                (click)="requestLifecycleAction('accept-draw')">
-                Accept draw
-              </button>
-
-              <button class="action-button neutral" type="button" [disabled]="!canSubmitLifecycleAction()"
-                (click)="requestLifecycleAction('decline-draw')">
-                Decline
-              </button>
-            </div>
-          </div>
-          }
-
-          <div class="action-buttons">
-            @if (current.drawOfferedByPlayerId === null) {
-            <button class="action-button" type="button" [disabled]="!canSubmitLifecycleAction()"
-              (click)="requestLifecycleAction('offer-draw')">
-              Offer draw
-            </button>
-            } @else if (
-            current.drawOfferedByPlayerId === auth.currentPlayer()?.id
-            ) {
-            <button class="action-button" type="button" [disabled]="!canSubmitLifecycleAction()"
-              (click)="requestLifecycleAction('withdraw-draw')">
-              Withdraw draw offer
-            </button>
-            }
-
-            <button class="action-button neutral" type="button" [disabled]="!canSubmitLifecycleAction()"
-              (click)="requestLifecycleAction('resign')">
-              Resign
-            </button>
-          </div>
-
-          @if (current.drawOfferedByPlayerId === auth.currentPlayer()?.id) {
-          <p class="muted" role="status">
-            Draw offered · waiting for your opponent.
-          </p>
-          }
-          }
-
-          @if (pendingPromotion() !== null) {
-          <p class="muted">Choose or cancel promotion before using game actions.</p>
-          }
-        </section>
+        <ng-container [ngTemplateOutlet]="gameActions" [ngTemplateOutletContext]="{ $implicit: current }" />
         } @else {
         <app-matchmaking-panel [embedded]="true" searchLabel="Find another match" />
         <a class="text-button" routerLink="/games">Games played</a>
@@ -261,3 +179,84 @@
   </section>
   }
 </main>
+
+<ng-template #gameActions let-current>
+  <section class="game-actions" aria-labelledby="game-actions-title">
+    <h2 id="game-actions-title">Game actions</h2>
+
+    @if (pendingLifecycleConfirmation(); as action) {
+    <div class="action-confirmation">
+      <p role="status">
+        {{ action === 'resign'
+        ? 'Resign this game? Your opponent will win.'
+        : 'Accept the draw offer? This game will end in a draw.' }}
+      </p>
+
+      <div class="action-buttons">
+        <button class="action-button" [class.danger]="action === 'resign'" type="button"
+          [disabled]="!canSubmitLifecycleAction()" (click)="confirmLifecycleAction()">
+          {{ action === 'resign' ? 'Confirm resignation' : 'Confirm draw' }}
+        </button>
+
+        <button class="action-button neutral" type="button" (click)="cancelLifecycleConfirmation()">
+          Cancel
+        </button>
+      </div>
+    </div>
+    } @else {
+    @if (
+    current.drawOfferedByPlayerId !== null &&
+    current.drawOfferedByPlayerId !== auth.currentPlayer()?.id
+    ) {
+    <div class="incoming-offer">
+      <p role="status">
+        <strong>Your opponent offered a draw.</strong>
+      </p>
+
+      <div class="action-buttons">
+        <button class="action-button" type="button" [disabled]="!canSubmitLifecycleAction()"
+          (click)="requestLifecycleAction('accept-draw')">
+          Accept draw
+        </button>
+
+        <button class="action-button neutral" type="button" [disabled]="!canSubmitLifecycleAction()"
+          (click)="requestLifecycleAction('decline-draw')">
+          Decline
+        </button>
+      </div>
+    </div>
+    }
+
+    <div class="action-buttons">
+      @if (current.drawOfferedByPlayerId === null) {
+      <button class="action-button" type="button" [disabled]="!canSubmitLifecycleAction()"
+        (click)="requestLifecycleAction('offer-draw')">
+        Offer draw
+      </button>
+      } @else if (
+      current.drawOfferedByPlayerId === auth.currentPlayer()?.id
+      ) {
+      <button class="action-button" type="button" [disabled]="!canSubmitLifecycleAction()"
+        (click)="requestLifecycleAction('withdraw-draw')">
+        Withdraw draw offer
+      </button>
+      }
+
+      <button class="action-button neutral" type="button" [disabled]="!canSubmitLifecycleAction()"
+        (click)="requestLifecycleAction('resign')">
+        Resign
+      </button>
+    </div>
+
+    @if (current.drawOfferedByPlayerId === auth.currentPlayer()?.id) {
+    <p class="muted" role="status">
+      Draw offered · waiting for your opponent.
+    </p>
+    }
+    }
+
+    @if (pendingPromotion() !== null) {
+    <p class="muted">Choose or cancel promotion before using game actions.</p>
+    }
+  </section>
+</ng-template>
