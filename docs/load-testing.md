@@ -689,6 +689,34 @@ focused investigation can collect process/JVM/database evidence; no further
 load increase, instrumentation stack or optimization is claimed completed here.
 The deferred VM sizing/separate-generator TODO remains in roadmap.md.
 
+## Increment 6 — 100-game diagnostic recording
+
+User supplied diagnosticFiles.zip with k6 JSON/console, pidstat log, backend JVM
+identity and JFR exports/recording. The assistant parsed supplied JSON/text;
+no application/test/compiler run or independent binary JFR decoding occurred.
+The profiled run passed 16,400 checks across 6,200 HTTP requests, 100 games and
+2,000 moves, with no HTTP/gameplay failures. Move p95 452.19 ms, p99 858.51 ms,
+maximum 1,112.60 ms; game-read p95 187.94 ms. This instrumented run is kept
+separate from the unprofiled 100-game baseline (move p95 399.17 ms).
+
+The phase-aligned gameplay window is approximately 16:29:28.595–16:29:53.645 IST.
+Recorded gameplay evidence includes 6,201 Hikari acquisition ThreadPark events
+(maximum 682 ms), and rule/board lookup frames in 357 of 732 execution samples.
+GCPhasePause totals approximately 210.79 ms, maximum 18.5 ms. Backend CPU averages
+148.16% in pidstat units (about 1.48 cores), versus k6 12.28% and summed PostgreSQL
+24.96%. These observations support pool-wait and rule-computation investigation,
+not a complete attribution of every slow request. See [the diagnostic review](day29-diagnostic-review.md)
+for methods, glossary, overlapping waits, sampling limitations and next experiment.
+Its Reproduce the diagnostic recording section contains the complete jcmd,
+pidstat, k6 and export commands; Where to see the evidence yourself maps each
+finding to files, example events and search commands.
+
+The next proposed bounded experiment confirms the effective pool configuration
+and compares one moderate alternative in loadtest only, without simultaneous
+rule/storage changes. No pool change or measured optimization is implemented
+in this documentation checkpoint. Do not interpret BCrypt-dominated setup
+samples as password hashing during moves, or total GC event duration as pauses.
+
 ## Baseline checkpoint and remaining work
 
 The planned initial HTTP baseline is recorded: authentication smoke, paced
@@ -713,3 +741,30 @@ remains planned; deployment is deferred to the VM TODO in roadmap.md, with provi
 - [TypeScript support](https://grafana.com/docs/k6/latest/using-k6/javascript-typescript-compatibility-mode/)
 
 - [vmstat manual](https://man7.org/linux/man-pages/man8/vmstat.8.html)
+
+## Pool comparison — labelled results reviewed
+
+The reproducible 10-versus-20 fixed-capacity procedure, warm-up/repeat commands,
+effective-setting verification and result template are in
+[day29-pool-comparison.md](day29-pool-comparison.md). No measured improvement
+or runtime-setting claim for the old baseline is implied.
+
+### Pool-comparison result update
+
+The user supplied four aggregate reports labelled pool-10-a/b and pool-20-a/b.
+All four pass 16,400 checks with 100 completed games and zero HTTP/gameplay
+failures. Both pool-20 move averages/medians/p95s are above both pool-10 values;
+move p95 ranges 224.86–233.61 ms versus 293.84–357.44 ms. Other endpoint timings
+are less uniformly separated. This does not support adopting 20 for the local
+workload. The user subsequently confirmed backend restarts with the corresponding
+10/20 pool specifications; startup logs were not independently inspected.
+Keep 10 as the explicit local test reference, not an
+optimal-production-capacity conclusion. Full provenance, tables and confounders
+are in [day29-pool-comparison.md](day29-pool-comparison.md). No code optimization
+or new assistant execution occurred.
+
+Configuration evidence update (6 November 2026): the user confirmed restarting
+the backend for each corresponding 10/20 pool specification. This resolves the
+comparison-setting confirmation request; no raw startup-log inspection or causal
+performance proof is implied. Keep 10 as the local reference and preserve all
+four reports. No repeat run is requested solely for this confirmation.

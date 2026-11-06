@@ -21,7 +21,12 @@
     "baseline:games:5": "npm run typecheck && GAMES=5 node run-k6.mjs --report results/games-5.json concurrent-games.ts",
     "baseline:games:20": "npm run typecheck && GAMES=20 node run-k6.mjs --report results/games-20.json concurrent-games.ts",
     "baseline:games:50": "npm run typecheck && GAMES=50 node run-k6.mjs --report results/games-50.json concurrent-games.ts",
-    "baseline:games:100": "npm run typecheck && GAMES=100 node run-k6.mjs --report results/games-100.json concurrent-games.ts"
+    "baseline:games:100": "npm run typecheck && GAMES=100 node run-k6.mjs --report results/games-100.json concurrent-games.ts",
+    "pool:warmup": "npm run typecheck && GAMES=5 node run-k6.mjs --report results/pool-warmup.json concurrent-games.ts",
+    "pool:10:a": "npm run typecheck && GAMES=100 node run-k6.mjs --report results/pool-10-a.json concurrent-games.ts",
+    "pool:10:b": "npm run typecheck && GAMES=100 node run-k6.mjs --report results/pool-10-b.json concurrent-games.ts",
+    "pool:20:a": "npm run typecheck && GAMES=100 node run-k6.mjs --report results/pool-20-a.json concurrent-games.ts",
+    "pool:20:b": "npm run typecheck && GAMES=100 node run-k6.mjs --report results/pool-20-b.json concurrent-games.ts"
   },
   "devDependencies": {
     "@types/k6": "^2.3.1",

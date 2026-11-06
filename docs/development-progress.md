@@ -18,6 +18,17 @@ Current inventory confirms Ryzen 3 3200G, four logical CPUs, 15 GiB OS-visible R
 
 The local extension remains capped at 100. console.log typing is handled by the user-applied k6-globals.d.ts declaration; it adds no runtime behavior. Results/provenance/limits are in load-testing.md. The future VM/separate-generator TODO remains deferred in roadmap.md; no deployment or 1,000-game capacity is claimed.
 
+## Diagnostic review — observed pool waits and rules hotspot
+
+The user supplied a profiled 100-game run with JSON, phase console markers,
+pidstat and JFR exports. All 16,400 checks and 100 games completed with no
+HTTP/gameplay failures. Phase-aligned samples show Hikari acquisition parking
+and rule/board lookup work; no long stop-the-world GC pause matching the longest
+request is present. This supports targeted experiments but does not prove exact
+request-latency attribution. The diagnostic run is not merged with the unprofiled
+baseline. No application source change, test/build execution or measured
+optimization occurred. See [diagnostic review](day29-diagnostic-review.md).
+
 ## Previous checkpoint — Day 28
 
 Reviewed on 5 November 2026 against actual user chess-web-app-day28-end.zip. Delivered shared warm amber shell (blue/green selectable in code), board-first workspace, Player/clock presentation, V15 immutable starting details, destination-square promotion icons, legal hints and rejected source/destination feedback, visible game-action confirmations, shared immediate matchmaking/current-game navigation, self-only Games played, GameCommandService/GameQueryService separation and MoveHistoryReplay extraction.
@@ -190,3 +201,18 @@ Historical checkpoint evidence is preserved in [the archive](history/main-docume
 ## Scope retained from Day 22
 
 Resignation, agreed draws, replay and backend PGN export are implemented. The PGN download UI, extra rule-based draws and abandonment remain separate decisions. Day 25 ratings/statistics and Day 26 clocks are implemented; no further feature is authorized by this checkpoint. The historical Day 20/21 sections above retain their checkpoint-specific evidence.
+
+## Pool-comparison update
+
+Four user-supplied labelled pool-10/pool-20 reports pass all checks. Both
+pool-20 move averages, medians and p95s exceed both pool-10 results, so these
+reports do not support adopting 20 for this local workload. The user subsequently confirmed restarting the backend with the corresponding
+10/20 pool settings. This is user-reported verification; logs were not inspected.
+Keep 10 as the explicit local loadtest reference, not a production optimum.
+No code optimization or assistant test execution is claimed. See [pool-comparison evidence](day29-pool-comparison.md).
+
+Configuration evidence update (6 November 2026): the user confirmed restarting
+the backend for each corresponding 10/20 pool specification. This resolves the
+comparison-setting confirmation request; no raw startup-log inspection or causal
+performance proof is implied. Keep 10 as the local reference and preserve all
+four reports. No repeat run is requested solely for this confirmation.

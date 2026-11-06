@@ -8,3 +8,12 @@ server:
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/chess_loadtest
+    hikari:
+      # One experimental factor: fixed pool capacity, selected at backend startup.
+      maximum-pool-size: ${LOADTEST_POOL_SIZE:10}
+      minimum-idle: ${LOADTEST_POOL_SIZE:10}
+
+logging:
+  level:
+    # Prints configuration when the pool initializes; does not enable SQL logging.
+    com.zaxxer.hikari.HikariConfig: DEBUG

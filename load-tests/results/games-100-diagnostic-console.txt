@@ -1,0 +1,393 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: concurrent-games.ts
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 100 max VUs, 3m30s max duration (incl. graceful stop):
+              * independent_games: 1 iterations for each of 100 VUs (maxDuration: 3m0s, gracefulStop: 30s)
+
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+
+Run                 [ 100% ] setup()
+independent_games   [   0% ]
+time="2026-11-06T16:29:28+05:30" level=info msg="[phase] Setup complete: 100 games paired at 2026-11-06T10:59:28.574Z" source=console
+time="2026-11-06T16:29:28+05:30" level=info msg="[phase] VU 1 gameplay starts at 2026-11-06T10:59:28.595Z" source=console
+
+running (0m52.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m00.4s/3m0s  000/100 iters, 1 per VU
+
+running (0m53.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m01.4s/3m0s  000/100 iters, 1 per VU
+
+running (0m54.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m02.4s/3m0s  000/100 iters, 1 per VU
+
+running (0m55.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m03.4s/3m0s  000/100 iters, 1 per VU
+
+running (0m56.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m04.4s/3m0s  000/100 iters, 1 per VU
+
+running (0m57.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m05.4s/3m0s  000/100 iters, 1 per VU
+
+running (0m58.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m06.4s/3m0s  000/100 iters, 1 per VU
+
+running (0m59.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m07.4s/3m0s  000/100 iters, 1 per VU
+
+running (1m00.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m08.4s/3m0s  000/100 iters, 1 per VU
+
+running (1m01.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m09.4s/3m0s  000/100 iters, 1 per VU
+
+running (1m02.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m10.4s/3m0s  000/100 iters, 1 per VU
+
+running (1m03.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m11.4s/3m0s  000/100 iters, 1 per VU
+
+running (1m04.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m12.4s/3m0s  000/100 iters, 1 per VU
+
+running (1m05.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m13.4s/3m0s  000/100 iters, 1 per VU
+
+running (1m06.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m14.4s/3m0s  000/100 iters, 1 per VU
+
+running (1m07.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m15.4s/3m0s  000/100 iters, 1 per VU
+
+running (1m08.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m16.4s/3m0s  000/100 iters, 1 per VU
+
+running (1m09.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m17.4s/3m0s  000/100 iters, 1 per VU
+
+running (1m10.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m18.4s/3m0s  000/100 iters, 1 per VU
+
+running (1m11.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m19.4s/3m0s  000/100 iters, 1 per VU
+
+running (1m12.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m20.4s/3m0s  000/100 iters, 1 per VU
+
+running (1m13.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+independent_games   [   0% ] 100 VUs  0m21.4s/3m0s  000/100 iters, 1 per VU
+
+running (1m14.0s), 089/100 VUs, 11 complete and 0 interrupted iterations
+independent_games   [  11% ] 100 VUs  0m22.4s/3m0s  011/100 iters, 1 per VU
+
+running (1m15.0s), 075/100 VUs, 25 complete and 0 interrupted iterations
+independent_games   [  25% ] 100 VUs  0m23.4s/3m0s  025/100 iters, 1 per VU
+
+running (1m16.0s), 007/100 VUs, 93 complete and 0 interrupted iterations
+independent_games   [  93% ] 100 VUs  0m24.4s/3m0s  093/100 iters, 1 per VU
+time="2026-11-06T16:29:53+05:30" level=info msg="[phase] Teardown starts at 2026-11-06T10:59:53.645Z" source=console
+
+running (1m17.0s), 000/100 VUs, 100 complete and 0 interrupted iterations
+independent_games ✓ [ 100% ] 100 VUs  0m25.1s/3m0s  100/100 iters, 1 per VU
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate==1' rate=100.00%
+
+    gameplay_failures
+    ✓ 'rate==0' rate=0.00%
+
+    gameplay_move_requests
+    ✓ 'count==2000' count=2000
+
+    games_completed
+    ✓ 'count==100' count=100
+
+    http_req_failed
+    ✓ 'rate==0' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 16400   211.688729/s
+    checks_succeeded...: 100.00% 16400 out of 16400
+    checks_failed......: 0.00%   0 out of 16400
+
+    ✓ Initialize CSRF: expected HTTP 204, got 204
+    ✓ One CSRF cookie is available
+    ✓ Register Player: expected HTTP 201, got 201
+    ✓ Login Player: expected HTTP 200, got 200
+    ✓ Login supplies a Player ID
+    ✓ setup: first queue join: expected HTTP 200, got 200
+    ✓ setup: first Player waits
+    ✓ setup: second queue join: expected HTTP 200, got 200
+    ✓ setup: valid matched game
+    ✓ GET /matchmaking/queue/me: expected HTTP 200, got 200
+    ✓ setup: same game discovered by both Players
+    ✓ GET /games/:id: expected HTTP 200, got 200
+    ✓ setup: correct active participants
+    ✓ One authenticated session cookie exists
+    ✓ VU has exactly one pre-paired game
+    ✓ Accept move 1: expected HTTP 200, got 200
+    ✓ Move 1 advances accepted state
+    ✓ Opponent reads committed move
+    ✓ Accept move 2: expected HTTP 200, got 200
+    ✓ Move 2 advances accepted state
+    ✓ Accept move 3: expected HTTP 200, got 200
+    ✓ Move 3 advances accepted state
+    ✓ Accept move 4: expected HTTP 200, got 200
+    ✓ Move 4 advances accepted state
+    ✓ Accept move 5: expected HTTP 200, got 200
+    ✓ Move 5 advances accepted state
+    ✓ Accept move 6: expected HTTP 200, got 200
+    ✓ Move 6 advances accepted state
+    ✓ Accept move 7: expected HTTP 200, got 200
+    ✓ Move 7 advances accepted state
+    ✓ Accept move 8: expected HTTP 200, got 200
+    ✓ Move 8 advances accepted state
+    ✓ Accept move 9: expected HTTP 200, got 200
+    ✓ Move 9 advances accepted state
+    ✓ Accept move 10: expected HTTP 200, got 200
+    ✓ Move 10 advances accepted state
+    ✓ Accept move 11: expected HTTP 200, got 200
+    ✓ Move 11 advances accepted state
+    ✓ Accept move 12: expected HTTP 200, got 200
+    ✓ Move 12 advances accepted state
+    ✓ Accept move 13: expected HTTP 200, got 200
+    ✓ Move 13 advances accepted state
+    ✓ Accept move 14: expected HTTP 200, got 200
+    ✓ Move 14 advances accepted state
+    ✓ Accept move 15: expected HTTP 200, got 200
+    ✓ Move 15 advances accepted state
+    ✓ Accept move 16: expected HTTP 200, got 200
+    ✓ Move 16 advances accepted state
+    ✓ Accept move 17: expected HTTP 200, got 200
+    ✓ Move 17 advances accepted state
+    ✓ Accept move 18: expected HTTP 200, got 200
+    ✓ Move 18 advances accepted state
+    ✓ Accept move 19: expected HTTP 200, got 200
+    ✓ Move 19 advances accepted state
+    ✓ Accept move 20: expected HTTP 200, got 200
+    ✓ Move 20 advances accepted state
+    ✓ GET /games/:id/moves: expected HTTP 200, got 200
+    ✓ History has the expected captured version and count
+    ✓ History entry 1 has the expected coordinates and SAN
+    ✓ History entry 2 has the expected coordinates and SAN
+    ✓ History entry 3 has the expected coordinates and SAN
+    ✓ History entry 4 has the expected coordinates and SAN
+    ✓ History entry 5 has the expected coordinates and SAN
+    ✓ History entry 6 has the expected coordinates and SAN
+    ✓ History entry 7 has the expected coordinates and SAN
+    ✓ History entry 8 has the expected coordinates and SAN
+    ✓ History entry 9 has the expected coordinates and SAN
+    ✓ History entry 10 has the expected coordinates and SAN
+    ✓ History entry 11 has the expected coordinates and SAN
+    ✓ History entry 12 has the expected coordinates and SAN
+    ✓ History entry 13 has the expected coordinates and SAN
+    ✓ History entry 14 has the expected coordinates and SAN
+    ✓ History entry 15 has the expected coordinates and SAN
+    ✓ History entry 16 has the expected coordinates and SAN
+    ✓ History entry 17 has the expected coordinates and SAN
+    ✓ History entry 18 has the expected coordinates and SAN
+    ✓ History entry 19 has the expected coordinates and SAN
+    ✓ History entry 20 has the expected coordinates and SAN
+    ✓ History ends at the accepted board
+    ✓ White resigns: expected HTTP 200, got 200
+    ✓ Resignation completes this game
+    ✓ Opponent sees committed completion
+    ✓ Both reservations released
+    ✓ GET /players/me/statistics: expected HTTP 200, got 200
+    ✓ Outcome statistics applied once
+    ✓ teardown: logout returns 204
+
+    CUSTOM
+    gameplay_failures...............: 0.00%  0 out of 100
+    gameplay_game_duration..........: avg=23.44s   min=21.61s   med=23.47s   max=24.95s   p(90)=24.06s   p(95)=24.64s   p(99)=24.8s   
+    gameplay_game_read_duration.....: avg=53.1ms   min=3.56ms   med=19.64ms  max=890.69ms p(90)=131.8ms  p(95)=187.93ms p(99)=453.51ms
+    gameplay_move_duration..........: avg=148.09ms min=10.07ms  med=101.62ms max=1.11s    p(90)=297.73ms p(95)=452.18ms p(99)=858.51ms
+    gameplay_move_requests..........: 2000   25.815699/s
+    gameplay_resignation_duration...: avg=80.9ms   min=8.22ms   med=58.07ms  max=399.5ms  p(90)=200.33ms p(95)=251.47ms p(99)=335.51ms
+    games_completed.................: 100    1.290785/s
+
+    HTTP
+    http_req_duration...............: avg=79.59ms  min=860.63µs med=31.82ms  max=1.11s    p(90)=195.25ms p(95)=271.7ms  p(99)=751.08ms
+      { expected_response:true }....: avg=79.59ms  min=860.63µs med=31.82ms  max=1.11s    p(90)=195.25ms p(95)=271.7ms  p(99)=751.08ms
+    http_req_failed.................: 0.00%  0 out of 6200
+    http_reqs.......................: 6200   80.028666/s
+
+    EXECUTION
+    iteration_duration..............: avg=23.44s   min=21.61s   med=23.47s   max=24.96s   p(90)=24.06s   p(95)=24.64s   p(99)=24.8s   
+    iterations......................: 100    1.290785/s
+    vus.............................: 0      min=0         max=100
+    vus_max.........................: 100    min=100       max=100
+
+    NETWORK
+    data_received...................: 4.8 MB 62 kB/s
+    data_sent.......................: 2.0 MB 26 kB/s
+
+
+
+
+running (1m17.5s), 000/100 VUs, 100 complete and 0 interrupted iterations
+independent_games ✓ [ 100% ] 100 VUs  0m25.1s/3m0s  100/100 iters, 1 per VU
+Saved aggregate report: results/games-100-diagnostic.json

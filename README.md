@@ -60,6 +60,12 @@ Open http://localhost:4200. The development proxy forwards `/api/**`, including 
 
 Backend WebSocket routing is configured under `app.websocket`; matching frontend addresses and timing are in `frontend/src/app/notification/config/realtime.config.ts`. See [configuration and protocol](docs/api-contracts.md#real-time-updates).
 
+The subsequent [100-game diagnostic review](docs/day29-diagnostic-review.md)
+separates setup from gameplay and records connection-pool acquisition waiting,
+rule/board lookup execution samples and short GC pauses. It supports a targeted
+comparison, not a claim that a bottleneck is fully solved. Diagnostic overhead
+means its timings remain separate from the original baseline.
+
 ## Local load testing
 
 `backend/src/main/resources/application-loadtest.yml` selects port 8081 and database chess_loadtest, with local HTTP cookies. Start it using `SPRING_PROFILES_ACTIVE=loadtest ./gradlew bootRun` from backend/ after creating the database. The existing credentials and other settings are inherited. Angular is not needed for these HTTP workloads.
@@ -177,3 +183,18 @@ Suggested commands only; no assistant execution:
 CHESS_SESSION is HttpOnly, path /, SameSite Lax, with configured 7d max-age. Server session inactivity is separately 7d. Cookie lifetime is not automatically renewed per request and no separate absolute server cap is implemented. SessionCookieConfig explicitly binds the YAML values. SESSION_COOKIE_SECURE defaults false for local HTTP; use true for HTTPS deployment. Flyway owns framework session tables; production expired-session cleanup runs every minute. Logout invalidates the shared session, while other independent browser sessions remain.
 
 GET /api/v1/auth/csrf initializes the readable XSRF-TOKEN cookie. Angular sends X-XSRF-TOKEN on state-changing relative API requests. POST login returns the Player profile; POST logout returns 204. CONNECT uses the session-authenticated handshake plus a native CSRF header. See the flow companions for expiry, revocation, multi-tab limits and the cost of database access checks.
+
+## Pool-comparison update
+
+Four user-supplied labelled pool-10/pool-20 reports pass all checks. Both
+pool-20 move averages, medians and p95s exceed both pool-10 results, so these
+reports do not support adopting 20 for this local workload. The user subsequently confirmed restarting the backend with the corresponding
+10/20 pool settings. This is user-reported verification; logs were not inspected.
+Keep 10 as the explicit local loadtest reference, not a production optimum.
+No code optimization or assistant test execution is claimed. See [pool-comparison evidence](docs/day29-pool-comparison.md).
+
+Configuration evidence update (6 November 2026): the user confirmed restarting
+the backend for each corresponding 10/20 pool specification. This resolves the
+comparison-setting confirmation request; no raw startup-log inspection or causal
+performance proof is implied. Keep 10 as the local reference and preserve all
+four reports. No repeat run is requested solely for this confirmation.

@@ -97,4 +97,55 @@ Future VM deployment remains a TODO: provisional 2 vCPU/4 GB RAM/40–60 GB SSD
 minimum, or comfortable 4 vCPU/8 GB RAM/60–100 GB SSD, with a separate generator
 host for deployment load tests. No VM or 1,000-game test is selected here.
 
+## Diagnostic recording reviewed
+
+User supplied diagnosticFiles.zip; provided JSON/text exports were analyzed,
+not re-executed or independently decoded from binary JFR. Backend PID 20731
+confirms OpenJDK 21.0.1. The profiled 100-game run passes all 16,400 checks,
+6,200 requests and 2,000 moves, with no HTTP/gameplay failures. Move p95 is
+452.19 ms, p99 858.51 ms. It remains separate from the unprofiled baseline.
+
+Phase timestamps now allow an approximate gameplay window. Observed 6,201
+Hikari acquisition parks (max 682 ms); 357/732 execution samples have rule
+frames, frequently Square.equals/MapN/Board.pieceAt/requireSingleKing. GC
+pauses max 18.5 ms are not a single long-pause explanation for the slowest
+requests. Mean backend CPU 148.16% in per-core pidstat units, k6 12.28%,
+PostgreSQL aggregate 24.96%. PostgreSQL process I/O columns are unavailable.
+Detailed interpretation is in day29-diagnostic-review.md.
+
+Next proposed increment: confirm actual effective Hikari pool size and run a
+controlled, moderate pool-size comparison in loadtest only. Default 10 is
+documented upstream but not an observed runtime setting here. Do not increase
+pool size to match VUs, change PostgreSQL limits blindly, or change board
+storage in the same comparison. The pool/rule interaction remains a causal
+hypothesis, not exact connection-hold-time/request attribution. No optimization
+has been implemented or measured by this review.
+
 Keep PGN UI, promotion gating, replay polish, full timeout draw adjudication, rating extensions, chat/rematch, public history and acceptance/abandonment deferred. Day 30 remains planned for final acceptance/presentation/release; deployment is a separate choice.
+
+## Pool-size comparison — four labelled reports reviewed
+
+User supplied hikari-pool-test.zip with pool-10-a/b.json and pool-20-a/b.json.
+Each has 100 completed games, 2,000 moves, 6,200 requests, all 16,400 checks passing
+and no HTTP/gameplay failures. Both labelled pool-20 move means, medians and p95
+values exceed both pool-10 values. Move p95 is 233.61/224.86 ms for pool-10,
+357.44/293.84 ms for pool-20. The user subsequently confirmed backend restarts with the corresponding
+10/20 pool specifications. Startup snippets/per-run resource logs were not
+supplied; settings are user-confirmed and the causal explanation remains unproven.
+Do not adopt 20 from these results; keep 10 as the explicit local test reference.
+No additional confirmation or rerun is required solely for the configuration point.
+
+The configuration/scripts were supplied in day29-pool-comparison-increment.zip;
+there is no later full-source review. The new comparison uses the same 100-game
+workload, with warm-up and two repetitions per labelled size as instructed;
+the artifacts alone do not verify warm-up/JFR state. Full findings are in
+[day29-pool-comparison.md](day29-pool-comparison.md). No further run or code
+optimization was performed by the assistant. Do not change board/rules and pool
+capacity together. Earlier recommendations to explore capacity are superseded
+by this result record, not converted into a claim that a larger pool is better.
+
+Configuration evidence update (6 November 2026): the user confirmed restarting
+the backend for each corresponding 10/20 pool specification. This resolves the
+comparison-setting confirmation request; no raw startup-log inspection or causal
+performance proof is implied. Keep 10 as the local reference and preserve all
+four reports. No repeat run is requested solely for this confirmation.

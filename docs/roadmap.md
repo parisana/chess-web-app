@@ -24,6 +24,16 @@ The selected local 50-/100-game extension is now recorded. Both user-run batches
 
 Day 30 remains planned for final user-run acceptance, small resulting fixes, screenshots/demo material, portfolio wording and release packaging. Deployment is a separate scope decision. Larger state-management changes, chat, rematch, public history and extra draws remain deferred.
 
+## Current diagnostic follow-up
+
+The profiled 100-game run is reviewed separately from the unprofiled baseline.
+Hikari acquisition waiting and repeated rules/board lookups are observed; exact
+causal contribution to individual tail requests remains unproven. The smallest
+proposed next experiment confirms effective pool configuration and compares a
+moderate alternative in loadtest only, holding rules/pacing/hardware fixed.
+Board/rule optimization is a separate possible follow-up. No optimization or
+configuration change has been implemented by the review. See [diagnostic review](day29-diagnostic-review.md).
+
 ## TODO — Future cloud VM deployment and separate-generator tests
 
 Deferred by user decision: stay local for the current milestone. No VM is
@@ -70,3 +80,18 @@ No Redis/Kafka, spectators, tournaments, chat, engine/AI analysis, new draw poli
 ## Working constraints
 
 User implements coherent inline increments. Preserve conventional feature layers, Player naming, cross-feature services/events, pure rules, useful comments, YAML/user-managed configuration and separate Angular templates/styles. Minimal frontend tests; explain selected important tests. No assistant tests/builds without explicit request. Existing historical checkpoint documents retain their original scope; current companions supersede pending-session claims.
+
+## Pool-comparison update
+
+Four user-supplied labelled pool-10/pool-20 reports pass all checks. Both
+pool-20 move averages, medians and p95s exceed both pool-10 results, so these
+reports do not support adopting 20 for this local workload. The user subsequently confirmed restarting the backend with the corresponding
+10/20 pool settings. This is user-reported verification; logs were not inspected.
+Keep 10 as the explicit local loadtest reference, not a production optimum.
+No code optimization or assistant test execution is claimed. See [pool-comparison evidence](day29-pool-comparison.md).
+
+Configuration evidence update (6 November 2026): the user confirmed restarting
+the backend for each corresponding 10/20 pool specification. This resolves the
+comparison-setting confirmation request; no raw startup-log inspection or causal
+performance proof is implied. Keep 10 as the local reference and preserve all
+four reports. No repeat run is requested solely for this confirmation.
