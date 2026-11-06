@@ -20,7 +20,7 @@ The aggregate-report runner omits setup session data from newly written reports;
 
 Further matchmaking contention, socket delivery/connection load, substantial history fixtures, longer sustained/stress/soak runs and observability instrumentation remain separate choices. They have not been implemented or measured as part of this checkpoint. The gameplay batch pairs sequentially in setup and connects no WebSocket clients.
 
-The user selected further local 50-/100-game batches in Day 29, preserving the existing workload with one-second turn pauses. Run 50 with timestamped system observations, then review before 100. The script cap becomes 100; no 1,000-game run is enabled. These larger-batch results are pending. See load-testing.md.
+The selected local 50-/100-game extension is now recorded. Both user-run batches passed all checks with 1,000/2,000 move attempts and zero HTTP/gameplay failures. Move p95 was 171.17/399.17 ms; the 100-game maximum move was 1.06 seconds. System captures show brief CPU pressure and no swap traffic, but no exact phase/process/request attribution or causal bottleneck. Inventory confirms Ryzen 3 3200G, four logical CPUs, 15 GiB OS-visible RAM and k6 2.3.0. Preserve results; improve resource attribution before further escalation rather than treating pass status as a latency/capacity guarantee. See load-testing.md. The game cap remains 100 and no 1,000-game run is selected.
 
 Day 30 remains planned for final user-run acceptance, small resulting fixes, screenshots/demo material, portfolio wording and release packaging. Deployment is a separate scope decision. Larger state-management changes, chat, rematch, public history and extra draws remain deferred.
 

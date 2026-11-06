@@ -10,9 +10,13 @@ Raw summary exports include setup_data with session cookies. The guide corrects 
 
 The Day 28 readability cleanup is applied: duplicate moveTokens removed, constructor/ngOnInit streams organized through named methods, and gameActions declared outside the main block with NgTemplateOutletContext. One-game smoke passed in the user report (33 requests, 844.53 ms). Concurrent-game reports show 1/5/20 completions, 20/100/400 move attempts, zero game-journey failures and move p95 31.08/43.80/98.09 ms. Each journey includes 19 seconds of pauses. No causal bottleneck, whole-run batch acceptance or sustainable-capacity claim is made. See [handoff](day29-mid-handoff.md).
 
-## Current local extension — selected, not yet executed
+## Current local extension — 50/100 results recorded
 
-The user selected further local concurrency during Day 29. The supplied increment raises GAMES to at most 100, adds 50/100 npm entry points, extends sequential setup timeout to four minutes and adds phase timestamps. The gameplay pattern and earlier results are unchanged. Run 50 with system observations first, then review before 100. No new batch result or assistant execution is claimed. A future deployment-VM TODO with provisional 2 vCPU/4 GB and 4 vCPU/8 GB options is recorded in roadmap.md; no VM is provisioned.
+The user supplied JSON and vmstat artifacts for 50/100 games. Both batches completed all games: 1,000/2,000 move attempts, 3,100/6,200 HTTP requests, 8,200/16,400 checks passed, zero failed checks and zero HTTP/gameplay failures. Move p95 was 171.17/399.17 ms; p99 208.23/780.80 ms. The 100-game maximum move was 1,059.50 ms. Game-read p95 was 81.20/155.20 ms. Average journeys included their 19 seconds of pauses. Earlier 1/5/20 JSON summaries are now inspected too and confirm zero whole-run HTTP/check failures.
+
+Current inventory confirms Ryzen 3 3200G, four logical CPUs, 15 GiB OS-visible RAM, k6 2.3.0, shell Java 21.0.1 and psql client 14.24. Actual backend JVM/server version and process-level resource attribution remain unconfirmed. Whole-machine captures show brief near-saturated CPU samples in the 100-game capture and no swap traffic. No phase logs or correlated request/JVM/database traces identify a cause. No assistant builds/tests/type checking/application execution occurred. No new source archive has been inspected beyond the mid-session archive plus supplied increments.
+
+The local extension remains capped at 100. console.log typing is handled by the user-applied k6-globals.d.ts declaration; it adds no runtime behavior. Results/provenance/limits are in load-testing.md. The future VM/separate-generator TODO remains deferred in roadmap.md; no deployment or 1,000-game capacity is claimed.
 
 ## Previous checkpoint — Day 28
 

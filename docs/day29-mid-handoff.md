@@ -59,31 +59,42 @@ One-game smoke: one completed game, 33 HTTP requests, zero unexpected HTTP
 failures, 844.53 ms iteration. Concurrent batches: 1/5/20 games completed,
 20/100/400 move attempts and zero recorded game-journey failures. Move p95 was
 31.08/43.80/98.09 ms; game-read p95 7.32/12.82/26.94 ms. Average journeys were
-19.60/19.81/20.07 seconds, including 19 one-second pauses. No whole-run batch
-HTTP totals, teardown status or resource observations were supplied in these
-custom sections. Full provenance and limitations remain in load-testing.md.
+19.60/19.81/20.07 seconds, including 19 one-second pauses. The subsequent results.zip supplies the 1/5/20 JSON summaries and confirms
+HTTP counts 62/310/1,240, zero HTTP failures and all checks passing. It also
+supplies the 50-game JSON/system samples; separate uploads supply the 100-game
+JSON/system samples and current inventory. Full provenance and limitations remain in load-testing.md.
 
-## Selected next increment — 50 and then 100 local games
+## Completed local extension — 50 and 100 games
 
-User explicitly chose to stay local and extend concurrency during Day 29.
-concurrent-games.ts now accepts GAMES 1..100; new baseline:games:50 and :100
-shortcuts type-check first and retain aggregate-only reporting. Sequential
-setup timeout becomes four minutes; gameplay max remains three minutes,
-teardown two minutes and ordinary clocks ten minutes. Moves, 20 plies, 19
-pauses and assertions are unchanged. No new dependencies/application code.
-Phase timestamps mark setup completion, VU 1 entry and teardown start.
+User explicitly chose to stay local and extend concurrency in Day 29.
+concurrent-games.ts accepts GAMES 1..100; baseline:games:50 and :100 type-check
+first and use aggregate-only reporting. Sequential setup timeout is four minutes;
+gameplay max three minutes, teardown two minutes, ordinary clocks ten minutes.
+The supplied k6-globals.d.ts declaration fixes console.log typing only; it is
+user-applied inline and adds no runtime code/dependency.
 
-Run 50 first while capturing vmstat -w -t 1 in a second terminal. Review custom
-metrics, whole-run errors and system observations before 100. Environment
-inventory and glossary/procedure are in load-testing.md. No new batch has run
-at this checkpoint. No assistant builds, tests or compiler execution. Skip
-vmstat's first since-boot rate row when interpreting the run. Samples cover
-the whole machine, not per-process attribution; do not claim a CPU/GC/database
-cause without corresponding evidence. Inspect failed fixtures before rerun.
+Inspected user JSON: 50/100 completions, 1,000/2,000 move attempts,
+3,100/6,200 HTTP requests, 8,200/16,400 checks passed, zero failed checks and
+zero HTTP/gameplay failures. Move p95 171.17/399.17 ms, p99 208.23/780.80 ms;
+100-game maximum move 1,059.50 ms. Game-read p95 81.20/155.20 ms. Journeys average
+21.21/22.61 seconds including 19 seconds of deliberate pauses.
 
-Future cloud deployment is a TODO in roadmap.md: provisional 2 vCPU/4 GB RAM/
-40–60 GB SSD minimum, or comfortable 4 vCPU/8 GB RAM/60–100 GB SSD. Later test
-from a separate generator host. These are planning estimates, not 1,000-game
-capacity claims. No VM or 1,000-game test is currently authorized or provisioned.
+Whole-machine captures: 50-game idle minimum 19%; 100-game idle minimum 3%,
+with two consecutive near-saturated samples. Runnable-task peaks 18/34, maximum
+I/O wait 3%/11%, no swap traffic. Phase logs were not supplied, so these cannot
+be attributed to exact gameplay intervals or individual requests/processes.
+Current inventory confirms Ryzen 3 3200G / four logical CPUs / 15 GiB OS-visible
+RAM, k6 2.3.0, shell Java 21.0.1 and psql client 14.24. A free snapshot had
+6.3 GiB available memory; it is not a during-run minimum. Actual backend JVM and
+PostgreSQL server versions remain unconfirmed. No cause or optimization is proven.
+
+No assistant test/build/compiler/application execution. The selected local
+extension is recorded; there is no need for another run just to sync docs.
+Further escalation should first improve resource attribution, not assume that
+passing correctness thresholds establishes acceptable tail latency or capacity.
+
+Future VM deployment remains a TODO: provisional 2 vCPU/4 GB RAM/40–60 GB SSD
+minimum, or comfortable 4 vCPU/8 GB RAM/60–100 GB SSD, with a separate generator
+host for deployment load tests. No VM or 1,000-game test is selected here.
 
 Keep PGN UI, promotion gating, replay polish, full timeout draw adjudication, rating extensions, chat/rematch, public history and acceptance/abandonment deferred. Day 30 remains planned for final acceptance/presentation/release; deployment is a separate choice.

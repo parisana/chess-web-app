@@ -13,9 +13,11 @@ and supplied console measurements for 1, 5 and 20 VUs. The archive contains
 `stats-5vu.json` and `stats-20vu.json`, but no `stats-1vu.json`. The saved 5-VU
 summary differs from the earlier pasted run; both are recorded separately below.
 The 20-VU saved summary agrees with its pasted output apart from display rounding.
-Subsequent one-game smoke and 1/5/20-game results below are user-pasted console
-reports for the supplied increments; their JSON files and a newer full source
-archive have not been inspected. They are not independently executed results.
+Subsequent user uploads supplied game-smoke.json, games-1/5/20/50.json and a
+50-game system log in results.zip, then games-100.json, its system log and
+local-environment.txt separately. Those game JSON summaries have now been
+inspected. No newer full source archive or assistant execution is claimed.
+Console values below retain their originally displayed precision where noted.
 These are initial paced-read measurements, not a maximum-capacity benchmark.
 
 ## Environment and actual source
@@ -29,15 +31,17 @@ These are initial paced-read measurements, not a maximum-capacity benchmark.
 | Database | `chess_loadtest` on local PostgreSQL |
 | Credentials and other backend settings | Inherited from the ordinary application configuration unless overridden externally |
 | Cookie | Local profile sets `secure: false`; session/CSRF protection remains configured |
-| Generator | Locally installed k6 CLI; exact version not recorded |
+| Generator | Captured k6 v2.3.0, linux/amd64 |
 | Tooling in supplied lockfile | TypeScript 7.0.2; `@types/k6` 2.3.1 |
 | Hardware arrangement | Generator, backend and PostgreSQL share one computer |
-| Not yet recorded | CPU/RAM inventory, actual Java/PostgreSQL/k6 versions, JVM options and resource observations |
+| Current inventory | Ryzen 3 3200G, 4 cores / 4 logical CPUs; 15 GiB OS-visible RAM; shell Java 21.0.1; psql client 14.24 |
+| Still unconfirmed | Actual backend JVM/toolchain, PostgreSQL server version, JVM options and per-process resource/GC/pool attribution |
 
 The npm type definitions are not the k6 executable and do not establish its
-version. Record `k6 version`, `java -version`, `psql --version`, CPU model and
-RAM before stronger comparisons. Do not infer current hardware from an older
-machine description. Keep launch method and configuration consistent.
+version. The new inventory confirms the versions listed above. Shell Java may
+differ from the backend toolchain, and psql is a client version, not a server
+version. Keep launch method and configuration consistent; do not replace
+missing process/runtime evidence with an older machine description.
 
 The application excludes Spring Boot's `UserDetailsServiceAutoConfiguration`.
 The inspected login flow authenticates through AuthService and explicitly saves
@@ -412,11 +416,13 @@ while later fixtures are prepared; the ordinary 10-minute clock is unchanged.
 
 ### Recorded concurrent-game results
 
-All three rows are user-pasted console reports for the supplied script, in the
-reported sequence 1, then 5, then 20 games. The corresponding JSON artifacts have
-not been inspected. Values below preserve the displayed console precision.
-The user did not supply overall HTTP error/check totals or CPU/memory observations
-for these batch reports; do not label expected HTTP counts as observed totals.
+The initial rows were user-pasted console reports in the sequence 1, then 5,
+then 20 games. The later results.zip now supplies all three JSON summaries;
+their measurements agree apart from console truncation/rounding. Values in
+these tables preserve original console precision. All three JSON summaries
+record zero unexpected HTTP failures, zero failed checks and HTTP totals of
+62/310/1,240 respectively. Check totals are 164/820/3,280. No system logs were
+supplied for those first three batches.
 
 | Games / VUs | Player sessions by design | Completed | Move attempts | Game failures | Average journey duration |
 | --- | --- | --- | --- | --- | --- |
@@ -464,8 +470,8 @@ All requested game journeys reached their completion checks: 1/5/20 games,
 20/100/400 move attempts and zero recorded game-journey failures. This gives
 functional evidence for independent concurrent game commands, committed HTTP
 reads, history and outcome-count verification under the supplied fixture.
-Teardown/whole-run threshold status is not separately established by the pasted
-custom metric sections.
+The later JSON summaries also confirm zero failed checks/unexpected HTTP
+failures across the whole first-three runs, including their cleanup requests.
 
 Move p95 increased from 31.08 to 43.80 to 98.09 ms across these runs. Game-read
 p95 increased from 7.32 to 12.82 to 26.94 ms. Thus the slower response tail was
@@ -487,8 +493,8 @@ baseline and collect environment/resource evidence if investigating further.
 
 Scope selected by the user: remain on the local machine, extend game batches
 beyond 20 and record a future deployment-VM TODO. Run 50 first; review its
-results/resource observations before 100. Neither new batch has been executed
-at this documentation checkpoint. No 1,000-game run is enabled or claimed.
+results/resource observations before 100. Both larger batches have now been user-executed; JSON summaries and
+system samples are inspected below. The assistant did not execute them. No 1,000-game run is enabled or claimed.
 
 The script now accepts GAMES from 1 through 100. New npm entry points
 baseline:games:50 and baseline:games:100 preserve the existing type-check-first,
@@ -591,24 +597,105 @@ The setup dataset is copied to each VU, which adds generator overhead as GAMES
 grows. The 100 cap bounds this increment; it is not a certified local capacity.
 Redesign fixture distribution/setup before considering much larger runs.
 
-### Larger-batch results — pending
+### Larger-batch recorded results
 
-| Games | Completed | Move attempts | Move p50 ms | Move p95 ms | Move p99 ms | Gameplay failures | System observations |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 50 | pending | pending | pending | pending | pending | pending | pending |
-| 100 | pending | pending | pending | pending | pending | pending | run after 50 review |
+Evidence: games-50.json and games-50-system.txt from results.zip; separately
+uploaded games-100.json, games-100-system.txt and local-environment.txt.
+New summaries contain metrics/root_group and omit setup_data. Earlier raw
+statistics summaries in results.zip still include setup_data; sanitize those
+historical files before committing or sharing them.
 
-Neither these batches nor earlier ones establish sustainable capacity. Current
-measurements are local end-to-end HTTP observations over shared hardware, not
-pure chess-engine CPU costs, full browser behavior or production SLO evidence.
+JSON-derived timings below are rounded to two decimals. Each batch ran once.
+No application run, compiler, test or database operation was executed by the
+assistant while reviewing these artifacts.
+
+| Games | Completed | Move attempts | HTTP requests | Checks passed | Checks failed | HTTP / gameplay failures |
+| --- | --- | --- | --- | --- | --- | --- |
+| 50 | 50 | 1,000 | 3,100 | 8,200 | 0 | 0 / 0 |
+| 100 | 100 | 2,000 | 6,200 | 16,400 | 0 | 0 / 0 |
+
+| Metric | 50 games | 100 games |
+| --- | --- | --- |
+| Move average | 75.88 ms | 119.00 ms |
+| Move p50 | 76.13 ms | 78.77 ms |
+| Move p95 | 171.17 ms | 399.17 ms |
+| Move p99 | 208.23 ms | 780.80 ms |
+| Move maximum | 250.13 ms | 1,059.50 ms |
+| Game-read average | 21.81 ms | 39.48 ms |
+| Game-read p50 | 9.86 ms | 15.36 ms |
+| Game-read p95 | 81.20 ms | 155.20 ms |
+| Game-read p99 | 134.87 ms | 302.08 ms |
+| Game-read maximum | 181.89 ms | 673.24 ms |
+| Resignation average | 50.51 ms | 87.04 ms |
+| Resignation p95 | 140.34 ms | 225.06 ms |
+| Average game journey, including 19 seconds of pauses | 21.21 s | 22.61 s |
+
+The 100-game summary reports 28.173504 move attempts/second and 1.408675
+completed games/second across the overall run, including sequential setup and
+teardown. Those are not sustainable gameplay-capacity measurements. They must
+not be compared directly with the earlier 60-second statistics-read window.
+
+### Captured system activity and inventory
+
+The 50-game capture has 62 interval rows after excluding the initial since-boot
+row. The 100-game capture has 81. Statistics below describe their entire captures,
+which include lead-in/setup/gameplay/cleanup activity. Phase timestamps were not
+included in the uploaded console logs, so an exact gameplay-only system interval
+cannot be recovered from the supplied artifacts alone. One-second samples also
+cannot capture every short spike or link a request to a process.
+
+| Whole-capture observation | 50 games | 100 games |
+| --- | --- | --- |
+| Minimum CPU idle | 19% | 3% |
+| Median CPU idle | 60.5% | 56% |
+| Interval samples with idle below 10% | 0 / 62 | 2 / 81 |
+| Maximum runnable-task count r | 18 | 34 |
+| Maximum I/O wait wa | 3% | 11% |
+| Swap-in / swap-out | Zero throughout | Zero throughout |
+| Existing swapped memory | Stable 1,024 KiB | Stable 1,024 KiB |
+
+The 100-game CPU-idle lows occurred in consecutive samples at 15:15:22 and
+15:15:23 IST, at 3% and 4% idle. This is evidence of brief near-saturation on the
+shared machine, not sustained saturation throughout gameplay. The maximum
+runnable count of 34 is a snapshot; the median was 1. An 11% I/O-wait sample is
+not a disk-utilization percentage or proof of database storage contention.
+No swap traffic was observed in either capture.
+
+The new inventory confirms Ryzen 3 3200G, 4 cores with one thread each, and
+15 GiB OS-visible RAM. The free -h snapshot reports 6.3 GiB available RAM and
+1 MiB of swap occupied, consistent with cache rather than an exhaustion claim
+based on low free memory alone. That snapshot is not the minimum available
+memory during the workload. It also records k6 2.3.0 and shell Java 21.0.1, plus
+psql client 14.24. The actual PostgreSQL server/backend JVM configuration remains
+to be recorded before claiming fully reproducible deployment comparisons.
+
+### Interpretation and checkpoint
+
+Both batches completed all configured correctness checks, but latency increased.
+The 100-game move p50 was only slightly above the 50-game value, while p95 rose
+from 171.17 to 399.17 ms and p99 from 208.23 to 780.80 ms. The slower tail grew
+more than the median. The maximum move exceeded one second. No latency threshold
+had been selected, so a passing test must not be described as a latency-SLO pass.
+
+Brief CPU pressure and I/O wait are observed; there is no correlated per-process,
+JVM/GC, connection-pool or database-lock trace identifying their causes or the
+cause of the slowest requests. Generator, backend, PostgreSQL and desktop share
+hardware. Do not infer linear scaling, a production-user limit, a 1,000-game
+capacity or a particular required optimization from these finite batches.
+
+This completes the selected local 50/100 extension. Preserve the baseline and
+review resource attribution before considering further escalation. A future
+focused investigation can collect process/JVM/database evidence; no further
+load increase, instrumentation stack or optimization is claimed completed here.
+The deferred VM sizing/separate-generator TODO remains in roadmap.md.
 
 ## Baseline checkpoint and remaining work
 
 The planned initial HTTP baseline is recorded: authentication smoke, paced
 statistics reads, one-game smoke and 1/5/20 independent concurrent game batches.
-There is no need to repeat passing 1/5/20 runs solely for this documentation update. The selected next work is the new local 50-game batch, then review before 100.
-Record the actual environment/runtime inventory and retain sanitized summaries
-for reproducibility. These results do not replace the ordinary application tests.
+There is no need to repeat passing runs solely for this documentation update. The selected local 50-/100-game extension is also recorded above.
+Retain the captured inventory and sanitized summaries; record the remaining
+actual backend JVM/database server configuration for fuller reproducibility. These results do not replace the ordinary application tests.
 
 Further matchmaking contention, WebSocket connection/delivery load, substantial
 history fixtures, longer repeated/arrival-rate workloads, stress/soak tests and
