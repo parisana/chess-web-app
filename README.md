@@ -4,11 +4,11 @@ A backend-focused chess portfolio project built as a modular monolith with conve
 
 ## Current checkpoint
 
-Day 29 is in progress: TypeScript k6 authentication smoke and paced authenticated-statistics baselines are implemented. Reviewed on 6 November 2026 against the actual user `chess-web-app-day29-mid.zip`. See [load testing and recorded results](docs/load-testing.md) and [mid-session handoff](docs/day29-mid-handoff.md).
+Day 29 records an initial HTTP performance baseline: TypeScript k6 authentication smoke, paced statistics reads, one-game smoke and independent game batches. The actual user chess-web-app-day29-mid.zip was inspected on 6 November 2026; subsequent game-script increments and user-pasted console results supplement that checkpoint. No newer full-source archive or game-result JSON has been inspected. See [load testing and recorded results](docs/load-testing.md) and [mid-session handoff](docs/day29-mid-handoff.md).
 
-The user reports a passing smoke and read runs at 1, 5 and 20 VUs. The supplied 5-VU JSON is a different run with a higher latency tail than the earlier console report; both remain visible in the results. The 20-VU export records 1,200 measured reads, zero measured failures and p95 16.31 ms. These are local paced-workload observations, not maximum capacity or production claims. The assistant inspected source/documents/JSON only and ran no application, build, test, migration or database operation.
+The user reports 1/5/20 independent game batches completing with 20/100/400 move attempts and zero game-journey failures. Move p95 was 31.08/43.80/98.09 ms. This finite, paced, local fixture does not establish sustainable capacity, production user limits or a causal bottleneck. The supplied mid-session 5-VU statistics JSON is a different, higher-tail run than the earlier console report; both remain visible in the guide. The assistant inspected files and summaries only, with no application/build/test/migration/database execution.
 
-Day 28's workspace and game-discovery features remain the gameplay baseline. The closing readability cleanup is now applied: duplicate Game.moveTokens removed, initialization streams named, and an external gameActions template supplied with explicit current context. The older Day 28 review/cleanup documents retain their historical proposal status. Session continuity is implemented; PGN download UI and existing gameplay deferrals remain.
+Day 28 remains the gameplay baseline. Closing readability cleanup is applied: duplicate Game.moveTokens removed, initialization streams named, and external gameActions supplied with explicit current context. Session continuity is implemented; PGN download UI and existing gameplay deferrals remain. Day 29 now continues locally with 50 and then 100 game batches plus system observations; these results are pending. Day 30 acceptance/presentation/release is planned. Deployment is deferred to the VM sizing TODO in docs/roadmap.md.
 
 ## Capabilities
 
@@ -74,7 +74,7 @@ npm run baseline:stats:5vu
 npm run baseline:stats:20vu
 ```
 
-These shortcuts check types before execution; smoke:auth alone runs k6 only. Read [the guide](docs/load-testing.md) for glossary, phases, exact result provenance and limits. The supplied raw summary exports contain setup_data with session cookies; remove that field in a sanitized copy before sharing or committing a summary. A game workload is next, not implemented at this checkpoint.
+These shortcuts check types before execution; smoke:auth alone runs k6 only. Read [the guide](docs/load-testing.md) for glossary, phases, exact result provenance and limits. The supplied historical raw exports contain setup_data with session cookies. The revised npm shortcuts use run-k6.mjs to save only metrics/checks; sanitize old exports separately before sharing or committing them. The one-game smoke and 1/5/20 concurrent-game batches have user-reported results in the guide. Concurrent scripts use npm run baseline:games:1 / :5 / :20, with setup/auth outside custom gameplay timings.
 
 ## Verification
 

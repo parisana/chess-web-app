@@ -12,13 +12,41 @@ The shared test-profile timeout scanner follow-up from Day 26 is now applied: fa
 
 Some Offer draw/Accept draw/other buttons reportedly need another attempt. No runtime cause or fix is established. Intentional confirmation, blocking synchronization/needsRefresh, newer-snapshot confirmation clearing and HTTP 403/409 are distinct hypotheses. Investigate no-POST versus rejected POST first. User explicitly deferred changes; no silent command retry is authorized.
 
-## Selected remaining work
+## Selected checkpoint and remaining work
 
-Continue Day 29 with a single-pair game smoke flow: authenticate, pair through matchmaking, read state, make alternating legal moves and resign. Only after that passes should independent concurrent games be measured. This game workload is not yet implemented or executed. Explain measurements and document the environment; make an optimization only if supported by an observed bottleneck. Fix export handling so shareable results omit setup session data.
+The initial Day 29 HTTP baseline is recorded: auth smoke, paced statistics reads, one-game smoke and 1/5/20 pre-paired independent game batches. User game reports show 20/100/400 move attempts, all game journeys completed and zero game-journey failures. Move p95 increased across these batches, but no causal bottleneck is established. The saved 5-VU statistics run differs from the pasted one; retain both. See [load testing](load-testing.md) for exact provenance, tables and limits.
 
-The initial read runs do not establish production capacity. The supplied 5-VU JSON has a different and higher tail than the pasted 5-VU run; preserve both observations rather than asserting a monotonic scaling result. Prometheus/Grafana instrumentation remains optional; a broader observability stack has not been added.
+The aggregate-report runner omits setup session data from newly written reports; historical raw JSON still needs sanitization. Retain result artifacts and record current CPU/RAM/runtime configuration for reproducibility. No rerun or optimization is required solely for this documentation synchronization. The finite local workload does not establish maximum/sustainable throughput or production-user capacity.
 
-Day 30 is planned for a final user-run acceptance pass, small resulting fixes, screenshots/demo material, portfolio wording and release packaging. Deployment remains a separate scope decision. A larger Game state-service refactor remains deferred. No chat, rematch, public-history or extra-draw work is authorized by these plans.
+Further matchmaking contention, socket delivery/connection load, substantial history fixtures, longer sustained/stress/soak runs and observability instrumentation remain separate choices. They have not been implemented or measured as part of this checkpoint. The gameplay batch pairs sequentially in setup and connects no WebSocket clients.
+
+The user selected further local 50-/100-game batches in Day 29, preserving the existing workload with one-second turn pauses. Run 50 with timestamped system observations, then review before 100. The script cap becomes 100; no 1,000-game run is enabled. These larger-batch results are pending. See load-testing.md.
+
+Day 30 remains planned for final user-run acceptance, small resulting fixes, screenshots/demo material, portfolio wording and release packaging. Deployment is a separate scope decision. Larger state-management changes, chat, rematch, public history and extra draws remain deferred.
+
+## TODO — Future cloud VM deployment and separate-generator tests
+
+Deferred by user decision: stay local for the current milestone. No VM is
+provisioned or deployment authorized by this TODO.
+
+- [ ] Choose a provider/region and deploy the single-instance backend, PostgreSQL,
+  reverse proxy and built Angular assets. Provisional practical minimum:
+  **2 vCPU, 4 GB RAM, 40–60 GB SSD**. More comfortable initial option:
+  **4 vCPU, 8 GB RAM, 60–100 GB SSD**. These are planning estimates for a
+  portfolio/light-traffic deployment, not measured capacity guarantees.
+- [ ] Confirm storage growth, backups/log retention and JVM/database memory
+  budgets against the actual workload. Reserve disk/OS headroom.
+- [ ] Record shared versus dedicated CPU and actual provider limits. Prefer
+  predictable CPU for repeatable sustained-performance comparisons; choose
+  economy based on the real demo workload, not an unmeasured user-count claim.
+- [ ] Run k6 from a separate physical/cloud host to separate generator resource
+  use from backend/database resource use. A VM on the same desktop still shares
+  its physical resources and is not that separation.
+- [ ] Measure the deployed protocol path, including TLS/reverse proxy and,
+  if separately selected, WebSocket/STOMP clients. Current local game scripts
+  have no connected WebSocket clients.
+- [ ] Reassess sizing from deployment measurements. Support for 1,000 active
+  games, 2,000 sockets or 1,000 moves/second is not established or promised.
 
 ## Separately scoped candidates
 

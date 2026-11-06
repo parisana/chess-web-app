@@ -217,3 +217,19 @@ The loadtest profile selects port 8081, a separate chess_loadtest database and n
 Smoke covers the real registration/login/CSRF/profile/statistics/logout flow. The statistics baseline registers distinct Players/sessions in sequential setup, then uses constant concurrent VUs with sequential reads and one-second think time per VU. Custom metrics exclude setup, warm-up and teardown. These reads do not exercise rules or full gameplay. Source/result provenance and limits are in [load testing](load-testing.md).
 
 ChessBackendApplication excludes UserDetailsServiceAutoConfiguration, removing the unused generated in-memory user. AuthService/LoginService still perform the custom authentication and explicit context persistence; SecurityFilterChain, session cookies, CSRF and socket checks remain configured. No replacement authentication architecture is introduced.
+
+## Day 29 game workload and result limits
+
+The subsequent load-test increments add an isolated game smoke, independent
+concurrent game batches and a Node aggregate-report runner. Setup pairs Players
+sequentially before gameplay; one VU then drives both sessions in one game.
+Commands and HTTP reads remain sequential per game, while games run concurrently.
+The batch has 20 plies and 19 one-second pauses per game, then resignation and
+history/reservation/outcome verification. Custom move/read/resignation metrics
+exclude setup; there is no excluded in-game warm-up. No WebSocket clients connect.
+
+The user reports all 1/5/20 game journeys completed with zero recorded gameplay
+failures, with higher move/read p95 in the higher-concurrency runs. This does not
+identify a causal bottleneck or sustainable capacity. Current-source inspection
+is limited to the mid-session archive plus supplied increments, and game results
+are pasted console evidence. Full tables and reporting limits are in load-testing.md.

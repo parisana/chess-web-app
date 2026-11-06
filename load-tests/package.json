@@ -11,10 +11,17 @@
     "typecheck": "tsc --noEmit",
     "smoke:auth": "k6 run smoke-auth.ts",
     "test:smoke": "npm run typecheck && npm run smoke:auth",
-    "baseline:stats": "npm run typecheck && k6 run read-statistics.ts",
-    "baseline:stats:1vu": "tsc --noEmit && k6 run --summary-export=results/stats-1vu.json read-statistics.ts",
-    "baseline:stats:5vu": "tsc --noEmit && VUS=5 k6 run --summary-export=results/stats-5vu.json read-statistics.ts",
-    "baseline:stats:20vu": "tsc --noEmit && VUS=20 k6 run --summary-export=results/stats-20vu.json read-statistics.ts"
+    "baseline:stats": "npm run typecheck && node run-k6.mjs --report results/stats.json read-statistics.ts",
+    "baseline:stats:1vu": "npm run typecheck && VUS=1 node run-k6.mjs --report results/stats-1vu.json read-statistics.ts",
+    "baseline:stats:5vu": "npm run typecheck && VUS=5 node run-k6.mjs --report results/stats-5vu.json read-statistics.ts",
+    "baseline:stats:20vu": "npm run typecheck && VUS=20 node run-k6.mjs --report results/stats-20vu.json read-statistics.ts",
+    "smoke:game": "node run-k6.mjs --report results/game-smoke.json smoke-game.ts",
+    "test:game": "npm run typecheck && npm run smoke:game",
+    "baseline:games:1": "npm run typecheck && GAMES=1 node run-k6.mjs --report results/games-1.json concurrent-games.ts",
+    "baseline:games:5": "npm run typecheck && GAMES=5 node run-k6.mjs --report results/games-5.json concurrent-games.ts",
+    "baseline:games:20": "npm run typecheck && GAMES=20 node run-k6.mjs --report results/games-20.json concurrent-games.ts",
+    "baseline:games:50": "npm run typecheck && GAMES=50 node run-k6.mjs --report results/games-50.json concurrent-games.ts",
+    "baseline:games:100": "npm run typecheck && GAMES=100 node run-k6.mjs --report results/games-100.json concurrent-games.ts"
   },
   "devDependencies": {
     "@types/k6": "^2.3.1",

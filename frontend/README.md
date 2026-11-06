@@ -38,4 +38,4 @@ Chat, rematch, spectators, drag/drop, persistent check status, further replay po
 
 ## Backend load testing
 
-Day 29 k6 scripts are a separate load-tests/ project, not Angular tests. They call the loadtest backend on port 8081 directly; Angular need not run. The auth smoke and paced statistics runs do not establish rendered UI, browser/session-tab or WebSocket-client acceptance. See [load testing](../docs/load-testing.md) for commands and measured results.
+Day 29 k6 scripts are a separate load-tests/ project, not Angular tests. They call the loadtest backend on port 8081 directly; Angular need not run. The auth smoke, paced statistics reads and subsequent independent HTTP game batches do not establish rendered UI, browser/session-tab or WebSocket-client acceptance. One k6 game VU orchestrates two Player sessions; it is not a browser. See [load testing](../docs/load-testing.md) for commands and measured results.

@@ -6,9 +6,13 @@ Reviewed on 6 November 2026 against the actual user chess-web-app-day29-mid.zip.
 
 The user reports the smoke passing in approximately 0.7 seconds and initial reads at 1, 5 and 20 VUs. The archive includes saved 5/20-VU summaries, not a 1-VU summary. The saved 5-VU run has 290 measured reads, p95 66.72 ms and p99 639.65 ms, unlike the earlier pasted 296-read run. Both runs are retained in [load-testing.md](load-testing.md); no cause is established for the higher tail. The saved 20-VU run has 1,200 measured reads, zero measured failures and p95 16.31 ms. No capacity, bottleneck or optimization result is claimed.
 
-Raw summary exports include setup_data with session cookies. The guide corrects the earlier aggregate-only assumption and supplies a sanitized-copy procedure. No source/results file is changed by this documentation package. The assistant inspected source/docs/JSON only; no build, type check, application, database or test execution occurred.
+Raw summary exports include setup_data with session cookies. The guide corrects the earlier aggregate-only assumption and supplies a sanitized-copy procedure. The earlier documentation package changed no source/results file. Subsequent increments supply smoke-game.ts, run-k6.mjs, concurrent-games.ts and npm shortcuts for session-free aggregate reports. The user reports the smoke and 1/5/20-game batches completed; subsequent JSON/full-source bytes have not been independently inspected. The assistant inspected source/docs/JSON only; no build, type check, application, database or test execution occurred.
 
-The Day 28 readability cleanup is applied: duplicate moveTokens removed, constructor/ngOnInit streams organized through named methods, and gameActions declared outside the main block with NgTemplateOutletContext. A single-pair game workload and later independent concurrent games remain next, not implemented. See [handoff](day29-mid-handoff.md).
+The Day 28 readability cleanup is applied: duplicate moveTokens removed, constructor/ngOnInit streams organized through named methods, and gameActions declared outside the main block with NgTemplateOutletContext. One-game smoke passed in the user report (33 requests, 844.53 ms). Concurrent-game reports show 1/5/20 completions, 20/100/400 move attempts, zero game-journey failures and move p95 31.08/43.80/98.09 ms. Each journey includes 19 seconds of pauses. No causal bottleneck, whole-run batch acceptance or sustainable-capacity claim is made. See [handoff](day29-mid-handoff.md).
+
+## Current local extension — selected, not yet executed
+
+The user selected further local concurrency during Day 29. The supplied increment raises GAMES to at most 100, adds 50/100 npm entry points, extends sequential setup timeout to four minutes and adds phase timestamps. The gameplay pattern and earlier results are unchanged. Run 50 with system observations first, then review before 100. No new batch result or assistant execution is claimed. A future deployment-VM TODO with provisional 2 vCPU/4 GB and 4 vCPU/8 GB options is recorded in roadmap.md; no VM is provisioned.
 
 ## Previous checkpoint — Day 28
 
@@ -134,7 +138,7 @@ The user reports that the implementation looks good. Tests follow the standing a
 | Day 26 | Server clocks, transactional TIMEOUT, V12/V13, projected clock API, live Angular countdowns and focused coverage |
 | Day 27 | Persisted session authentication, CSRF and revision-guarded tab synchronization |
 | Day 28 | Workspace UI, V15 starting identity/rating, legal hints, self-only Games played and read/command service separation |
-| Day 29, in progress | TypeScript k6 auth smoke and paced statistics reads at 1/5/20 VUs; user execution and saved-summary review documented |
+| Day 29, initial HTTP baseline recorded | TypeScript k6 auth/statistics smoke and paced reads, one-game smoke, 1/5/20 independent game batches and session-free aggregate runner; evidence/limits documented |
 
 ## Source-confirmed test coverage — historical Day 20
 

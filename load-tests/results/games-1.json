@@ -1,0 +1,826 @@
+{
+  "metrics": {
+    "gameplay_game_read_duration": {
+      "p(90)": 7.188928,
+      "p(95)": 7.326744,
+      "p(99)": 7.800592,
+      "avg": 5.596101714285714,
+      "min": 4.154558,
+      "med": 5.571094,
+      "max": 7.919054
+    },
+    "http_req_tls_handshaking": {
+      "min": 0,
+      "med": 0,
+      "max": 0,
+      "p(90)": 0,
+      "p(95)": 0,
+      "p(99)": 0,
+      "avg": 0
+    },
+    "http_reqs": {
+      "rate": 3.087665771632074,
+      "count": 62
+    },
+    "data_sent": {
+      "rate": 984.3677684206384,
+      "count": 19766
+    },
+    "gameplay_failures": {
+      "fails": 1,
+      "passes": 0,
+      "thresholds": {
+        "rate==0": false
+      },
+      "value": 0
+    },
+    "games_completed": {
+      "count": 1,
+      "rate": 0.04980106083277539,
+      "thresholds": {
+        "count==1": false
+      }
+    },
+    "gameplay_move_duration": {
+      "avg": 19.692616000000005,
+      "min": 13.500562,
+      "med": 16.563931500000002,
+      "max": 33.599452,
+      "p(90)": 27.815842000000004,
+      "p(95)": 31.0820812,
+      "p(99)": 33.095977839999996
+    },
+    "http_req_waiting": {
+      "max": 111.014472,
+      "p(90)": 27.1986532,
+      "p(95)": 93.14184469999972,
+      "p(99)": 102.66258929000001,
+      "avg": 16.712850290322578,
+      "min": 1.140692,
+      "med": 7.984018
+    },
+    "http_req_receiving": {
+      "p(95)": 0.2512901499999994,
+      "p(99)": 0.8957137700000002,
+      "avg": 0.11392001612903226,
+      "min": 0.047222,
+      "med": 0.07410800000000001,
+      "max": 1.159077,
+      "p(90)": 0.10865280000000001
+    },
+    "http_req_connecting": {
+      "p(95)": 0,
+      "p(99)": 0.16038571,
+      "avg": 0.007189193548387096,
+      "min": 0,
+      "med": 0,
+      "max": 0.163185,
+      "p(90)": 0
+    },
+    "http_req_sending": {
+      "min": 0.011572,
+      "med": 0.023525499999999998,
+      "max": 0.089262,
+      "p(90)": 0.040106899999999994,
+      "p(95)": 0.0771295999999999,
+      "p(99)": 0.0890851,
+      "avg": 0.027212499999999997
+    },
+    "vus_max": {
+      "value": 1,
+      "min": 1,
+      "max": 1
+    },
+    "gameplay_resignation_duration": {
+      "p(99)": 17.044491,
+      "avg": 17.044491,
+      "min": 17.044491,
+      "med": 17.044491,
+      "max": 17.044491,
+      "p(90)": 17.044491,
+      "p(95)": 17.044491
+    },
+    "iteration_duration": {
+      "avg": 19602.96259,
+      "min": 19602.96259,
+      "med": 19602.96259,
+      "max": 19602.96259,
+      "p(90)": 19602.96259,
+      "p(95)": 19602.96259,
+      "p(99)": 19602.96259
+    },
+    "gameplay_move_requests": {
+      "count": 20,
+      "rate": 0.9960212166555078,
+      "thresholds": {
+        "count==20": false
+      }
+    },
+    "vus": {
+      "value": 1,
+      "min": 1,
+      "max": 1
+    },
+    "gameplay_game_duration": {
+      "avg": 19603,
+      "min": 19603,
+      "med": 19603,
+      "max": 19603,
+      "p(90)": 19603,
+      "p(95)": 19603,
+      "p(99)": 19603
+    },
+    "checks": {
+      "passes": 164,
+      "fails": 0,
+      "thresholds": {
+        "rate==1": false
+      },
+      "value": 1
+    },
+    "http_req_failed": {
+      "passes": 0,
+      "fails": 62,
+      "thresholds": {
+        "rate==0": false
+      },
+      "value": 0
+    },
+    "http_req_duration": {
+      "p(99)": 102.79048348,
+      "avg": 16.853982806451604,
+      "min": 1.200448,
+      "med": 8.371049,
+      "max": 111.149272,
+      "p(90)": 27.356116999999998,
+      "p(95)": 93.46970884999973
+    },
+    "data_received": {
+      "count": 47644,
+      "rate": 2372.721742316751
+    },
+    "iterations": {
+      "count": 1,
+      "rate": 0.04980106083277539
+    },
+    "http_req_blocked": {
+      "max": 0.753295,
+      "p(90)": 0.0097159,
+      "p(95)": 0.04881569999999983,
+      "p(99)": 0.4530212800000003,
+      "avg": 0.025821903225806454,
+      "min": 0.003156,
+      "med": 0.005641
+    },
+    "http_req_duration{expected_response:true}": {
+      "avg": 16.853982806451604,
+      "min": 1.200448,
+      "med": 8.371049,
+      "max": 111.149272,
+      "p(90)": 27.356116999999998,
+      "p(95)": 93.46970884999973,
+      "p(99)": 102.79048348
+    }
+  },
+  "root_group": {
+    "id": "d41d8cd98f00b204e9800998ecf8427e",
+    "groups": {
+      "setup": {
+        "id": "5c0f8025f7e0b6654089e5b00e950f1a",
+        "groups": {},
+        "checks": {
+          "Initialize CSRF: expected HTTP 204, got 204": {
+            "name": "Initialize CSRF: expected HTTP 204, got 204",
+            "path": "::setup::Initialize CSRF: expected HTTP 204, got 204",
+            "id": "65afda13beb20e719a640bfb2b42bdb0",
+            "passes": 4,
+            "fails": 0
+          },
+          "One CSRF cookie is available": {
+            "fails": 0,
+            "name": "One CSRF cookie is available",
+            "path": "::setup::One CSRF cookie is available",
+            "id": "4c947980cc2f0f78deadb1f50df95b95",
+            "passes": 4
+          },
+          "Register Player: expected HTTP 201, got 201": {
+            "passes": 2,
+            "fails": 0,
+            "name": "Register Player: expected HTTP 201, got 201",
+            "path": "::setup::Register Player: expected HTTP 201, got 201",
+            "id": "3ea1fae636a0b207d5d5463f60c82331"
+          },
+          "Login Player: expected HTTP 200, got 200": {
+            "name": "Login Player: expected HTTP 200, got 200",
+            "path": "::setup::Login Player: expected HTTP 200, got 200",
+            "id": "9076d1302d132ca4ba01d93c7b1b8c48",
+            "passes": 2,
+            "fails": 0
+          },
+          "Login supplies a Player ID": {
+            "name": "Login supplies a Player ID",
+            "path": "::setup::Login supplies a Player ID",
+            "id": "787a0957590cc1dff93e1f29805561d9",
+            "passes": 2,
+            "fails": 0
+          },
+          "setup: first queue join: expected HTTP 200, got 200": {
+            "passes": 1,
+            "fails": 0,
+            "name": "setup: first queue join: expected HTTP 200, got 200",
+            "path": "::setup::setup: first queue join: expected HTTP 200, got 200",
+            "id": "51874bb35eb9b6a56832dacaa5ea2b33"
+          },
+          "setup: first Player waits": {
+            "path": "::setup::setup: first Player waits",
+            "id": "4295a91a1848dd3eb028af1015473889",
+            "passes": 1,
+            "fails": 0,
+            "name": "setup: first Player waits"
+          },
+          "setup: second queue join: expected HTTP 200, got 200": {
+            "name": "setup: second queue join: expected HTTP 200, got 200",
+            "path": "::setup::setup: second queue join: expected HTTP 200, got 200",
+            "id": "543d5db90e26d442ba3574430f33e8f7",
+            "passes": 1,
+            "fails": 0
+          },
+          "setup: valid matched game": {
+            "name": "setup: valid matched game",
+            "path": "::setup::setup: valid matched game",
+            "id": "039957d30c6ed09126aa04da90a0454f",
+            "passes": 1,
+            "fails": 0
+          },
+          "GET /matchmaking/queue/me: expected HTTP 200, got 200": {
+            "id": "061634f457124d3487e98caed5a3ceac",
+            "passes": 1,
+            "fails": 0,
+            "name": "GET /matchmaking/queue/me: expected HTTP 200, got 200",
+            "path": "::setup::GET /matchmaking/queue/me: expected HTTP 200, got 200"
+          },
+          "setup: same game discovered by both Players": {
+            "passes": 1,
+            "fails": 0,
+            "name": "setup: same game discovered by both Players",
+            "path": "::setup::setup: same game discovered by both Players",
+            "id": "1e30d9f7e0490900dfe93a7630ae8009"
+          },
+          "GET /games/:id: expected HTTP 200, got 200": {
+            "passes": 1,
+            "fails": 0,
+            "name": "GET /games/:id: expected HTTP 200, got 200",
+            "path": "::setup::GET /games/:id: expected HTTP 200, got 200",
+            "id": "45e4c7b64991e1a0e1442a0c0b34d5ec"
+          },
+          "setup: correct active participants": {
+            "path": "::setup::setup: correct active participants",
+            "id": "1ae2aa6fd758e01222ae075e54127672",
+            "passes": 1,
+            "fails": 0,
+            "name": "setup: correct active participants"
+          },
+          "One authenticated session cookie exists": {
+            "name": "One authenticated session cookie exists",
+            "path": "::setup::One authenticated session cookie exists",
+            "id": "832c6a205bfc4a84b7aa985c7c40f435",
+            "passes": 2,
+            "fails": 0
+          }
+        },
+        "name": "setup",
+        "path": "::setup"
+      },
+      "teardown": {
+        "name": "teardown",
+        "path": "::teardown",
+        "id": "a8a9942382e8ffe2e56ef29e664b8229",
+        "groups": {},
+        "checks": {
+          "teardown: logout returns 204": {
+            "name": "teardown: logout returns 204",
+            "path": "::teardown::teardown: logout returns 204",
+            "id": "193f1a2594dcc7bf0d79e63e4a18cd31",
+            "passes": 2,
+            "fails": 0
+          }
+        }
+      }
+    },
+    "checks": {
+      "VU has exactly one pre-paired game": {
+        "name": "VU has exactly one pre-paired game",
+        "path": "::VU has exactly one pre-paired game",
+        "id": "f4535aa3995289744f8c0b616b21913a",
+        "passes": 1,
+        "fails": 0
+      },
+      "Accept move 1: expected HTTP 200, got 200": {
+        "name": "Accept move 1: expected HTTP 200, got 200",
+        "path": "::Accept move 1: expected HTTP 200, got 200",
+        "id": "e7a9be15b0ff1b6e7555fdbd82cc1426",
+        "passes": 1,
+        "fails": 0
+      },
+      "Move 1 advances accepted state": {
+        "name": "Move 1 advances accepted state",
+        "path": "::Move 1 advances accepted state",
+        "id": "28912176b5ca0ed290b659836dad41d0",
+        "passes": 1,
+        "fails": 0
+      },
+      "GET /games/:id: expected HTTP 200, got 200": {
+        "passes": 21,
+        "fails": 0,
+        "name": "GET /games/:id: expected HTTP 200, got 200",
+        "path": "::GET /games/:id: expected HTTP 200, got 200",
+        "id": "685051a698c3708a1179c27c8a017498"
+      },
+      "Opponent reads committed move": {
+        "passes": 20,
+        "fails": 0,
+        "name": "Opponent reads committed move",
+        "path": "::Opponent reads committed move",
+        "id": "e24784de34c71216057db41e9dc3bc1c"
+      },
+      "Accept move 2: expected HTTP 200, got 200": {
+        "name": "Accept move 2: expected HTTP 200, got 200",
+        "path": "::Accept move 2: expected HTTP 200, got 200",
+        "id": "f9aad1ac5764a9be81e89b63385c9580",
+        "passes": 1,
+        "fails": 0
+      },
+      "Move 2 advances accepted state": {
+        "name": "Move 2 advances accepted state",
+        "path": "::Move 2 advances accepted state",
+        "id": "a8af37f121402ebcdcd2d0ada17e6cd7",
+        "passes": 1,
+        "fails": 0
+      },
+      "Accept move 3: expected HTTP 200, got 200": {
+        "name": "Accept move 3: expected HTTP 200, got 200",
+        "path": "::Accept move 3: expected HTTP 200, got 200",
+        "id": "3a9d50353ce5b0fab3069f1e8e3907f9",
+        "passes": 1,
+        "fails": 0
+      },
+      "Move 3 advances accepted state": {
+        "name": "Move 3 advances accepted state",
+        "path": "::Move 3 advances accepted state",
+        "id": "8a0dcf303fe6f0a48e84c6a1b64768a4",
+        "passes": 1,
+        "fails": 0
+      },
+      "Accept move 4: expected HTTP 200, got 200": {
+        "name": "Accept move 4: expected HTTP 200, got 200",
+        "path": "::Accept move 4: expected HTTP 200, got 200",
+        "id": "56f5cd3c32e5367736079aa66ce5a847",
+        "passes": 1,
+        "fails": 0
+      },
+      "Move 4 advances accepted state": {
+        "name": "Move 4 advances accepted state",
+        "path": "::Move 4 advances accepted state",
+        "id": "5e26acc505376b272b83cd8d0abef68a",
+        "passes": 1,
+        "fails": 0
+      },
+      "Accept move 5: expected HTTP 200, got 200": {
+        "name": "Accept move 5: expected HTTP 200, got 200",
+        "path": "::Accept move 5: expected HTTP 200, got 200",
+        "id": "77c4e18138fc655c872418d6257bf452",
+        "passes": 1,
+        "fails": 0
+      },
+      "Move 5 advances accepted state": {
+        "name": "Move 5 advances accepted state",
+        "path": "::Move 5 advances accepted state",
+        "id": "cef2f03b6445dc5ebc1927dc485a7655",
+        "passes": 1,
+        "fails": 0
+      },
+      "Accept move 6: expected HTTP 200, got 200": {
+        "name": "Accept move 6: expected HTTP 200, got 200",
+        "path": "::Accept move 6: expected HTTP 200, got 200",
+        "id": "0e9c3dff6b20e8002d09565818f1e4e2",
+        "passes": 1,
+        "fails": 0
+      },
+      "Move 6 advances accepted state": {
+        "id": "8b86283cb119eb281ed193bcafab3a07",
+        "passes": 1,
+        "fails": 0,
+        "name": "Move 6 advances accepted state",
+        "path": "::Move 6 advances accepted state"
+      },
+      "Accept move 7: expected HTTP 200, got 200": {
+        "id": "e7fa92457ba0e298fe566620eb44d64e",
+        "passes": 1,
+        "fails": 0,
+        "name": "Accept move 7: expected HTTP 200, got 200",
+        "path": "::Accept move 7: expected HTTP 200, got 200"
+      },
+      "Move 7 advances accepted state": {
+        "path": "::Move 7 advances accepted state",
+        "id": "0c635607f49090c19ff193e2789db8af",
+        "passes": 1,
+        "fails": 0,
+        "name": "Move 7 advances accepted state"
+      },
+      "Accept move 8: expected HTTP 200, got 200": {
+        "fails": 0,
+        "name": "Accept move 8: expected HTTP 200, got 200",
+        "path": "::Accept move 8: expected HTTP 200, got 200",
+        "id": "e79da11fcbc20adf49c8206b3b17a3c1",
+        "passes": 1
+      },
+      "Move 8 advances accepted state": {
+        "path": "::Move 8 advances accepted state",
+        "id": "10101d048ab515b799e7977755ec6e97",
+        "passes": 1,
+        "fails": 0,
+        "name": "Move 8 advances accepted state"
+      },
+      "Accept move 9: expected HTTP 200, got 200": {
+        "passes": 1,
+        "fails": 0,
+        "name": "Accept move 9: expected HTTP 200, got 200",
+        "path": "::Accept move 9: expected HTTP 200, got 200",
+        "id": "1093636bd3ceb60cdb9f957ebcfd5664"
+      },
+      "Move 9 advances accepted state": {
+        "id": "259423a621dc5da3cc1bf545c1a19ef3",
+        "passes": 1,
+        "fails": 0,
+        "name": "Move 9 advances accepted state",
+        "path": "::Move 9 advances accepted state"
+      },
+      "Accept move 10: expected HTTP 200, got 200": {
+        "name": "Accept move 10: expected HTTP 200, got 200",
+        "path": "::Accept move 10: expected HTTP 200, got 200",
+        "id": "04bb85bcdd1235463a7f96f67c0fb408",
+        "passes": 1,
+        "fails": 0
+      },
+      "Move 10 advances accepted state": {
+        "name": "Move 10 advances accepted state",
+        "path": "::Move 10 advances accepted state",
+        "id": "b58e146845ae1435949c04f5f63fe57a",
+        "passes": 1,
+        "fails": 0
+      },
+      "Accept move 11: expected HTTP 200, got 200": {
+        "name": "Accept move 11: expected HTTP 200, got 200",
+        "path": "::Accept move 11: expected HTTP 200, got 200",
+        "id": "230409718782bb9dcf7bf10b7556c135",
+        "passes": 1,
+        "fails": 0
+      },
+      "Move 11 advances accepted state": {
+        "path": "::Move 11 advances accepted state",
+        "id": "67d8aff25b49f37a257110d2d9388041",
+        "passes": 1,
+        "fails": 0,
+        "name": "Move 11 advances accepted state"
+      },
+      "Accept move 12: expected HTTP 200, got 200": {
+        "path": "::Accept move 12: expected HTTP 200, got 200",
+        "id": "f5fc1d6206e09121b70c86ce98b99d85",
+        "passes": 1,
+        "fails": 0,
+        "name": "Accept move 12: expected HTTP 200, got 200"
+      },
+      "Move 12 advances accepted state": {
+        "name": "Move 12 advances accepted state",
+        "path": "::Move 12 advances accepted state",
+        "id": "7099b018b4a5346b3c88c42af91fbd95",
+        "passes": 1,
+        "fails": 0
+      },
+      "Accept move 13: expected HTTP 200, got 200": {
+        "fails": 0,
+        "name": "Accept move 13: expected HTTP 200, got 200",
+        "path": "::Accept move 13: expected HTTP 200, got 200",
+        "id": "851d96680814ae22ad0afc909785305c",
+        "passes": 1
+      },
+      "Move 13 advances accepted state": {
+        "name": "Move 13 advances accepted state",
+        "path": "::Move 13 advances accepted state",
+        "id": "68cd04beaac6bcfd71bfa4981b592ab3",
+        "passes": 1,
+        "fails": 0
+      },
+      "Accept move 14: expected HTTP 200, got 200": {
+        "name": "Accept move 14: expected HTTP 200, got 200",
+        "path": "::Accept move 14: expected HTTP 200, got 200",
+        "id": "e8c01e7c7d158f4bc97f2e2b00310abb",
+        "passes": 1,
+        "fails": 0
+      },
+      "Move 14 advances accepted state": {
+        "name": "Move 14 advances accepted state",
+        "path": "::Move 14 advances accepted state",
+        "id": "bfcb5bc5ae7669d2ba358a6ca5984389",
+        "passes": 1,
+        "fails": 0
+      },
+      "Accept move 15: expected HTTP 200, got 200": {
+        "passes": 1,
+        "fails": 0,
+        "name": "Accept move 15: expected HTTP 200, got 200",
+        "path": "::Accept move 15: expected HTTP 200, got 200",
+        "id": "36c82e75adaa85113afbc499ee32f5e2"
+      },
+      "Move 15 advances accepted state": {
+        "passes": 1,
+        "fails": 0,
+        "name": "Move 15 advances accepted state",
+        "path": "::Move 15 advances accepted state",
+        "id": "b1a5076c941667ce52e434072d641e45"
+      },
+      "Accept move 16: expected HTTP 200, got 200": {
+        "fails": 0,
+        "name": "Accept move 16: expected HTTP 200, got 200",
+        "path": "::Accept move 16: expected HTTP 200, got 200",
+        "id": "8753dcca88897388700eda67643c3c1b",
+        "passes": 1
+      },
+      "Move 16 advances accepted state": {
+        "name": "Move 16 advances accepted state",
+        "path": "::Move 16 advances accepted state",
+        "id": "32c0ed2c5b95659e93d35d27b2955b28",
+        "passes": 1,
+        "fails": 0
+      },
+      "Accept move 17: expected HTTP 200, got 200": {
+        "name": "Accept move 17: expected HTTP 200, got 200",
+        "path": "::Accept move 17: expected HTTP 200, got 200",
+        "id": "48b02010cb9133371e714763b5a6533a",
+        "passes": 1,
+        "fails": 0
+      },
+      "Move 17 advances accepted state": {
+        "id": "745cf46b1567adb2545a8f07ced0dcd7",
+        "passes": 1,
+        "fails": 0,
+        "name": "Move 17 advances accepted state",
+        "path": "::Move 17 advances accepted state"
+      },
+      "Accept move 18: expected HTTP 200, got 200": {
+        "id": "c794d631a95702e200810bf95d4806aa",
+        "passes": 1,
+        "fails": 0,
+        "name": "Accept move 18: expected HTTP 200, got 200",
+        "path": "::Accept move 18: expected HTTP 200, got 200"
+      },
+      "Move 18 advances accepted state": {
+        "name": "Move 18 advances accepted state",
+        "path": "::Move 18 advances accepted state",
+        "id": "b50e02e4db1f8c38b54d55e67e129cb6",
+        "passes": 1,
+        "fails": 0
+      },
+      "Accept move 19: expected HTTP 200, got 200": {
+        "path": "::Accept move 19: expected HTTP 200, got 200",
+        "id": "43359f9adfda65027343d23e647adfa9",
+        "passes": 1,
+        "fails": 0,
+        "name": "Accept move 19: expected HTTP 200, got 200"
+      },
+      "Move 19 advances accepted state": {
+        "name": "Move 19 advances accepted state",
+        "path": "::Move 19 advances accepted state",
+        "id": "8f34f0529749b8a2f0b0a764ffb04d5e",
+        "passes": 1,
+        "fails": 0
+      },
+      "Accept move 20: expected HTTP 200, got 200": {
+        "path": "::Accept move 20: expected HTTP 200, got 200",
+        "id": "db072ec123d5ea1443d9cad53b6c7260",
+        "passes": 1,
+        "fails": 0,
+        "name": "Accept move 20: expected HTTP 200, got 200"
+      },
+      "Move 20 advances accepted state": {
+        "passes": 1,
+        "fails": 0,
+        "name": "Move 20 advances accepted state",
+        "path": "::Move 20 advances accepted state",
+        "id": "854b3a18f55af9879311468205d46d0d"
+      },
+      "GET /games/:id/moves: expected HTTP 200, got 200": {
+        "path": "::GET /games/:id/moves: expected HTTP 200, got 200",
+        "id": "a5d2cdd18bd3425d91718ac707233a83",
+        "passes": 2,
+        "fails": 0,
+        "name": "GET /games/:id/moves: expected HTTP 200, got 200"
+      },
+      "History has the expected captured version and count": {
+        "id": "ff91bc65518e31d0a4c5d666023c3135",
+        "passes": 2,
+        "fails": 0,
+        "name": "History has the expected captured version and count",
+        "path": "::History has the expected captured version and count"
+      },
+      "History entry 1 has the expected coordinates and SAN": {
+        "name": "History entry 1 has the expected coordinates and SAN",
+        "path": "::History entry 1 has the expected coordinates and SAN",
+        "id": "abaf68354b83da2a9fdbd7ba9e420efc",
+        "passes": 2,
+        "fails": 0
+      },
+      "History entry 2 has the expected coordinates and SAN": {
+        "passes": 2,
+        "fails": 0,
+        "name": "History entry 2 has the expected coordinates and SAN",
+        "path": "::History entry 2 has the expected coordinates and SAN",
+        "id": "c020ffb665c6f5b7b7a6d8ed9f4b1d25"
+      },
+      "History entry 3 has the expected coordinates and SAN": {
+        "id": "3344e8b46410e05e5b422108db93d553",
+        "passes": 2,
+        "fails": 0,
+        "name": "History entry 3 has the expected coordinates and SAN",
+        "path": "::History entry 3 has the expected coordinates and SAN"
+      },
+      "History entry 4 has the expected coordinates and SAN": {
+        "path": "::History entry 4 has the expected coordinates and SAN",
+        "id": "76ff1925579a25718ffcf6b625daaca4",
+        "passes": 2,
+        "fails": 0,
+        "name": "History entry 4 has the expected coordinates and SAN"
+      },
+      "History entry 5 has the expected coordinates and SAN": {
+        "id": "d47fc477d09870a6f9e968c4e48fe018",
+        "passes": 2,
+        "fails": 0,
+        "name": "History entry 5 has the expected coordinates and SAN",
+        "path": "::History entry 5 has the expected coordinates and SAN"
+      },
+      "History entry 6 has the expected coordinates and SAN": {
+        "passes": 2,
+        "fails": 0,
+        "name": "History entry 6 has the expected coordinates and SAN",
+        "path": "::History entry 6 has the expected coordinates and SAN",
+        "id": "d699bdad77e727f754471596cfb35b52"
+      },
+      "History entry 7 has the expected coordinates and SAN": {
+        "name": "History entry 7 has the expected coordinates and SAN",
+        "path": "::History entry 7 has the expected coordinates and SAN",
+        "id": "1ae0d1b93f82d3005e907102b8668bcc",
+        "passes": 2,
+        "fails": 0
+      },
+      "History entry 8 has the expected coordinates and SAN": {
+        "path": "::History entry 8 has the expected coordinates and SAN",
+        "id": "a62297fafa5c6b678c9bf6dfa3bb7b8d",
+        "passes": 2,
+        "fails": 0,
+        "name": "History entry 8 has the expected coordinates and SAN"
+      },
+      "History entry 9 has the expected coordinates and SAN": {
+        "name": "History entry 9 has the expected coordinates and SAN",
+        "path": "::History entry 9 has the expected coordinates and SAN",
+        "id": "ebcf0dc6a1fd416b2fd6174ac9e02214",
+        "passes": 2,
+        "fails": 0
+      },
+      "History entry 10 has the expected coordinates and SAN": {
+        "name": "History entry 10 has the expected coordinates and SAN",
+        "path": "::History entry 10 has the expected coordinates and SAN",
+        "id": "4fc344cab435799ea87337de67811b97",
+        "passes": 2,
+        "fails": 0
+      },
+      "History entry 11 has the expected coordinates and SAN": {
+        "passes": 2,
+        "fails": 0,
+        "name": "History entry 11 has the expected coordinates and SAN",
+        "path": "::History entry 11 has the expected coordinates and SAN",
+        "id": "25120dfa2cdbfe3c94efe4936d22e9c4"
+      },
+      "History entry 12 has the expected coordinates and SAN": {
+        "name": "History entry 12 has the expected coordinates and SAN",
+        "path": "::History entry 12 has the expected coordinates and SAN",
+        "id": "fee9646c3ddefc26874b28444c5abb10",
+        "passes": 2,
+        "fails": 0
+      },
+      "History entry 13 has the expected coordinates and SAN": {
+        "passes": 2,
+        "fails": 0,
+        "name": "History entry 13 has the expected coordinates and SAN",
+        "path": "::History entry 13 has the expected coordinates and SAN",
+        "id": "1d9e884be91f00f8cd47cbd43a5d217d"
+      },
+      "History entry 14 has the expected coordinates and SAN": {
+        "id": "73f657dba64429d81bd99643f7db05bc",
+        "passes": 2,
+        "fails": 0,
+        "name": "History entry 14 has the expected coordinates and SAN",
+        "path": "::History entry 14 has the expected coordinates and SAN"
+      },
+      "History entry 15 has the expected coordinates and SAN": {
+        "name": "History entry 15 has the expected coordinates and SAN",
+        "path": "::History entry 15 has the expected coordinates and SAN",
+        "id": "29a1445e876e32ca0c4cff3804297e93",
+        "passes": 2,
+        "fails": 0
+      },
+      "History entry 16 has the expected coordinates and SAN": {
+        "passes": 2,
+        "fails": 0,
+        "name": "History entry 16 has the expected coordinates and SAN",
+        "path": "::History entry 16 has the expected coordinates and SAN",
+        "id": "75a1d3e419591e9a1472016038e16894"
+      },
+      "History entry 17 has the expected coordinates and SAN": {
+        "name": "History entry 17 has the expected coordinates and SAN",
+        "path": "::History entry 17 has the expected coordinates and SAN",
+        "id": "0c6d563bf956e5a16d90e6b74672879e",
+        "passes": 2,
+        "fails": 0
+      },
+      "History entry 18 has the expected coordinates and SAN": {
+        "fails": 0,
+        "name": "History entry 18 has the expected coordinates and SAN",
+        "path": "::History entry 18 has the expected coordinates and SAN",
+        "id": "410352132d86422bbfe6adb30fa6e29f",
+        "passes": 2
+      },
+      "History entry 19 has the expected coordinates and SAN": {
+        "name": "History entry 19 has the expected coordinates and SAN",
+        "path": "::History entry 19 has the expected coordinates and SAN",
+        "id": "3dc557ecbd160f72d58bdb17e8606dcc",
+        "passes": 2,
+        "fails": 0
+      },
+      "History entry 20 has the expected coordinates and SAN": {
+        "name": "History entry 20 has the expected coordinates and SAN",
+        "path": "::History entry 20 has the expected coordinates and SAN",
+        "id": "3a8332ccc8ad134af1c08c9fea5e85e4",
+        "passes": 2,
+        "fails": 0
+      },
+      "History ends at the accepted board": {
+        "passes": 2,
+        "fails": 0,
+        "name": "History ends at the accepted board",
+        "path": "::History ends at the accepted board",
+        "id": "ec7eac6c5c47cf8ab0728ec8c09f45b0"
+      },
+      "White resigns: expected HTTP 200, got 200": {
+        "name": "White resigns: expected HTTP 200, got 200",
+        "path": "::White resigns: expected HTTP 200, got 200",
+        "id": "edc67a53e879d7dc0a824587415b687c",
+        "passes": 1,
+        "fails": 0
+      },
+      "Resignation completes this game": {
+        "name": "Resignation completes this game",
+        "path": "::Resignation completes this game",
+        "id": "de4694ad3f7463c607126b3f46b749dd",
+        "passes": 1,
+        "fails": 0
+      },
+      "Opponent sees committed completion": {
+        "name": "Opponent sees committed completion",
+        "path": "::Opponent sees committed completion",
+        "id": "91d1d1747ef28f8abae12c26cfc05a94",
+        "passes": 1,
+        "fails": 0
+      },
+      "GET /matchmaking/queue/me: expected HTTP 200, got 200": {
+        "fails": 0,
+        "name": "GET /matchmaking/queue/me: expected HTTP 200, got 200",
+        "path": "::GET /matchmaking/queue/me: expected HTTP 200, got 200",
+        "id": "b1fffa2443608be44f263b68ae86cc69",
+        "passes": 2
+      },
+      "Both reservations released": {
+        "name": "Both reservations released",
+        "path": "::Both reservations released",
+        "id": "069c7b9ae92b461a335d6a85be17958c",
+        "passes": 1,
+        "fails": 0
+      },
+      "GET /players/me/statistics: expected HTTP 200, got 200": {
+        "passes": 2,
+        "fails": 0,
+        "name": "GET /players/me/statistics: expected HTTP 200, got 200",
+        "path": "::GET /players/me/statistics: expected HTTP 200, got 200",
+        "id": "071d73d197ffa198f2529874b14e635d"
+      },
+      "Outcome statistics applied once": {
+        "name": "Outcome statistics applied once",
+        "path": "::Outcome statistics applied once",
+        "id": "5629c59defb83de41e6961255713c33a",
+        "passes": 2,
+        "fails": 0
+      }
+    },
+    "name": "",
+    "path": ""
+  }
+}

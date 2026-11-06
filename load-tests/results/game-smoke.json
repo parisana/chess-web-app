@@ -1,0 +1,389 @@
+{
+  "metrics": {
+    "iteration_duration": {
+      "p(90)": 844.531719,
+      "p(95)": 844.531719,
+      "avg": 844.531719,
+      "min": 844.531719,
+      "med": 844.531719,
+      "max": 844.531719
+    },
+    "checks": {
+      "fails": 0,
+      "passes": 70,
+      "thresholds": {
+        "rate==1": false
+      },
+      "value": 1
+    },
+    "http_req_connecting": {
+      "avg": 0.003393939393939394,
+      "min": 0,
+      "med": 0,
+      "max": 0.112,
+      "p(90)": 0,
+      "p(95)": 0
+    },
+    "http_req_duration": {
+      "avg": 25.347186545454548,
+      "min": 0.882461,
+      "med": 5.376448,
+      "max": 140.268636,
+      "p(90)": 78.40347440000001,
+      "p(95)": 101.77843239999997
+    },
+    "http_req_blocked": {
+      "avg": 0.024124939393939393,
+      "min": 0.002906,
+      "med": 0.003577,
+      "max": 0.677337,
+      "p(90)": 0.004487,
+      "p(95)": 0.004762399999999999
+    },
+    "http_reqs": {
+      "rate": 39.064113567995925,
+      "count": 33
+    },
+    "http_req_receiving": {
+      "med": 0.066184,
+      "max": 0.690001,
+      "p(90)": 0.1780536000000001,
+      "p(95)": 0.4008535999999994,
+      "avg": 0.11007815151515152,
+      "min": 0.030247
+    },
+    "http_req_duration{expected_response:true}": {
+      "avg": 25.347186545454548,
+      "min": 0.882461,
+      "med": 5.376448,
+      "max": 140.268636,
+      "p(90)": 78.40347440000001,
+      "p(95)": 101.77843239999997
+    },
+    "http_req_tls_handshaking": {
+      "min": 0,
+      "med": 0,
+      "max": 0,
+      "p(90)": 0,
+      "p(95)": 0,
+      "avg": 0
+    },
+    "smoke_games_completed": {
+      "count": 1,
+      "rate": 1.1837610172119977,
+      "thresholds": {
+        "count==1": false
+      }
+    },
+    "http_req_sending": {
+      "avg": 0.017307818181818185,
+      "min": 0.011311,
+      "med": 0.015228,
+      "max": 0.054722,
+      "p(90)": 0.0252958,
+      "p(95)": 0.0268364
+    },
+    "data_sent": {
+      "count": 10002,
+      "rate": 11839.9776941544
+    },
+    "http_req_failed": {
+      "passes": 0,
+      "fails": 33,
+      "thresholds": {
+        "rate==0": false
+      },
+      "value": 0
+    },
+    "iterations": {
+      "rate": 1.1837610172119977,
+      "count": 1
+    },
+    "data_received": {
+      "count": 18617,
+      "rate": 22038.07885743576
+    },
+    "http_req_waiting": {
+      "avg": 25.219800575757578,
+      "min": 0.834311,
+      "med": 5.272223,
+      "max": 140.040699,
+      "p(90)": 78.3139072,
+      "p(95)": 101.57875859999997
+    }
+  },
+  "root_group": {
+    "checks": {
+      "Initialize CSRF: expected HTTP 204, got 204": {
+        "id": "9126a690d00a8c9a41b2d2a098cd8a8a",
+        "passes": 4,
+        "fails": 0,
+        "name": "Initialize CSRF: expected HTTP 204, got 204",
+        "path": "::Initialize CSRF: expected HTTP 204, got 204"
+      },
+      "One CSRF cookie is available": {
+        "fails": 0,
+        "name": "One CSRF cookie is available",
+        "path": "::One CSRF cookie is available",
+        "id": "3dd3e32b8d0cc751f2aa35e77bfcee35",
+        "passes": 4
+      },
+      "Register Player: expected HTTP 201, got 201": {
+        "fails": 0,
+        "name": "Register Player: expected HTTP 201, got 201",
+        "path": "::Register Player: expected HTTP 201, got 201",
+        "id": "84270fc24516e4dea283def6c7bbcaac",
+        "passes": 2
+      },
+      "Login Player: expected HTTP 200, got 200": {
+        "name": "Login Player: expected HTTP 200, got 200",
+        "path": "::Login Player: expected HTTP 200, got 200",
+        "id": "5304f0a5d1a480aeeace1cb586c1d988",
+        "passes": 2,
+        "fails": 0
+      },
+      "Login supplies a Player ID": {
+        "id": "e9cfa96ec7a012c4ac8ab2e41a81fe25",
+        "passes": 2,
+        "fails": 0,
+        "name": "Login supplies a Player ID",
+        "path": "::Login supplies a Player ID"
+      },
+      "GET /matchmaking/queue/me: expected HTTP 200, got 200": {
+        "id": "b1fffa2443608be44f263b68ae86cc69",
+        "passes": 5,
+        "fails": 0,
+        "name": "GET /matchmaking/queue/me: expected HTTP 200, got 200",
+        "path": "::GET /matchmaking/queue/me: expected HTTP 200, got 200"
+      },
+      "Both new Players start outside matchmaking": {
+        "id": "04520b4094e3aa1b46624003d1299393",
+        "passes": 1,
+        "fails": 0,
+        "name": "Both new Players start outside matchmaking",
+        "path": "::Both new Players start outside matchmaking"
+      },
+      "First queue join: expected HTTP 200, got 200": {
+        "passes": 1,
+        "fails": 0,
+        "name": "First queue join: expected HTTP 200, got 200",
+        "path": "::First queue join: expected HTTP 200, got 200",
+        "id": "7f042285b2459e5e4747a3ce58748916"
+      },
+      "First Player waits for the second": {
+        "fails": 0,
+        "name": "First Player waits for the second",
+        "path": "::First Player waits for the second",
+        "id": "6976d900ebb1a8e73194f7adab47ec55",
+        "passes": 1
+      },
+      "Second queue join: expected HTTP 200, got 200": {
+        "name": "Second queue join: expected HTTP 200, got 200",
+        "path": "::Second queue join: expected HTTP 200, got 200",
+        "id": "711ef13064588aef2c3bb5886df40ab3",
+        "passes": 1,
+        "fails": 0
+      },
+      "Second join returns a matched game": {
+        "name": "Second join returns a matched game",
+        "path": "::Second join returns a matched game",
+        "id": "b171ea25107738416da07743812933fa",
+        "passes": 1,
+        "fails": 0
+      },
+      "Both Players discover the same game": {
+        "passes": 1,
+        "fails": 0,
+        "name": "Both Players discover the same game",
+        "path": "::Both Players discover the same game",
+        "id": "61c40efdb502f7411ada8cf41557e8a3"
+      },
+      "GET /games/:id: expected HTTP 200, got 200": {
+        "id": "685051a698c3708a1179c27c8a017498",
+        "passes": 7,
+        "fails": 0,
+        "name": "GET /games/:id: expected HTTP 200, got 200",
+        "path": "::GET /games/:id: expected HTTP 200, got 200"
+      },
+      "Game contains precisely the two fixture Players": {
+        "name": "Game contains precisely the two fixture Players",
+        "path": "::Game contains precisely the two fixture Players",
+        "id": "837f190192af6e737ce0b092e729b5dc",
+        "passes": 1,
+        "fails": 0
+      },
+      "Both participants read the same initial board": {
+        "id": "b8ef88863e96fd4b31c604bb3d8bec8e",
+        "passes": 1,
+        "fails": 0,
+        "name": "Both participants read the same initial board",
+        "path": "::Both participants read the same initial board"
+      },
+      "Accept move 1: expected HTTP 200, got 200": {
+        "name": "Accept move 1: expected HTTP 200, got 200",
+        "path": "::Accept move 1: expected HTTP 200, got 200",
+        "id": "e7a9be15b0ff1b6e7555fdbd82cc1426",
+        "passes": 1,
+        "fails": 0
+      },
+      "Move 1 advances the accepted state": {
+        "name": "Move 1 advances the accepted state",
+        "path": "::Move 1 advances the accepted state",
+        "id": "9d21336dca5e8a4d88c4e7cb23c37ee2",
+        "passes": 1,
+        "fails": 0
+      },
+      "Opponent HTTP read sees the accepted move": {
+        "fails": 0,
+        "name": "Opponent HTTP read sees the accepted move",
+        "path": "::Opponent HTTP read sees the accepted move",
+        "id": "e11c3eb841bb633c0578c7e3212fd514",
+        "passes": 4
+      },
+      "Accept move 2: expected HTTP 200, got 200": {
+        "name": "Accept move 2: expected HTTP 200, got 200",
+        "path": "::Accept move 2: expected HTTP 200, got 200",
+        "id": "f9aad1ac5764a9be81e89b63385c9580",
+        "passes": 1,
+        "fails": 0
+      },
+      "Move 2 advances the accepted state": {
+        "id": "c16c786f026563c53b44296aec4f8090",
+        "passes": 1,
+        "fails": 0,
+        "name": "Move 2 advances the accepted state",
+        "path": "::Move 2 advances the accepted state"
+      },
+      "Accept move 3: expected HTTP 200, got 200": {
+        "id": "3a9d50353ce5b0fab3069f1e8e3907f9",
+        "passes": 1,
+        "fails": 0,
+        "name": "Accept move 3: expected HTTP 200, got 200",
+        "path": "::Accept move 3: expected HTTP 200, got 200"
+      },
+      "Move 3 advances the accepted state": {
+        "id": "197da0668396f7f5e4af3691ed1aebbc",
+        "passes": 1,
+        "fails": 0,
+        "name": "Move 3 advances the accepted state",
+        "path": "::Move 3 advances the accepted state"
+      },
+      "Accept move 4: expected HTTP 200, got 200": {
+        "name": "Accept move 4: expected HTTP 200, got 200",
+        "path": "::Accept move 4: expected HTTP 200, got 200",
+        "id": "56f5cd3c32e5367736079aa66ce5a847",
+        "passes": 1,
+        "fails": 0
+      },
+      "Move 4 advances the accepted state": {
+        "name": "Move 4 advances the accepted state",
+        "path": "::Move 4 advances the accepted state",
+        "id": "d650b356503c5a958e739158e526d28e",
+        "passes": 1,
+        "fails": 0
+      },
+      "GET /games/:id/moves: expected HTTP 200, got 200": {
+        "name": "GET /games/:id/moves: expected HTTP 200, got 200",
+        "path": "::GET /games/:id/moves: expected HTTP 200, got 200",
+        "id": "a5d2cdd18bd3425d91718ac707233a83",
+        "passes": 2,
+        "fails": 0
+      },
+      "History has the expected captured version and count": {
+        "path": "::History has the expected captured version and count",
+        "id": "ff91bc65518e31d0a4c5d666023c3135",
+        "passes": 2,
+        "fails": 0,
+        "name": "History has the expected captured version and count"
+      },
+      "History entry 1 has the expected coordinates and SAN": {
+        "name": "History entry 1 has the expected coordinates and SAN",
+        "path": "::History entry 1 has the expected coordinates and SAN",
+        "id": "abaf68354b83da2a9fdbd7ba9e420efc",
+        "passes": 2,
+        "fails": 0
+      },
+      "History entry 2 has the expected coordinates and SAN": {
+        "fails": 0,
+        "name": "History entry 2 has the expected coordinates and SAN",
+        "path": "::History entry 2 has the expected coordinates and SAN",
+        "id": "c020ffb665c6f5b7b7a6d8ed9f4b1d25",
+        "passes": 2
+      },
+      "History entry 3 has the expected coordinates and SAN": {
+        "name": "History entry 3 has the expected coordinates and SAN",
+        "path": "::History entry 3 has the expected coordinates and SAN",
+        "id": "3344e8b46410e05e5b422108db93d553",
+        "passes": 2,
+        "fails": 0
+      },
+      "History entry 4 has the expected coordinates and SAN": {
+        "passes": 2,
+        "fails": 0,
+        "name": "History entry 4 has the expected coordinates and SAN",
+        "path": "::History entry 4 has the expected coordinates and SAN",
+        "id": "76ff1925579a25718ffcf6b625daaca4"
+      },
+      "History ends at the accepted board": {
+        "passes": 2,
+        "fails": 0,
+        "name": "History ends at the accepted board",
+        "path": "::History ends at the accepted board",
+        "id": "ec7eac6c5c47cf8ab0728ec8c09f45b0"
+      },
+      "White resigns: expected HTTP 200, got 200": {
+        "passes": 1,
+        "fails": 0,
+        "name": "White resigns: expected HTTP 200, got 200",
+        "path": "::White resigns: expected HTTP 200, got 200",
+        "id": "edc67a53e879d7dc0a824587415b687c"
+      },
+      "Resignation finishes the game without changing the board": {
+        "name": "Resignation finishes the game without changing the board",
+        "path": "::Resignation finishes the game without changing the board",
+        "id": "43620ef708953dd25a7ed8c0eebada6c",
+        "passes": 1,
+        "fails": 0
+      },
+      "Opponent reads the committed result": {
+        "name": "Opponent reads the committed result",
+        "path": "::Opponent reads the committed result",
+        "id": "2257da49ce89647c93b121017c06c48e",
+        "passes": 1,
+        "fails": 0
+      },
+      "Completion releases both active-game reservations": {
+        "name": "Completion releases both active-game reservations",
+        "path": "::Completion releases both active-game reservations",
+        "id": "4d1f66db9fce87d69af83a7e333dfbe4",
+        "passes": 1,
+        "fails": 0
+      },
+      "GET /players/me/statistics: expected HTTP 200, got 200": {
+        "name": "GET /players/me/statistics: expected HTTP 200, got 200",
+        "path": "::GET /players/me/statistics: expected HTTP 200, got 200",
+        "id": "071d73d197ffa198f2529874b14e635d",
+        "passes": 2,
+        "fails": 0
+      },
+      "Completion updates each Player outcome exactly once": {
+        "id": "ea284831fbb0b6d8abe31e9fa929174e",
+        "passes": 2,
+        "fails": 0,
+        "name": "Completion updates each Player outcome exactly once",
+        "path": "::Completion updates each Player outcome exactly once"
+      },
+      "Cleanup logout returns 204": {
+        "passes": 2,
+        "fails": 0,
+        "name": "Cleanup logout returns 204",
+        "path": "::Cleanup logout returns 204",
+        "id": "602d0680b7e7f24e22066a7faaf97bd6"
+      }
+    },
+    "name": "",
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e",
+    "groups": {}
+  }
+}
