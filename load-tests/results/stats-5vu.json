@@ -1,0 +1,249 @@
+{
+    "root_group": {
+        "groups": {
+            "setup": {
+                "name": "setup",
+                "path": "::setup",
+                "id": "5c0f8025f7e0b6654089e5b00e950f1a",
+                "groups": {},
+                "checks": {
+                        "setup: initialize CSRF": {
+                            "passes": 5,
+                            "fails": 0,
+                            "name": "setup: initialize CSRF",
+                            "path": "::setup::setup: initialize CSRF",
+                            "id": "4166a6e4874eba585998d1cc0dd7c831"
+                        },
+                        "setup: register Player": {
+                            "passes": 5,
+                            "fails": 0,
+                            "name": "setup: register Player",
+                            "path": "::setup::setup: register Player",
+                            "id": "d5244fd90f6e543fb4f532277f320eb6"
+                        },
+                        "setup: login": {
+                            "name": "setup: login",
+                            "path": "::setup::setup: login",
+                            "id": "ec4ee71c52d7555f58fd354a84cdd09a",
+                            "passes": 5,
+                            "fails": 0
+                        },
+                        "setup: positive Player ID": {
+                            "name": "setup: positive Player ID",
+                            "path": "::setup::setup: positive Player ID",
+                            "id": "28ff14b5f8118a981464e3f8e1d1221c",
+                            "passes": 5,
+                            "fails": 0
+                        }
+                    }
+            },
+            "teardown": {
+                "name": "teardown",
+                "path": "::teardown",
+                "id": "a8a9942382e8ffe2e56ef29e664b8229",
+                "groups": {},
+                "checks": {
+                        "teardown: initialize CSRF": {
+                            "path": "::teardown::teardown: initialize CSRF",
+                            "id": "62a29bbcddcad81d007e365b0a1a0043",
+                            "passes": 5,
+                            "fails": 0,
+                            "name": "teardown: initialize CSRF"
+                        },
+                        "teardown: logout": {
+                            "name": "teardown: logout",
+                            "path": "::teardown::teardown: logout",
+                            "id": "3a1dfa25c692bc4ae78ea57f13c2b87b",
+                            "passes": 5,
+                            "fails": 0
+                        }
+                    }
+            }
+        },
+        "checks": {
+            "Statistics response has expected status and Player data": {
+                "id": "91de0d3784b9b2f77cd17cbd4382457a",
+                "passes": 390,
+                "fails": 0,
+                "name": "Statistics response has expected status and Player data",
+                "path": "::Statistics response has expected status and Player data"
+            }
+        },
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "metrics": {
+        "checks": {
+            "passes": 420,
+            "fails": 0,
+            "thresholds": {
+                "rate==1": false
+            },
+            "value": 1
+        },
+        "iteration_duration": {
+            "avg": 1029.4855073435888,
+            "min": 1005.432681,
+            "med": 1011.1770725,
+            "max": 1769.729712,
+            "p(90)": 1026.1869623,
+            "p(95)": 1041.63869,
+            "p(99)": 1637.02273977
+        },
+        "http_req_waiting": {
+            "p(90)": 26.041973200000005,
+            "p(95)": 86.2022463999993,
+            "p(99)": 625.194343900001,
+            "avg": 28.0730387204819,
+            "min": 1.18745,
+            "med": 8.422233,
+            "max": 765.348681
+        },
+        "data_received": {
+            "count": 127380,
+            "rate": 1562.7472975444907
+        },
+        "measured_read_requests": {
+            "count": 290,
+            "rate": 3.557832597644075,
+            "thresholds": {
+                "count>0": false
+            }
+        },
+        "http_req_duration{expected_response:true}": {
+            "avg": 29.744189132530153,
+            "min": 1.246462,
+            "med": 10.241759,
+            "max": 768.506895,
+            "p(90)": 28.70785400000004,
+            "p(95)": 86.30784389999928,
+            "p(99)": 626.8552370000008
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 415,
+            "thresholds": {
+                "rate==0": false
+            },
+            "value": 0
+        },
+        "http_req_tls_handshaking": {
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "p(99)": 0,
+            "avg": 0,
+            "min": 0
+        },
+        "vus": {
+            "value": 5,
+            "min": 0,
+            "max": 5
+        },
+        "iterations": {
+            "count": 390,
+            "rate": 4.784671424417894
+        },
+        "measured_read_duration": {
+            "p(95)": 66.71762820000001,
+            "p(99)": 639.65237472,
+            "avg": 34.76570668620693,
+            "min": 4.619376,
+            "med": 10.5255285,
+            "max": 768.506895,
+            "p(90)": 29.89212300000002
+        },
+        "http_req_blocked": {
+            "p(99)": 0.3869396600000015,
+            "avg": 0.014822281927710863,
+            "min": 0.002074,
+            "med": 0.008106,
+            "max": 0.620135,
+            "p(90)": 0.009293000000000001,
+            "p(95)": 0.010019
+        },
+        "http_req_receiving": {
+            "p(95)": 3.1293042,
+            "p(99)": 5.642886500000001,
+            "avg": 1.6429427999999995,
+            "min": 0.038303,
+            "med": 1.494903,
+            "max": 21.213718,
+            "p(90)": 2.3905094000000013
+        },
+        "vus_max": {
+            "value": 5,
+            "min": 5,
+            "max": 5
+        },
+        "measured_read_failures": {
+            "passes": 0,
+            "fails": 290,
+            "thresholds": {
+                "rate==0": false
+            },
+            "value": 0
+        },
+        "http_req_duration": {
+            "avg": 29.744189132530153,
+            "min": 1.246462,
+            "med": 10.241759,
+            "max": 768.506895,
+            "p(90)": 28.70785400000004,
+            "p(95)": 86.30784389999928,
+            "p(99)": 626.8552370000008
+        },
+        "http_req_sending": {
+            "p(99)": 0.12959138000000017,
+            "avg": 0.028207612048192752,
+            "min": 0.008115,
+            "med": 0.023755,
+            "max": 0.394748,
+            "p(90)": 0.033333,
+            "p(95)": 0.0501631999999999
+        },
+        "data_sent": {
+            "count": 91465,
+            "rate": 1122.1281329086735
+        },
+        "http_reqs": {
+            "count": 415,
+            "rate": 5.091381131111349
+        },
+        "http_req_connecting": {
+            "p(95)": 0,
+            "p(99)": 0.16347122000000033,
+            "avg": 0.005328426506024097,
+            "min": 0,
+            "med": 0,
+            "max": 0.579317,
+            "p(90)": 0
+        }
+    },
+    "setup_data": {
+        "clients": [
+            {
+                "playerId": 8,
+                "sessionCookie": "ZjliMTZjOTAtMjBjOC00ZWIyLTg3ZTUtYjE5ZmVhNDEzNWNj"
+            },
+            {
+                "playerId": 9,
+                "sessionCookie": "NDZmYzk0NDItMzllNC00OTdiLTg2MGUtZDNkNmM3NjU0ZTUw"
+            },
+            {
+                "playerId": 10,
+                "sessionCookie": "NmUxMTNjZTMtN2I4ZC00OGZkLWE1NzItYjNlOWQ4M2JkNmYw"
+            },
+            {
+                "playerId": 11,
+                "sessionCookie": "YzdmNjlhZTMtZWQyYi00MTM0LTljZjctNDZjMTc0MzgyN2Jj"
+            },
+            {
+                "playerId": 12,
+                "sessionCookie": "NTM2ZTU3NTQtYjM1OS00ZGU5LWIwOWItZDBkN2QyMTk4YWRi"
+            }
+        ]
+    }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "load-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local k6 workloads for the chess backend",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "smoke:auth": "k6 run smoke-auth.ts",
+    "test:smoke": "npm run typecheck && npm run smoke:auth",
+    "baseline:stats": "npm run typecheck && k6 run read-statistics.ts",
+    "baseline:stats:1vu": "tsc --noEmit && k6 run --summary-export=results/stats-1vu.json read-statistics.ts",
+    "baseline:stats:5vu": "tsc --noEmit && VUS=5 k6 run --summary-export=results/stats-5vu.json read-statistics.ts",
+    "baseline:stats:20vu": "tsc --noEmit && VUS=20 k6 run --summary-export=results/stats-20vu.json read-statistics.ts"
+  },
+  "devDependencies": {
+    "@types/k6": "^2.3.1",
+    "typescript": "^7.0.2"
+  }
+}
