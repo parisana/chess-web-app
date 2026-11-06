@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes Day 28, reviewed on 5 November 2026 against actual user chess-web-app-day28-end.zip. See [review](day28-ui-review.md) and [handoff](day28-handoff.md). No assistant application execution. Previous main-document text is preserved in [history](history/main-documents-through-day27.md). Session/WebSocket and tab companions retain their detailed Day 27 behavior.
+This document describes the Day 28 gameplay baseline plus Day 29 setup/readability changes, inspected on 6 November 2026 against actual user chess-web-app-day29-mid.zip. See [load testing](load-testing.md) for measurements and their limits. See [review](day28-ui-review.md) and [handoff](day28-handoff.md). No assistant application execution. Previous main-document text is preserved in [history](history/main-documents-through-day27.md). Session/WebSocket and tab companions retain their detailed Day 27 behavior.
 
 ## Application structure
 
@@ -208,4 +208,12 @@ New games capture both Players' usernames/ratings through PlayerService and stor
 
 The self-only finished-games controller supplies the authenticated subject to GameQueryService. Slice pagination filters in SQL and maps saved scalar fields without per-opponent reads. Future public history needs its own authorization policy, including access to individual game details.
 
-GameClocks projects the Game-declared ChessBoard between shared clockRow templates. MoveHistoryReplay owns notation display and emits replay events; Game retains cursor, permissions, commands and reconciliation. Game actions and confirmations remain local markup; activity is feedback/future chat. See the component ownership diagram in the Day 28 review. Optional cleanup in the companion guide is not assumed applied.
+GameClocks projects the Game-declared ChessBoard between shared clockRow templates. MoveHistoryReplay owns notation display and emits replay events; Game retains cursor, permissions, commands and reconciliation. Game actions and confirmations remain local markup; activity is feedback/future chat. See the component ownership diagram in the Day 28 review. The current source applies the closing cleanup: Game.moveTokens is removed and initialization streams use named setup methods. Legal-hint setup remains called synchronously from the constructor. The external gameActions fragment receives current explicitly through NgTemplateOutletContext; it does not create another state owner. The companion guide retains its earlier proposal wording.
+
+## Day 29 load-testing boundary
+
+The loadtest profile selects port 8081, a separate chess_loadtest database and non-Secure cookies for local HTTP; ordinary credentials, schema migration and session/clock settings are inherited. TypeScript k6 scripts live outside Angular in load-tests/, with their own package/lockfile, strict noEmit compiler configuration and npm entry points. Type checking is separate from k6 execution. No application API or notification transport change is introduced by this workload.
+
+Smoke covers the real registration/login/CSRF/profile/statistics/logout flow. The statistics baseline registers distinct Players/sessions in sequential setup, then uses constant concurrent VUs with sequential reads and one-second think time per VU. Custom metrics exclude setup, warm-up and teardown. These reads do not exercise rules or full gameplay. Source/result provenance and limits are in [load testing](load-testing.md).
+
+ChessBackendApplication excludes UserDetailsServiceAutoConfiguration, removing the unused generated in-memory user. AuthService/LoginService still perform the custom authentication and explicit context persistence; SecurityFilterChain, session cookies, CSRF and socket checks remain configured. No replacement authentication architecture is introduced.

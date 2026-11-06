@@ -1,6 +1,6 @@
-# Chess Frontend — Day 28
+# Chess Frontend — Day 29 checkpoint
 
-Angular standalone frontend with Material, signals, RxJS and persistent-session authentication. Reviewed on 5 November 2026 against actual user chess-web-app-day28-end.zip. User reports everything green; no assistant build/test/browser execution.
+Angular standalone frontend with Material, signals, RxJS and persistent-session authentication. Current readability state inspected on 6 November 2026 against actual user chess-web-app-day29-mid.zip; gameplay behavior remains the Day 28 baseline. User reports everything green; no assistant build/test/browser execution.
 
 ## Development
 
@@ -30,8 +30,12 @@ Startup restores csrf/profile. AuthSessionStore holds profile/revision, while th
 
 ## Readability and verification
 
-GameClocks already uses ng-template to reuse clock rows. The closing guide recommends small Game TS cleanup; a single scoped action fragment is optional. These proposals are not applied in the source archive. See [guide](../docs/day28-readability-cleanup.md).
+GameClocks uses ng-template to reuse clock rows. The supplied source now removes unused Game.moveTokens and calls named initialization methods from constructor/ngOnInit, preserving legal-hint initialization in the constructor. Game actions use an external #gameActions fragment with let-current supplied through the outlet context. Game retains orchestration; no new state service is added. The [closing guide](../docs/day28-readability-cleanup.md) is the earlier proposal, not the current applied-status record.
 
 Source includes six auth-flow, three mocked tab-sync and four mocked matchmaking coordinator cases. This is not comprehensive rendered UI or browser acceptance. No new test is needed merely to mirror a mechanical extraction. When explicitly requested, user-run commands are npm test -- --watch=false and npm run build. Selected backend deep-read tests and unverified scenarios are in [Day 28 review](../docs/day28-ui-review.md).
 
 Chat, rematch, spectators, drag/drop, persistent check status, further replay polish and public Player history remain deferred. See [architecture](../docs/architecture.md), [contracts](../docs/api-contracts.md), [roadmap](../docs/roadmap.md) and [handoff](../docs/day28-handoff.md).
+
+## Backend load testing
+
+Day 29 k6 scripts are a separate load-tests/ project, not Angular tests. They call the loadtest backend on port 8081 directly; Angular need not run. The auth smoke and paced statistics runs do not establish rendered UI, browser/session-tab or WebSocket-client acceptance. See [load testing](../docs/load-testing.md) for commands and measured results.

@@ -1,6 +1,6 @@
-# Roadmap — after Day 28
+# Roadmap — Day 29 in progress
 
-Day 28 delivers the workspace UI, starting Player snapshots, legal hints, shared matchmaking, Games played and focused component/service separation. See [review](day28-ui-review.md), [closing cleanup](day28-readability-cleanup.md) and [handoff](day28-handoff.md). User reports everything green; no assistant application execution. The initial working-day estimate does not authorize every candidate below.
+Day 29 performance-baseline work is selected and in progress. Reviewed against actual user chess-web-app-day29-mid.zip on 6 November 2026. Authentication smoke and paced statistics reads are implemented; user-reported and saved results are in [load testing](load-testing.md). The Day 28 small readability cleanup is applied. No assistant application execution or capacity claim. See [mid-session handoff](day29-mid-handoff.md).
 
 ## Current scope
 
@@ -12,9 +12,15 @@ The shared test-profile timeout scanner follow-up from Day 26 is now applied: fa
 
 Some Offer draw/Accept draw/other buttons reportedly need another attempt. No runtime cause or fix is established. Intentional confirmation, blocking synchronization/needsRefresh, newer-snapshot confirmation clearing and HTTP 403/409 are distinct hypotheses. Investigate no-POST versus rejected POST first. User explicitly deferred changes; no silent command retry is authorized.
 
-## Choose the next milestone separately
+## Selected remaining work
 
-The optional small readability cleanup can close within Day 28; a larger Game state-service refactor is deferred. Portfolio preparation is a useful candidate now that the main end-to-end path is implemented. Other options include additional chess draws or match acceptance/abandonment. These remain choices, not authorization. Start the next major milestone in a new chat using the handoff and actual user source.
+Continue Day 29 with a single-pair game smoke flow: authenticate, pair through matchmaking, read state, make alternating legal moves and resign. Only after that passes should independent concurrent games be measured. This game workload is not yet implemented or executed. Explain measurements and document the environment; make an optimization only if supported by an observed bottleneck. Fix export handling so shareable results omit setup session data.
+
+The initial read runs do not establish production capacity. The supplied 5-VU JSON has a different and higher tail than the pasted 5-VU run; preserve both observations rather than asserting a monotonic scaling result. Prometheus/Grafana instrumentation remains optional; a broader observability stack has not been added.
+
+Day 30 is planned for a final user-run acceptance pass, small resulting fixes, screenshots/demo material, portfolio wording and release packaging. Deployment remains a separate scope decision. A larger Game state-service refactor remains deferred. No chat, rematch, public-history or extra-draw work is authorized by these plans.
+
+## Separately scoped candidates
 
 | Capability | Remaining decision |
 | --- | --- |

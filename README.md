@@ -4,9 +4,11 @@ A backend-focused chess portfolio project built as a modular monolith with conve
 
 ## Current checkpoint
 
-Day 28 delivers the warm amber workspace, saved starting Player details, legal hints, clearer actions, shared matchmaking and Games played. Source-reviewed on 5 November 2026 against actual user chess-web-app-day28-end.zip. See [review](docs/day28-ui-review.md), [readability cleanup](docs/day28-readability-cleanup.md) and [handoff](docs/day28-handoff.md).
+Day 29 is in progress: TypeScript k6 authentication smoke and paced authenticated-statistics baselines are implemented. Reviewed on 6 November 2026 against the actual user `chess-web-app-day29-mid.zip`. See [load testing and recorded results](docs/load-testing.md) and [mid-session handoff](docs/day29-mid-handoff.md).
 
-User reports everything green. No assistant tests/builds/migrations/database/browser runs; the review distinguishes inspected coverage from acceptance limits. The optional closing code cleanup is proposed, not applied to the uploaded source. Session continuity remains implemented; Angular PGN download and post-MVP replay polish remain deferred.
+The user reports a passing smoke and read runs at 1, 5 and 20 VUs. The supplied 5-VU JSON is a different run with a higher latency tail than the earlier console report; both remain visible in the results. The 20-VU export records 1,200 measured reads, zero measured failures and p95 16.31 ms. These are local paced-workload observations, not maximum capacity or production claims. The assistant inspected source/documents/JSON only and ran no application, build, test, migration or database operation.
+
+Day 28's workspace and game-discovery features remain the gameplay baseline. The closing readability cleanup is now applied: duplicate Game.moveTokens removed, initialization streams named, and an external gameActions template supplied with explicit current context. The older Day 28 review/cleanup documents retain their historical proposal status. Session continuity is implemented; PGN download UI and existing gameplay deferrals remain.
 
 ## Capabilities
 
@@ -58,6 +60,22 @@ Open http://localhost:4200. The development proxy forwards `/api/**`, including 
 
 Backend WebSocket routing is configured under `app.websocket`; matching frontend addresses and timing are in `frontend/src/app/notification/config/realtime.config.ts`. See [configuration and protocol](docs/api-contracts.md#real-time-updates).
 
+## Local load testing
+
+`backend/src/main/resources/application-loadtest.yml` selects port 8081 and database chess_loadtest, with local HTTP cookies. Start it using `SPRING_PROFILES_ACTIVE=loadtest ./gradlew bootRun` from backend/ after creating the database. The existing credentials and other settings are inherited. Angular is not needed for these HTTP workloads.
+
+From load-tests/, install the supplied lockfile with npm ci, then:
+
+```bash
+npm run test:smoke
+mkdir -p results
+VUS=1 npm run baseline:stats:1vu
+npm run baseline:stats:5vu
+npm run baseline:stats:20vu
+```
+
+These shortcuts check types before execution; smoke:auth alone runs k6 only. Read [the guide](docs/load-testing.md) for glossary, phases, exact result provenance and limits. The supplied raw summary exports contain setup_data with session cookies; remove that field in a sanitized copy before sharing or committing a summary. A game workload is next, not implemented at this checkpoint.
+
 ## Verification
 
 Day 25 suggested focused commands, not assistant-executed results:
@@ -103,6 +121,8 @@ Notifications are best-effort live hints. Accepted moves are separately persiste
 Existing games record forward from their migration-time FEN; earlier moves cannot be reconstructed. Entries recorded before SAN support retain null SAN; the inline move list uses a coordinate fallback. Replay supports available legacy positions, but PGN requires complete history, contiguous records and SAN on every move. There is no Angular PGN download button, SAN backfill, repetition/move-count/dead-position draws, acceptance stage or abandonment policy. Closing the page, disconnecting or logging out does not directly finish a game or release reservations. Timed games continue counting and can later finish by TIMEOUT. Spectators, chat, AI, external brokers and distributed deployment remain outside current scope. The custom board displays server-supplied legal-move hints and explicit illegal-move feedback; drag-and-drop and a persistent check indicator remain absent. Promotion selection may appear before a proposed promotion is rejected for king safety; this UI improvement is intentionally deferred. The local profile/revision cache is distinct from PostgreSQL-persisted authentication sessions and games/history.
 
 ## Documentation
+
+- [Load testing](docs/load-testing.md) and [Day 29 mid-session handoff](docs/day29-mid-handoff.md).
 
 - [Day 28 review](docs/day28-ui-review.md), [closing cleanup](docs/day28-readability-cleanup.md) and [handoff](docs/day28-handoff.md).
 

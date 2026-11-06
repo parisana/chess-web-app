@@ -1,12 +1,22 @@
 # Development Progress
 
-## Current checkpoint — Day 28
+## Current checkpoint — Day 29, in progress
+
+Reviewed on 6 November 2026 against the actual user chess-web-app-day29-mid.zip. Source includes loadtest-profile port 8081/separate database, TypeScript k6 smoke and paced statistics reads, npm type-check/run shortcuts and lockfile. Default in-memory Spring user auto-configuration is excluded; existing custom session/CSRF security remains configured.
+
+The user reports the smoke passing in approximately 0.7 seconds and initial reads at 1, 5 and 20 VUs. The archive includes saved 5/20-VU summaries, not a 1-VU summary. The saved 5-VU run has 290 measured reads, p95 66.72 ms and p99 639.65 ms, unlike the earlier pasted 296-read run. Both runs are retained in [load-testing.md](load-testing.md); no cause is established for the higher tail. The saved 20-VU run has 1,200 measured reads, zero measured failures and p95 16.31 ms. No capacity, bottleneck or optimization result is claimed.
+
+Raw summary exports include setup_data with session cookies. The guide corrects the earlier aggregate-only assumption and supplies a sanitized-copy procedure. No source/results file is changed by this documentation package. The assistant inspected source/docs/JSON only; no build, type check, application, database or test execution occurred.
+
+The Day 28 readability cleanup is applied: duplicate moveTokens removed, constructor/ngOnInit streams organized through named methods, and gameActions declared outside the main block with NgTemplateOutletContext. A single-pair game workload and later independent concurrent games remain next, not implemented. See [handoff](day29-mid-handoff.md).
+
+## Previous checkpoint — Day 28
 
 Reviewed on 5 November 2026 against actual user chess-web-app-day28-end.zip. Delivered shared warm amber shell (blue/green selectable in code), board-first workspace, Player/clock presentation, V15 immutable starting details, destination-square promotion icons, legal hints and rejected source/destination feedback, visible game-action confirmations, shared immediate matchmaking/current-game navigation, self-only Games played, GameCommandService/GameQueryService separation and MoveHistoryReplay extraction.
 
 User reports everything green. No assistant tests/builds/migrations/database/browser checks; no preceding-archive byte comparison or exhaustive acceptance claim. The source contains targeted snapshot, legal-hint, list and SQL-count coverage, plus four mocked matchmaking cases. Deep-read choices and measurement limits are in [review](day28-ui-review.md).
 
-The optional closing readability cleanup is proposed rather than applied: remove unused Game.moveTokens, name setup methods and optionally use one scoped game-actions template. No larger state-management refactor, chat, rematch or public-history implementation is included. Earlier click/promotion/session limits remain documented. See [cleanup](day28-readability-cleanup.md) and [handoff](day28-handoff.md).
+At the original Day 28 review, the optional closing readability cleanup was proposed rather than applied (the current Day 29 source now includes it): remove unused Game.moveTokens, name setup methods and optionally use one scoped game-actions template. No larger state-management refactor, chat, rematch or public-history implementation is included. Earlier click/promotion/session limits remain documented. See [cleanup](day28-readability-cleanup.md) and [handoff](day28-handoff.md).
 
 ## Previous checkpoint — Day 27
 
@@ -122,6 +132,9 @@ The user reports that the implementation looks good. Tests follow the standing a
 | Day 25 | Atomic Elo/statistics, V11, self-statistics API/Home card, duplicate/rollback/migration/HTTP coverage and dependency-aware fixture cleanup |
 
 | Day 26 | Server clocks, transactional TIMEOUT, V12/V13, projected clock API, live Angular countdowns and focused coverage |
+| Day 27 | Persisted session authentication, CSRF and revision-guarded tab synchronization |
+| Day 28 | Workspace UI, V15 starting identity/rating, legal hints, self-only Games played and read/command service separation |
+| Day 29, in progress | TypeScript k6 auth smoke and paced statistics reads at 1/5/20 VUs; user execution and saved-summary review documented |
 
 ## Source-confirmed test coverage — historical Day 20
 
@@ -168,4 +181,4 @@ Historical checkpoint evidence is preserved in [the archive](history/main-docume
 
 ## Scope retained from Day 22
 
-Resignation, agreed draws, replay and backend PGN export are implemented. The PGN download UI, clocks, extra rule-based draws, ratings and abandonment remain separate decisions. Day 25 ratings/statistics are now implemented; no further feature is authorized by this checkpoint. The historical Day 20/21 sections above retain their checkpoint-specific evidence.
+Resignation, agreed draws, replay and backend PGN export are implemented. The PGN download UI, extra rule-based draws and abandonment remain separate decisions. Day 25 ratings/statistics and Day 26 clocks are implemented; no further feature is authorized by this checkpoint. The historical Day 20/21 sections above retain their checkpoint-specific evidence.
