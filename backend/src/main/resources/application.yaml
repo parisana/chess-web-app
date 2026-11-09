@@ -30,6 +30,10 @@ spring:
       initialize-schema: never
       cleanup-cron: "0 * * * * *"
 app:
+  notification:
+    delivery:
+      workers: 4
+      queue-capacity: 256
   websocket:
     endpoint: /api/v1/ws
     allowed-origin: http://localhost:4200

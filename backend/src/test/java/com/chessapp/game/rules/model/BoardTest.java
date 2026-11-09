@@ -13,6 +13,22 @@ import static org.junit.jupiter.api.Assertions.*;
 class BoardTest {
 
     @Test
+    void rejectsNullSquareInInputMap() {
+        var pieces = new HashMap<Square, Piece>();
+        pieces.put(null, new Piece(PieceColor.WHITE, PieceType.KING));
+
+        assertThrows(NullPointerException.class, () -> new Board(pieces));
+    }
+
+    @Test
+    void rejectsNullPieceInInputMap() {
+        var pieces = new HashMap<Square, Piece>();
+        pieces.put(Square.fromAlgebraic("e1"), null);
+
+        assertThrows(NullPointerException.class, () -> new Board(pieces));
+    }
+
+    @Test
     void returnsPieceOnOccupiedSquare() {
         var square = Square.fromAlgebraic("e1");
         var king = new Piece(PieceColor.WHITE, PieceType.KING);

@@ -1,6 +1,7 @@
 package com.chessapp.notification.security;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
@@ -8,23 +9,46 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.support.ExecutorChannelInterceptor;
 import org.springframework.stereotype.Component;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import org.springframework.messaging.support.MessageBuilder;
+
+import java.util.concurrent.TimeUnit;
 /**
  * @author pari on 10/29/26
  */
 @Component
-@RequiredArgsConstructor
+//@RequiredArgsConstructor
+@Slf4j
 public class StompOutboundSecurityInterceptor
         implements ExecutorChannelInterceptor {
 
+    private static final String OUTBOUND_SUBMITTED_AT =
+            "chessOutboundSubmittedAtNanos";
+
     private final WebSocketSessionAccess sessionAccess;
+    private final Timer dispatchWait;
+    private final Timer sessionValidation;
+
+    public StompOutboundSecurityInterceptor(
+            WebSocketSessionAccess sessionAccess,
+            MeterRegistry registry
+    ) {
+        this.sessionAccess = sessionAccess;
+        this.dispatchWait = registry.timer("chess.ws.outbound.dispatch.wait");
+        this.sessionValidation = registry.timer("chess.ws.outbound.session.validation");
+    }
 
     @Override
-    public Message<?> preSend(
-            Message<?> message,
-            MessageChannel channel
-    ) {
-        // Returning null from a channel interceptor prevents that message from continuing.
-        return permitted(message) ? message : null;
+    public Message<?> preSend(Message<?> message, MessageChannel channel) {
+        if (!isApplicationMessage(message)) {
+            return message;
+        }
+
+        // Stamp the handoff to the outbound executor.
+        return MessageBuilder.fromMessage(message)
+                .setHeader(OUTBOUND_SUBMITTED_AT, System.nanoTime())
+                .build();
     }
 
     @Override
@@ -33,28 +57,26 @@ public class StompOutboundSecurityInterceptor
             MessageChannel channel,
             MessageHandler handler
     ) {
-        // Check again after waiting in the outbound executor:
-        // the HTTP session may have expired or been invalidated.
-        return permitted(message) ? message : null;
-    }
-
-    private boolean permitted(Message<?> message) {
-        var type = SimpMessageHeaderAccessor.getMessageType(
-                message.getHeaders()
-        );
-
-        // Leave protocol establishment, heartbeats and cleanup alone.
-        if (type != SimpMessageType.MESSAGE) {
-            return true;
+        if (!isApplicationMessage(message)) {
+            return message;
         }
 
-        String sessionId =
-                SimpMessageHeaderAccessor.getSessionId(
-                        message.getHeaders()
-                );
+        if (message.getHeaders().get(OUTBOUND_SUBMITTED_AT) instanceof Long submittedAt) {
+            dispatchWait.record(System.nanoTime() - submittedAt, TimeUnit.NANOSECONDS);
+        }
 
-        // Fail closed for application messages without a registered,
-        // currently authenticated HTTP session.
-        return sessionAccess.canReceive(sessionId);
+        String socketId = SimpMessageHeaderAccessor.getSessionId(message.getHeaders());
+        long validationStartedAt = System.nanoTime();
+        try {
+            return sessionAccess.canReceive(socketId) ? message : null;
+        } finally {
+            sessionValidation.record(
+                    System.nanoTime() - validationStartedAt, TimeUnit.NANOSECONDS);
+        }
+    }
+
+    private static boolean isApplicationMessage(Message<?> message) {
+        return SimpMessageHeaderAccessor.getMessageType(message.getHeaders())
+                == SimpMessageType.MESSAGE;
     }
 }

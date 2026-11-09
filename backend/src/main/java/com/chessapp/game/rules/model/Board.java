@@ -1,9 +1,6 @@
 package com.chessapp.game.rules.model;
 
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.HashMap;
+import java.util.*;
 
 /**
  * @author pari on 10/24/26
@@ -12,12 +9,26 @@ public final class Board {
 
     private final Map<Square, Piece> pieces;
 
+//    public Board(Map<Square, Piece> pieces) {
+//        Objects.requireNonNull(pieces, "Board pieces are required");
+//
+//        // Copy the caller's entries into an unmodifiable map so later
+//        // changes to the input cannot change this board.
+//        this.pieces = Map.copyOf(pieces);
+//    }
     public Board(Map<Square, Piece> pieces) {
         Objects.requireNonNull(pieces, "Board pieces are required");
 
-        // Copy the caller's entries into an unmodifiable map so later
-        // changes to the input cannot change this board.
-        this.pieces = Map.copyOf(pieces);
+        // Own the snapshot so caller mutations cannot change this board.
+        var snapshot = new HashMap<>(pieces);
+
+        // Preserve Map.copyOf's rejection of null keys and values.
+        snapshot.forEach((square, piece) -> {
+            Objects.requireNonNull(square, "Board square is required");
+            Objects.requireNonNull(piece, "Board piece is required");
+        });
+
+        this.pieces = Collections.unmodifiableMap(snapshot);
     }
 
     public Optional<Piece> pieceAt(Square square) {

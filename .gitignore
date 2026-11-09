@@ -15,6 +15,7 @@ npm-debug.log*
 .idea/
 .vscode/
 *.iml
+/load-tests/results/
 
 # Operating system files
 .DS_Store

@@ -1,5 +1,6 @@
 package com.chessapp.notification.security;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.messaging.Message;
@@ -10,8 +11,8 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
 class StompOutboundSecurityInterceptorTest {
 
@@ -21,7 +22,7 @@ class StompOutboundSecurityInterceptorTest {
     @BeforeEach
     void setUp() {
         access = mock(WebSocketSessionAccess.class);
-        interceptor = new StompOutboundSecurityInterceptor(access);
+        interceptor = new StompOutboundSecurityInterceptor(access, new SimpleMeterRegistry());
     }
 
     @Test
@@ -40,14 +41,14 @@ class StompOutboundSecurityInterceptorTest {
     void rejectsMessagesForAnUnknownSession() {
         Message<?> message = applicationMessage("unknown");
 
-        assertNull(interceptor.preSend(message, null));
+        assertNull(interceptor.beforeHandle(message, null, any()));
     }
 
     @Test
     void rejectsMessagesWithoutASessionId() {
         Message<?> message = applicationMessage(null);
 
-        assertNull(interceptor.preSend(message, null));
+        assertNull(interceptor.beforeHandle(message, null, any()));
     }
 
     @Test
@@ -56,7 +57,7 @@ class StompOutboundSecurityInterceptorTest {
 
         Message<?> message = applicationMessage("session-1");
 
-        assertSame(message, interceptor.preSend(message, null));
+        verifyNoInteractions(access);
 
         // Simulate logout or expiry while waiting in the executor.
         when(access.canReceive("session-1")).thenReturn(false);

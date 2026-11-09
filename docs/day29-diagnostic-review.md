@@ -426,3 +426,17 @@ the backend for each corresponding 10/20 pool specification. This resolves the
 comparison-setting confirmation request; no raw startup-log inspection or causal
 performance proof is implied. Keep 10 as the local reference and preserve all
 four reports. No repeat run is requested solely for this confirmation.
+
+## Board lookup candidate — mixed timing result
+
+The user supplied two HashMap-snapshot candidate reports after the instructed
+constructor-only change, with pool 10 and the same 100-game workload specified.
+Each passes all 16,400 checks with 100 games, 2,000 moves and zero HTTP/gameplay
+failures. Both move medians/means are lower than the earlier Map.copyOf pool-10
+references, but tail improvement is inconsistent: candidate move p95 143.90 and
+271.59 ms versus reference 233.61/224.86 ms; candidate b p99 606.79 ms. Do not
+claim a stable tail reduction or production adoption. No updated implementation
+archive or candidate resource profile was supplied. A bounded reverse-order
+confirmation is proposed before retaining the candidate as a performance win;
+stop and record a mixed outcome if variability remains unresolved. No assistant
+application/compiler/build/test execution occurred. See [board-map experiment](day29-board-map-experiment.md).

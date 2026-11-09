@@ -1,0 +1,7 @@
+# Merge under the EXISTING app: mapping in backend/src/main/resources/application.yaml.
+# Do not create a second app: key or replace existing websocket/game settings.
+app:
+  notification:
+    delivery:
+      workers: 2
+      queue-capacity: 256

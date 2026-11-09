@@ -1,0 +1,4 @@
+{
+  "ws:stability:1": "npm run typecheck && GAMES=1 node run-k6.mjs --report results/ws-stability-1.json websocket-stability.ts",
+  "ws:stability:20": "npm run typecheck && GAMES=20 node run-k6.mjs --report results/ws-stability-20.json websocket-stability.ts"
+}

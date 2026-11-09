@@ -82,7 +82,9 @@ public class WebSocketConfig
     public void configureClientOutboundChannel(
             ChannelRegistration registration
     ) {
-        registration.interceptors(outboundSecurityInterceptor);
+        registration
+                .interceptors(outboundSecurityInterceptor)
+                .taskExecutor().corePoolSize(12);
     }
 
     @Override

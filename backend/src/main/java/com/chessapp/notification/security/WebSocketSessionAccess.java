@@ -1,6 +1,7 @@
 package com.chessapp.notification.security;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -17,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author pari on 10/29/26
  * check expiry of delivery when a subscribed client remains silent
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class WebSocketSessionAccess {
@@ -25,6 +27,16 @@ public class WebSocketSessionAccess {
 
     private final Map<String, Binding> bindings =
             new ConcurrentHashMap<>();
+
+    @EventListener
+    public void onDisconnected(SessionDisconnectEvent event) {
+        String socketId = event.getSessionId();
+        Binding binding = bindings.remove(socketId);
+        if (binding != null) {
+            log.debug("WS disconnected: socket={} playerId={} closeStatus={}",
+                    socketId, binding.playerName(), event.getCloseStatus());
+        }
+    }
 
     /**
      * Bind a WebSocket connection to the exact authenticated HTTP session.
@@ -76,17 +88,21 @@ public class WebSocketSessionAccess {
 
     public boolean canReceive(String webSocketSessionId) {
         if (webSocketSessionId == null) {
+            log.debug("WS session check rejected: missing socket session ID");
             return false;
         }
 
         Binding binding = bindings.get(webSocketSessionId);
-
         if (binding == null) {
+            log.debug("WS session check rejected: no binding for socket={}",
+                    webSocketSessionId);
             return false;
         }
 
         if (!isValid(binding)) {
             bindings.remove(webSocketSessionId, binding);
+            log.debug("WS session check rejected: invalid HTTP session for socket={} playerId={}",
+                    webSocketSessionId, binding.playerName());
             return false;
         }
 
@@ -131,12 +147,6 @@ public class WebSocketSessionAccess {
         } catch (NumberFormatException exception) {
             return false;
         }
-    }
-
-    @EventListener
-    public void onDisconnected(SessionDisconnectEvent event) {
-        // Spring may publish more than one disconnect notification.
-        bindings.remove(event.getSessionId());
     }
 
     private record Binding(

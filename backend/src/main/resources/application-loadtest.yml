@@ -13,7 +13,14 @@ spring:
       maximum-pool-size: ${LOADTEST_POOL_SIZE:10}
       minimum-idle: ${LOADTEST_POOL_SIZE:10}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+
 logging:
   level:
     # Prints configuration when the pool initializes; does not enable SQL logging.
     com.zaxxer.hikari.HikariConfig: DEBUG
+    com.chessapp.notification.security.WebSocketSessionAccess: DEBUG

@@ -25,6 +25,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.convention.TestBean;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -33,10 +34,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -51,7 +49,18 @@ class GameTimeoutIntegrationTest {
 
     private static final Instant START =
             Instant.parse("2026-11-02T08:00:00Z");
+    @TestBean(
+            name = "gameNotificationExecutor",
+            methodName = "directNotificationExecutor",
+            enforceOverride = true
+    )
+    private Executor notificationExecutor;
 
+    // These tests verify transaction boundaries with mocked delivery.
+// Complete committed fixture notifications before clearing the mock.
+    static Executor directNotificationExecutor() {
+        return Runnable::run;
+    }
     @Autowired private GameCommandService service;
     @Autowired private GameRepository repository;
     @Autowired private PlayerService playerService;

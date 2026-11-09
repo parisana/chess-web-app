@@ -29,6 +29,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.convention.TestBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import com.chessapp.notification.config.WebSocketProperties;
@@ -43,10 +44,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -61,7 +59,18 @@ class GameMoveIntegrationTest {
 
     private static final String BEFORE_WHITE_MATE =
             "7k/8/5KQ1/8/8/8/8/8 w - - 4 20";
+    @TestBean(
+            name = "gameNotificationExecutor",
+            methodName = "directNotificationExecutor",
+            enforceOverride = true
+    )
+    private Executor notificationExecutor;
 
+    // These tests verify transaction boundaries with mocked delivery.
+// Complete committed fixture notifications before clearing the mock.
+    static Executor directNotificationExecutor() {
+        return Runnable::run;
+    }
     @Autowired private GameCommandService service;
     @Autowired private GameQueryService gameQueryService;
     @Autowired private GameRepository repository;
