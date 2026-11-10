@@ -30,11 +30,12 @@ class StompOutboundSecurityInterceptorTest {
         when(access.canReceive("session-1")).thenReturn(true);
         Message<?> message = applicationMessage("session-1");
 
-        assertSame(message, interceptor.preSend(message, null));
-        assertSame(
-                message,
-                interceptor.beforeHandle(message, null, null)
-        );
+        Message<?> stamped = interceptor.preSend(message, null);
+
+        assertNotNull(stamped);
+        verifyNoInteractions(access);
+        assertSame(stamped, interceptor.beforeHandle(stamped, null, null));
+        verify(access).canReceive("session-1");
     }
 
     @Test

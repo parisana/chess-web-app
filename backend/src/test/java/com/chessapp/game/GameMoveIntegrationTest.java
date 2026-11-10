@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -706,23 +707,7 @@ class GameMoveIntegrationTest {
                     verifyNoInteractions(outboundMessages);
                 });
 
-        var update = new PlayerUpdate(
-                "GAME_UPDATED",
-                game.id(),
-                1,
-                null);
-
-        verify(outboundMessages).convertAndSendToUser(
-                white().toString(),
-                webSocketProperties.updatesDestination(),
-                update
-        );
-
-        verify(outboundMessages).convertAndSendToUser(
-                black().toString(),
-                webSocketProperties.updatesDestination(),
-                update
-        );
+        assertCommittedUpdateDelivered(reload());
 
         assertEquals(Long.valueOf(1), reload().getVersion());
     }
@@ -1383,23 +1368,7 @@ class GameMoveIntegrationTest {
         }
 
         // Only the committed command delivers a change hint.
-        var update = new PlayerUpdate(
-                "GAME_UPDATED",
-                game.id(),
-                version + 1,
-                game);
-
-        verify(outboundMessages).convertAndSendToUser(
-                white().toString(),
-                webSocketProperties.updatesDestination(),
-                update
-        );
-        verify(outboundMessages).convertAndSendToUser(
-                black().toString(),
-                webSocketProperties.updatesDestination(),
-                update
-        );
-        verifyNoMoreInteractions(outboundMessages);
+        assertCommittedUpdateDelivered(persisted);
     }
 
     private void race(Move firstMove, Move secondMove)
@@ -1655,5 +1624,34 @@ class GameMoveIntegrationTest {
                         recorded.getResultingFen()
                 )
         );
+    }
+
+    private void assertCommittedUpdateDelivered(Game persisted) {
+        var updates = ArgumentCaptor.forClass(PlayerUpdate.class);
+        var destination = webSocketProperties.updatesDestination();
+
+        verify(outboundMessages).convertAndSendToUser(
+                eq(white().toString()), eq(destination), updates.capture());
+        verify(outboundMessages).convertAndSendToUser(
+                eq(black().toString()), eq(destination), updates.capture());
+        verifyNoMoreInteractions(outboundMessages);
+
+        var delivered = updates.getAllValues();
+        var update = delivered.get(0);
+
+        assertEquals(update, delivered.get(1));
+        assertEquals("GAME_UPDATED", update.type());
+        assertEquals(persisted.getId().longValue(), update.gameId());
+        assertEquals(persisted.getVersion().longValue(), update.version());
+
+        var snapshot = update.snapshot();
+        assertNotNull(snapshot);
+        assertEquals(persisted.getId(), snapshot.id());
+        assertEquals(persisted.getVersion(), snapshot.version());
+        assertEquals(persisted.getCurrentFen(), snapshot.currentFen());
+        assertEquals(persisted.getStatus(), snapshot.status());
+        assertEquals(persisted.getResult(), snapshot.result());
+        assertEquals(persisted.getTerminationReason(), snapshot.terminationReason());
+        assertEquals(persisted.getDrawOfferedByPlayerId(), snapshot.drawOfferedByPlayerId());
     }
 }
