@@ -8,8 +8,9 @@
 
 ## MVP acceptance
 
-- Verify one two-browser game from matchmaking through completion. Refresh both
-  browsers and confirm the result, replay and rating/statistics updates.
+- [x] Verified a two-browser game from matchmaking through completion. After
+  refreshing both browsers, confirmed the result, SAN move history, replay,
+  and both players’ ratings and statistics.
 - Review the README and the two screenshots in [screenshots](screenshots/) as a
   portfolio walkthrough.
 
