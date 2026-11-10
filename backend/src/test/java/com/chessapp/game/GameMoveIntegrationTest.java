@@ -40,6 +40,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -676,8 +677,8 @@ class GameMoveIntegrationTest {
         var update = new PlayerUpdate(
                 "GAME_CREATED",
                 game.id(),
-                0
-        );
+                0,
+                null);
 
         verify(outboundMessages).convertAndSendToUser(
                 white().toString(),
@@ -708,8 +709,8 @@ class GameMoveIntegrationTest {
         var update = new PlayerUpdate(
                 "GAME_UPDATED",
                 game.id(),
-                1
-        );
+                1,
+                null);
 
         verify(outboundMessages).convertAndSendToUser(
                 white().toString(),
@@ -1051,8 +1052,8 @@ class GameMoveIntegrationTest {
         var expectedUpdate = new PlayerUpdate(
                 GameChangedEvent.Type.GAME_UPDATED.name(),
                 game.id(),
-                result.version()
-        );
+                result.version(),
+                result);
 
         verify(outboundMessages).convertAndSendToUser(
                 white().toString(),
@@ -1385,8 +1386,8 @@ class GameMoveIntegrationTest {
         var update = new PlayerUpdate(
                 "GAME_UPDATED",
                 game.id(),
-                version + 1
-        );
+                version + 1,
+                game);
 
         verify(outboundMessages).convertAndSendToUser(
                 white().toString(),

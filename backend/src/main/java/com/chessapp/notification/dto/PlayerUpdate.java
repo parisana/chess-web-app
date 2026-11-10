@@ -1,5 +1,7 @@
 package com.chessapp.notification.dto;
 
+import com.chessapp.game.dto.GameResponse;
+
 /**
  * @author pari on 10/29/26
  * A hint to read authoritative state through the protected HTTP API.
@@ -9,6 +11,6 @@ package com.chessapp.notification.dto;
 public record PlayerUpdate(
         String type,
         long gameId,
-        long version
-) {
+        long version,
+        GameResponse snapshot) {
 }

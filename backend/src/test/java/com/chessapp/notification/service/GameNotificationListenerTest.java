@@ -17,8 +17,8 @@ class GameNotificationListenerTest {
 
     private final SimpMessagingTemplate messaging = mock(SimpMessagingTemplate.class);
     private final WebSocketProperties properties = mock(WebSocketProperties.class);
-    private final GameChangedEvent event = new GameChangedEvent(42L, 1L, 2L, 7L, GameChangedEvent.Type.GAME_UPDATED);
-    private final PlayerUpdate update = new PlayerUpdate("GAME_UPDATED", 42L, 7L);
+    private final GameChangedEvent event = new GameChangedEvent(42L, 1L, 2L, 7L, GameChangedEvent.Type.GAME_UPDATED, null);
+    private final PlayerUpdate update = new PlayerUpdate("GAME_UPDATED", 42L, 7L, event.snapshot());
 
     @Test
     void submitsDeliveryWithoutSendingOnTheCallingThread() {

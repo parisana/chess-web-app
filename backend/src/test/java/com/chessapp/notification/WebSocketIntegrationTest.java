@@ -311,8 +311,8 @@ class WebSocketIntegrationTest {
         var expected = new PlayerUpdate(
                 GameChangedEvent.Type.GAME_UPDATED.name(),
                 game.id(),
-                finished.version()
-        );
+                finished.version(),
+                finished);
 
         assertUpdate(whitePeer, expected);
         assertUpdate(blackPeer, expected);
@@ -396,8 +396,8 @@ class WebSocketIntegrationTest {
         var expected = new PlayerUpdate(
                 GameChangedEvent.Type.GAME_UPDATED.name(),
                 game.id(),
-                updated.version()
-        );
+                updated.version(),
+                updated);
 
         // Positive control: publication and live delivery still work.
         assertUpdate(blackPeer, expected);
@@ -435,8 +435,8 @@ class WebSocketIntegrationTest {
                 new PlayerUpdate(
                         GameChangedEvent.Type.GAME_UPDATED.name(),
                         game.id(),
-                        updated.version()
-                )
+                        updated.version(),
+                        updated)
         );
 
         assertNoUpdate(whitePeer);

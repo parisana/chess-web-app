@@ -1,5 +1,7 @@
 package com.chessapp.game.event;
 
+import com.chessapp.game.dto.GameResponse;
+
 /**
  * @author pari on 10/29/26
  * An immutable description of a game change.
@@ -10,7 +12,8 @@ public record GameChangedEvent(
         long whitePlayerId,
         long blackPlayerId,
         long version,
-        Type type
+        Type type,
+        GameResponse snapshot
 ) {
 
     public enum Type {

@@ -2,6 +2,11 @@
 
 Angular standalone frontend with Material, signals, RxJS and persistent-session authentication. Current readability state inspected on 6 November 2026 against actual user chess-web-app-day29-mid.zip; gameplay behavior remains the Day 28 baseline. User reports everything green; no assistant build/test/browser execution.
 
+## UI TODOs
+
+- [ ] Add a rotating hourglass beside the clock of the Player whose turn it is.
+      Switch it when the turn changes and stop it when the clock is paused or the game ends.
+
 ## Development
 
 From frontend/, use compatible Node tooling, npm ci after dependency changes, and npm start. The start script runs the development server and development compilation; a separate production build is not required before starting it. npm run build produces production output for deployment or an explicit production-build check. Development proxy.conf.json forwards /api and WebSocket upgrades to port 8080; restart after proxy changes.

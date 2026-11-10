@@ -7,6 +7,10 @@
 .board-surface {
   position: relative;
   border: 2px solid var(--chess-border);
+  box-sizing: border-box;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  container-type: inline-size;
 }
 
 .board-surface:focus-visible {
@@ -19,6 +23,13 @@
   table-layout: fixed;
   border-collapse: collapse;
   border: 0;
+  position: absolute;
+  inset: 0;
+  height: 100%;
+}
+
+.board tr {
+  height: 12.5%;
 }
 
 caption {
@@ -31,6 +42,7 @@ td {
   padding: 0;
   background: var(--chess-board-light);
   color: #211c18;
+  position: relative;
 }
 
 td.dark {
@@ -38,18 +50,19 @@ td.dark {
 }
 
 .square-content {
-  position: relative;
+  position: absolute;
   display: flex;
   align-items: center;
   justify-content: center;
+  inset: 0;
   width: 100%;
+  height: 100%;
   padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: inherit;
   font: inherit;
-  aspect-ratio: 1;
   cursor: pointer;
 }
 
@@ -77,7 +90,7 @@ td.dark {
 
 .piece {
   font-family: "DejaVu Sans", "Segoe UI Symbol", serif;
-  font-size: clamp(1.5rem, 5vw, 4rem);
+  font-size: clamp(0.75rem, 9cqw, 4rem);
   line-height: 1;
 }
 
@@ -122,7 +135,7 @@ td.dark {
   background: transparent;
   color: #17191c;
   font-family: "DejaVu Sans", "Segoe UI Symbol", serif;
-  font-size: clamp(1.5rem, 5vw, 4rem);
+  font-size: clamp(0.75rem, 9cqw, 4rem);
   line-height: 1;
   cursor: pointer;
 }

@@ -75,7 +75,7 @@ export class Game implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly gameApi = inject(GameApiService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly refreshRequests = new Subject<void>();
+  private readonly refreshRequests = new Subject<'game' | 'history'>();
 
   readonly game = signal<GameResponse | null>(null);
   readonly loading = signal(false);
@@ -87,6 +87,7 @@ export class Game implements OnInit {
   readonly moveMessage = signal<string | null>(null);
   readonly history = signal<GameHistoryResponse | null>(null);
   readonly historyLoading = signal(false);
+  private historyReadPending = false;
   readonly historyError = signal<string | null>(null);
   readonly pendingLifecycleConfirmation = signal<GameLifecycleAction | null>(null);
 
@@ -401,7 +402,7 @@ export class Game implements OnInit {
       return;
     }
 
-    this.requestSynchronization(true);
+    this.requestSynchronization('block-moves');
   }
 
   resultText(game: GameResponse): string {
@@ -643,9 +644,13 @@ export class Game implements OnInit {
         this.clockSnapshot.set(snapshot.clock);
         this.game.set(snapshot);
 
-        // Lifecycle changes also advance history's captured game version,
-        // even when the recorded move list itself has not changed.
-        this.requestSynchronization(false);
+        if (snapshot.version < this.latestNotifiedVersion) {
+          this.requestSynchronization('block-moves');
+          return;
+        }
+
+        this.historyReadPending = true;
+        this.schedulePendingRead();
       },
       error: (error: unknown) => {
         if (this.game() !== current) {
@@ -665,11 +670,18 @@ export class Game implements OnInit {
           });
         }
         this.handleCommandError(error);
+        // a rejected command shouldn't strand a newer update that arrived during submission
+        const accessLost = error instanceof HttpErrorResponse &&
+          (error.status === 401 || error.status === 403 || error.status === 404);
+
+        if (!accessLost && this.latestNotifiedVersion > current.version) {
+          this.requestSynchronization('block-moves');
+        }
       },
     });
   }
 
-  private requestSynchronization(blockMoves: boolean): void {
+  private requestSynchronization(mode: 'background' | 'block-moves'): void {
     if (
       this.destroyRef.destroyed ||
       this.activeGameId === null ||
@@ -678,7 +690,7 @@ export class Game implements OnInit {
       return;
     }
 
-    if (blockMoves) {
+    if (mode === 'block-moves') {
       this.needsRefresh.set(true);
       this.pendingPromotion.set(null);
       this.pendingLifecycleConfirmation.set(null);
@@ -699,7 +711,7 @@ export class Game implements OnInit {
       this.readScheduled = false;
 
       if (
-        !this.readPending ||
+        (!this.readPending && !this.historyReadPending) ||
         this.reading ||
         this.submitting() ||
         this.destroyRef.destroyed ||
@@ -709,8 +721,10 @@ export class Game implements OnInit {
         return;
       }
 
+      const kind = this.readPending ? 'game' : 'history';
       this.readPending = false;
-      this.refreshRequests.next();
+      this.historyReadPending = false;
+      this.refreshRequests.next(kind);
     });
   }
 
@@ -796,7 +810,19 @@ export class Game implements OnInit {
       );
     });
   }
+  private readHistoryOnly(gameId: number): Observable<GameHistoryResponse | null> {
+    return defer(() => {
+      this.reading = true;
 
+      return this.readHistorySnapshot(gameId).pipe(
+        takeUntil(this.cancelReads),
+        finalize(() => {
+          this.reading = false;
+          this.schedulePendingRead();
+        }),
+      );
+    });
+  }
   private readHistorySnapshot(gameId: number,): Observable<GameHistoryResponse | null> {
     return defer(() => {
       this.historyLoading.set(true);
@@ -822,7 +848,7 @@ export class Game implements OnInit {
               history.version,
             );
 
-            this.requestSynchronization(true);
+            this.requestSynchronization('block-moves');
             return;
           }
 
@@ -885,7 +911,7 @@ export class Game implements OnInit {
           'Checking the latest game; the action will not be retried.',
         );
 
-        this.requestSynchronization(true);
+        this.requestSynchronization('block-moves');
         return;
       }
 
@@ -900,7 +926,7 @@ export class Game implements OnInit {
         this.moveMessage.set(
           'The request was invalid. Refresh the game before trying again.',
         );
-        this.requestSynchronization(true);
+        this.requestSynchronization('block-moves');
         return;
       }
 
@@ -921,7 +947,7 @@ export class Game implements OnInit {
       'The action could not be confirmed. Checking the latest game; ' +
       'the action will not be retried.',
     );
-    this.requestSynchronization(true);
+    this.requestSynchronization('block-moves');
   }
 
   private describeError(error: unknown): string {
@@ -1021,7 +1047,7 @@ export class Game implements OnInit {
                     hints.gameId === scope.gameId &&
                     hints.version > scope.version
                   ) {
-                    this.requestSynchronization(true);
+                    this.requestSynchronization('block-moves');
                   }
 
                   return;
@@ -1060,6 +1086,7 @@ export class Game implements OnInit {
         this.activeGameId = null;
         this.latestNotifiedVersion = -1;
         this.readPending = false;
+        this.historyReadPending = false;
 
         this.hintRouteRevision.update(value => value + 1);
         this.legalMoveHints.set(null);
@@ -1092,12 +1119,14 @@ export class Game implements OnInit {
         this.activeGameId = gameId;
         this.validGameId.set(true);
 
+        // A full read takes priority because it already includes history.
         return this.refreshRequests.pipe(
-          startWith(undefined),
-
-          // Only one GET runs for this route at a time.
-          // Additional work is remembered by readPending.
-          exhaustMap(() => this.readSnapshot(gameId)),
+          startWith('game' as const),
+          exhaustMap(kind =>
+            kind === 'game'
+              ? this.readSnapshot(gameId)
+              : this.readHistoryOnly(gameId),
+          ),
         );
       }),
       takeUntilDestroyed(this.destroyRef),
@@ -1124,8 +1153,29 @@ export class Game implements OnInit {
         update.version,
       );
 
+      const snapshot = update.snapshot;
+
+      if (this.submitting() && snapshot) {
+        // The POST callback compares its response with latestNotifiedVersion.
+        // Keep its starting snapshot in place until the command resolves.
+        return;
+      }
+
+      if (!current || !snapshot || snapshot.version < this.latestNotifiedVersion) {
+        this.requestSynchronization('block-moves');
+        return;
+      }
+
       this.pendingPromotion.set(null);
-      this.requestSynchronization(true);
+      this.pendingLifecycleConfirmation.set(null);
+      this.clockSnapshot.set(snapshot.clock);
+      this.game.set(snapshot);
+      this.needsRefresh.set(false);
+      this.errorMessage.set(null);
+      this.moveMessage.set(null);
+
+      this.historyReadPending = true;
+      this.schedulePendingRead();
     });
   }
 
@@ -1134,7 +1184,7 @@ export class Game implements OnInit {
       takeUntilDestroyed(this.destroyRef),
     ).subscribe(() => {
       // Initial connection and reconnect may follow missed notifications.
-      this.requestSynchronization(true);
+      this.requestSynchronization('block-moves');
     });
   }
 
@@ -1147,7 +1197,7 @@ export class Game implements OnInit {
     ).pipe(
       takeUntilDestroyed(this.destroyRef),
     ).subscribe(() => {
-      this.requestSynchronization(true);
+      this.requestSynchronization('block-moves');
     });
   }
 
@@ -1166,9 +1216,9 @@ export class Game implements OnInit {
       }),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe(() => {
-      // A safety read does not disable the board or cancel promotion.
-      // An actual newer snapshot will update them if necessary.
-      this.requestSynchronization(false);
+      // A periodic check doesn't set needsRefresh or clear pending actions.
+      // If the read finds a newer version, applying it clears those actions.
+      this.requestSynchronization('background');
     });
   }
 }

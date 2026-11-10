@@ -136,7 +136,7 @@ public class GameCommandService {
         }
         publishGameChanged(
                 savedGame,
-                GameChangedEvent.Type.GAME_CREATED
+                GameChangedEvent.Type.GAME_CREATED, null
         );
         return GameResponse.from(savedGame, clock.instant());
     }
@@ -248,11 +248,12 @@ public class GameCommandService {
         );
         releaseReservationsIfFinished(game);
         publishGameFinishedIfNecessary(game); // handles updating of ratings synchronously
-        publishGameChanged(game, GameChangedEvent.Type.GAME_UPDATED);
+        final Instant calculatedAt = clock.instant();
+        publishGameChanged(game, GameChangedEvent.Type.GAME_UPDATED, GameResponse.from(game, calculatedAt));
 
         // All writes still belong to this transaction.
         // Notifications are delivered only after its enclosing transaction commits.
-        return GameMoveResult.from(game, assessment, clock.instant());
+        return GameMoveResult.from(game, assessment, calculatedAt);
     }
 
     /**
@@ -448,17 +449,17 @@ public class GameCommandService {
      */
     private void publishGameChanged(
             Game game,
-            GameChangedEvent.Type type
+            GameChangedEvent.Type type,
+            GameResponse grSnapshot
     ) {
-        eventPublisher.publishEvent(
-                new GameChangedEvent(
-                        game.getId(),
-                        game.getWhitePlayerId(),
-                        game.getBlackPlayerId(),
-                        game.getVersion(),
-                        type
-                )
-        );
+        eventPublisher.publishEvent(new GameChangedEvent(
+                game.getId(),
+                game.getWhitePlayerId(),
+                game.getBlackPlayerId(),
+                game.getVersion(),
+                type,
+                grSnapshot
+        ));
     }
 
     /**
@@ -522,9 +523,10 @@ public class GameCommandService {
         flushGameOrRejectConflict();
         releaseReservationsIfFinished(game);
         publishGameFinishedIfNecessary(game); // handles updating player ratings synchronously using spring-events
-        publishGameChanged(game, GameChangedEvent.Type.GAME_UPDATED);
+        var snapshot = GameResponse.from(game, clock.instant());
+        publishGameChanged(game, GameChangedEvent.Type.GAME_UPDATED, snapshot);
 
-        return GameResponse.from(game, clock.instant());
+        return snapshot;
     }
 
     /**

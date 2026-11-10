@@ -44,7 +44,7 @@ public class GameNotificationListener {
     }
 
     private void deliver(GameChangedEvent event) {
-        var update = new PlayerUpdate(event.type().name(), event.gameId(), event.version());
+        var update = new PlayerUpdate(event.type().name(), event.gameId(), event.version(), event.snapshot());
         notifyPlayer(event.whitePlayerId(), update);
         notifyPlayer(event.blackPlayerId(), update);
     }
