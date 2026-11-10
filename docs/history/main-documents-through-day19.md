@@ -12,7 +12,7 @@ Relative file links are adjusted for this archive location. Original heading tex
 
 #### Day 19 current checkpoint — source-reviewed, 29 October 2026
 
-Reviewed the actual user archive `chess-web-app-day19-end.zip` against `chess-web-app-day18-end.zip`. No blocking defect was found in the reviewed Day 19 changes. Two small follow-ups are supplied inline and recorded in [the review](../day19-frontend-gameplay.md): add a submission guard to Game.refresh() and clear obsolete move feedback after a successful GET. They are not applied to production source by this documentation package.
+Reviewed the actual user archive `chess-web-app-day19-end.zip` against `chess-web-app-day18-end.zip`. No blocking defect was found in the reviewed Day 19 changes. Two small follow-ups are supplied inline and recorded in [the review](day19-frontend-gameplay.md): add a submission guard to Game.refresh() and clear obsolete move feedback after a successful GET. They are not applied to production source by this documentation package.
 
 The Angular frontend now supports guarded matched-game navigation, participant-protected game reads, a custom Player-oriented click-to-move board, explicit promotion including cancellation, versioned move submission, manual refresh, stale-state reload without command retry, uncertain-outcome blocking and completion feedback. Game and ChessBoard use separate TypeScript, HTML and CSS files.
 
@@ -20,7 +20,7 @@ The backend tree is byte-for-byte unchanged from the Day 18 archive. No new endp
 
 Tests are treated as green under the standing instruction to report failures. The assistant ran no application tests, builds, migrations or browser acceptance checks, and claims no separately verified frontend build/manual result. Source inspection is the evidence for this review.
 
-See [frontend gameplay flow](../frontend-gameplay-flow.md) for the lifecycle and Angular coordination, [Day 19 review](../day19-frontend-gameplay.md) for findings and [next-session handoff](../day19-handoff.md) for continuation. Earlier Day sections retain historical boundaries and do not override this checkpoint.
+See [frontend gameplay flow](frontend-gameplay-flow.md) for the lifecycle and Angular coordination, [Day 19 review](day19-frontend-gameplay.md) for findings and next-session handoff for continuation. Earlier Day sections retain historical boundaries and do not override this checkpoint.
 
 History, real-time delivery, clocks, additional draw rules, acceptance and disconnect/abandonment policy remain separate scope decisions. A board library is optional post-MVP polish, not an MVP requirement.
 
@@ -30,13 +30,13 @@ Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` agai
 
 `GameService.submitMove(gameId, requestingPlayerId, expectedVersion, move)` now coordinates participant/turn checks, exact legal application, resulting-position assessment, current-FEN persistence, stale/concurrent-command rejection and atomic checkmate/stalemate completion with reservation release. `GameMoveResult.from(game, assessment)` owns mechanical result mapping; `Game.finish()` calls its extracted switch-based `validateResult()`. There is no separate production GameMoveService.
 
-V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](../day17-gameplay-service.md).
+V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](day17-gameplay-service.md).
 
 Day 16 and earlier milestone sections below retain historical behavior/evidence. Their initial-only and pending-gameplay descriptions do not override this checkpoint. The earlier closing-test passing-status uncertainty is retained as historical provenance; current test status follows the user's later standing instruction.
 
 ##### Historical Day 16 review provenance
 
-Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](../day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
+Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
 
 The Day 16 section describes the inspected implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
 
@@ -126,21 +126,21 @@ Pairing runs on join. Sessions remain in memory, so browser reload requires logi
 
 #### Documentation
 
-- [Frontend gameplay lifecycle and Angular flow](../frontend-gameplay-flow.md)
-- [Day 19 source review](../day19-frontend-gameplay.md)
-- [After Day 19 handoff](../day19-handoff.md)
+- [Frontend gameplay lifecycle and Angular flow](frontend-gameplay-flow.md)
+- [Day 19 source review](day19-frontend-gameplay.md)
+- After Day 19 handoff
 
 - [Architecture](../architecture.md)
-- [Development progress and verification](../development-progress.md)
+- [Development progress and verification](development-progress.md)
 - [Roadmap](../roadmap.md)
 - [API contracts](../api-contracts.md)
 - [Frontend setup and behavior](../../frontend/README.md)
-- [Movement pipeline walkthrough](../movement-pipeline-architecture.md)
-- [Day 17 implementation and review](../day17-gameplay-service.md)
-- [After Day 17 handoff](../day18-handoff.md)
-- [After Day 16 handoff — historical](../day17-handoff.md)
-- [Day 16 closing checks](../day16-closing-checks.md)
-- [Post-Day-16 source review and proposed integration scope](../post-day16-integration-proposal.md) — historical proposal; its larger service option was selected and implemented.
+- [Movement pipeline walkthrough](movement-pipeline-architecture.md)
+- [Day 17 implementation and review](day17-gameplay-service.md)
+- After Day 17 handoff
+- After Day 16 handoff — historical
+- [Day 16 closing checks](day16-closing-checks.md)
+- [Post-Day-16 source review and proposed integration scope](post-day16-integration-proposal.md) — historical proposal; its larger service option was selected and implemented.
 
 #### Day 13 completed checkpoint — historical, 27 October 2026
 
@@ -187,7 +187,7 @@ Position-wide enumeration reuses the existing single-source filtering body. Posi
 
 Angular 21 standalone application with Angular Material, signals, reactive forms and in-memory authentication. Reviewed against chess-web-app-day19-end.zip. The frontend implements a custom click-to-move board; no chessboard library dependency remains.
 
-No blocking defect was found in the reviewed Day 19 changes. Two minor guard/message follow-ups are supplied inline and have not been silently applied. See [review findings](../day19-frontend-gameplay.md). Tests follow the standing user instruction; no assistant tests/builds or browser checks were run.
+No blocking defect was found in the reviewed Day 19 changes. Two minor guard/message follow-ups are supplied inline and have not been silently applied. See [review findings](day19-frontend-gameplay.md). Tests follow the standing user instruction; no assistant tests/builds or browser checks were run.
 
 #### Run locally
 
@@ -247,11 +247,11 @@ Keep backend legality authoritative and frontend testing minimal. New game/board
 
 #### Documentation
 
-- [Gameplay flow and Angular coordination](../frontend-gameplay-flow.md)
-- [Day 19 source review](../day19-frontend-gameplay.md)
+- [Gameplay flow and Angular coordination](frontend-gameplay-flow.md)
+- [Day 19 source review](day19-frontend-gameplay.md)
 - [API contracts](../api-contracts.md)
 - [Architecture](../architecture.md)
-- [Progress](../development-progress.md)
+- [Progress](development-progress.md)
 - [Roadmap](../roadmap.md)
 
 
@@ -263,7 +263,7 @@ Keep backend legality authoritative and frontend testing minimal. New game/board
 
 #### Day 19 current checkpoint — source-reviewed, 29 October 2026
 
-Reviewed the actual user archive `chess-web-app-day19-end.zip` against `chess-web-app-day18-end.zip`. No blocking defect was found in the reviewed Day 19 changes. Two small follow-ups are supplied inline and recorded in [the review](../day19-frontend-gameplay.md): add a submission guard to Game.refresh() and clear obsolete move feedback after a successful GET. They are not applied to production source by this documentation package.
+Reviewed the actual user archive `chess-web-app-day19-end.zip` against `chess-web-app-day18-end.zip`. No blocking defect was found in the reviewed Day 19 changes. Two small follow-ups are supplied inline and recorded in [the review](day19-frontend-gameplay.md): add a submission guard to Game.refresh() and clear obsolete move feedback after a successful GET. They are not applied to production source by this documentation package.
 
 The Angular frontend now supports guarded matched-game navigation, participant-protected game reads, a custom Player-oriented click-to-move board, explicit promotion including cancellation, versioned move submission, manual refresh, stale-state reload without command retry, uncertain-outcome blocking and completion feedback. Game and ChessBoard use separate TypeScript, HTML and CSS files.
 
@@ -271,7 +271,7 @@ The backend tree is byte-for-byte unchanged from the Day 18 archive. No new endp
 
 Tests are treated as green under the standing instruction to report failures. The assistant ran no application tests, builds, migrations or browser acceptance checks, and claims no separately verified frontend build/manual result. Source inspection is the evidence for this review.
 
-See [frontend gameplay flow](../frontend-gameplay-flow.md) for the lifecycle and Angular coordination, [Day 19 review](../day19-frontend-gameplay.md) for findings and [next-session handoff](../day19-handoff.md) for continuation. Earlier Day sections retain historical boundaries and do not override this checkpoint.
+See [frontend gameplay flow](frontend-gameplay-flow.md) for the lifecycle and Angular coordination, [Day 19 review](day19-frontend-gameplay.md) for findings and next-session handoff for continuation. Earlier Day sections retain historical boundaries and do not override this checkpoint.
 
 History, real-time delivery, clocks, additional draw rules, acceptance and disconnect/abandonment policy remain separate scope decisions. A board library is optional post-MVP polish, not an MVP requirement.
 
@@ -295,7 +295,7 @@ No migration, runtime configuration, rules implementation or frontend
 implementation changes are included. History, frontend gameplay, real-time
 delivery, clocks and disconnect policy remain pending.
 
-See [Day 18 HTTP gameplay](../day18-http-gameplay.md) for the contract and coverage.
+See [Day 18 HTTP gameplay](day18-http-gameplay.md) for the contract and coverage.
 Earlier checkpoint sections describe historical boundaries.
 
 #### Day 17 checkpoint — historical source review, 28 October 2026
@@ -304,13 +304,13 @@ Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` agai
 
 `GameService.submitMove(gameId, requestingPlayerId, expectedVersion, move)` now coordinates participant/turn checks, exact legal application, resulting-position assessment, current-FEN persistence, stale/concurrent-command rejection and atomic checkmate/stalemate completion with reservation release. `GameMoveResult.from(game, assessment)` owns mechanical result mapping; `Game.finish()` calls its extracted switch-based `validateResult()`. There is no separate production GameMoveService.
 
-V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](../day17-gameplay-service.md).
+V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](day17-gameplay-service.md).
 
 Day 16 and earlier milestone sections below retain historical behavior/evidence. Their initial-only and pending-gameplay descriptions do not override this checkpoint. The earlier closing-test passing-status uncertainty is retained as historical provenance; current test status follows the user's later standing instruction.
 
 ##### Historical Day 16 review provenance
 
-Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](../day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
+Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
 
 The Day 16 section describes the inspected implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
 
@@ -740,7 +740,7 @@ Movement remains internal pure Java code. `ChessRules` exposes only `initialPosi
 
 #### Day 19 current checkpoint — source-reviewed, 29 October 2026
 
-Reviewed the actual user archive `chess-web-app-day19-end.zip` against `chess-web-app-day18-end.zip`. No blocking defect was found in the reviewed Day 19 changes. Two small follow-ups are supplied inline and recorded in [the review](../day19-frontend-gameplay.md): add a submission guard to Game.refresh() and clear obsolete move feedback after a successful GET. They are not applied to production source by this documentation package.
+Reviewed the actual user archive `chess-web-app-day19-end.zip` against `chess-web-app-day18-end.zip`. No blocking defect was found in the reviewed Day 19 changes. Two small follow-ups are supplied inline and recorded in [the review](day19-frontend-gameplay.md): add a submission guard to Game.refresh() and clear obsolete move feedback after a successful GET. They are not applied to production source by this documentation package.
 
 The Angular frontend now supports guarded matched-game navigation, participant-protected game reads, a custom Player-oriented click-to-move board, explicit promotion including cancellation, versioned move submission, manual refresh, stale-state reload without command retry, uncertain-outcome blocking and completion feedback. Game and ChessBoard use separate TypeScript, HTML and CSS files.
 
@@ -748,7 +748,7 @@ The backend tree is byte-for-byte unchanged from the Day 18 archive. No new endp
 
 Tests are treated as green under the standing instruction to report failures. The assistant ran no application tests, builds, migrations or browser acceptance checks, and claims no separately verified frontend build/manual result. Source inspection is the evidence for this review.
 
-See [frontend gameplay flow](../frontend-gameplay-flow.md) for the lifecycle and Angular coordination, [Day 19 review](../day19-frontend-gameplay.md) for findings and [next-session handoff](../day19-handoff.md) for continuation. Earlier Day sections retain historical boundaries and do not override this checkpoint.
+See [frontend gameplay flow](frontend-gameplay-flow.md) for the lifecycle and Angular coordination, [Day 19 review](day19-frontend-gameplay.md) for findings and next-session handoff for continuation. Earlier Day sections retain historical boundaries and do not override this checkpoint.
 
 History, real-time delivery, clocks, additional draw rules, acceptance and disconnect/abandonment policy remain separate scope decisions. A board library is optional post-MVP polish, not an MVP requirement.
 
@@ -772,7 +772,7 @@ No migration, runtime configuration, rules implementation or frontend
 implementation changes are included. History, frontend gameplay, real-time
 delivery, clocks and disconnect policy remain pending.
 
-See [Day 18 HTTP gameplay](../day18-http-gameplay.md) for the contract and coverage.
+See [Day 18 HTTP gameplay](day18-http-gameplay.md) for the contract and coverage.
 Earlier checkpoint sections describe historical boundaries.
 
 #### Day 17 checkpoint — historical source review, 28 October 2026
@@ -781,13 +781,13 @@ Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` agai
 
 `GameService.submitMove(gameId, requestingPlayerId, expectedVersion, move)` now coordinates participant/turn checks, exact legal application, resulting-position assessment, current-FEN persistence, stale/concurrent-command rejection and atomic checkmate/stalemate completion with reservation release. `GameMoveResult.from(game, assessment)` owns mechanical result mapping; `Game.finish()` calls its extracted switch-based `validateResult()`. There is no separate production GameMoveService.
 
-V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](../day17-gameplay-service.md).
+V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](day17-gameplay-service.md).
 
 Day 16 and earlier milestone sections below retain historical behavior/evidence. Their initial-only and pending-gameplay descriptions do not override this checkpoint. The earlier closing-test passing-status uncertainty is retained as historical provenance; current test status follows the user's later standing instruction.
 
 ##### Historical Day 16 review provenance
 
-Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](../day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
+Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
 
 The Day 16 section describes the inspected implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
 
@@ -810,7 +810,7 @@ Source-confirmed coverage through increment 2, for which the user reports all te
 
 The facade tests do not independently exercise every replacement type for every promotion geometry; lower-level existing promotion tests provide that broader matrix. Coverage statements above describe inspected test source plus the user's earlier passing report; they do not establish an independent run.
 
-Both closing checks are present: StandardChessRulesTest rejects missing/duplicate kings across lookup/application/evaluation, and GameRulesConfigTest constructs the production bean graph without Boot/database infrastructure and checks all six strategy sources. Their passing status has not been explicitly reported after their addition. See [day16-closing-checks.md](../day16-closing-checks.md).
+Both closing checks are present: StandardChessRulesTest rejects missing/duplicate kings across lookup/application/evaluation, and GameRulesConfigTest constructs the production bean graph without Boot/database infrastructure and checks all six strategy sources. Their passing status has not been explicitly reported after their addition. See [day16-closing-checks.md](day16-closing-checks.md).
 
 Focused local commands from backend/:
 
@@ -1175,7 +1175,7 @@ Position-wide enumeration and position assessment are implemented internally. `g
 
 #### Day 19 current checkpoint — source-reviewed, 29 October 2026
 
-Reviewed the actual user archive `chess-web-app-day19-end.zip` against `chess-web-app-day18-end.zip`. No blocking defect was found in the reviewed Day 19 changes. Two small follow-ups are supplied inline and recorded in [the review](../day19-frontend-gameplay.md): add a submission guard to Game.refresh() and clear obsolete move feedback after a successful GET. They are not applied to production source by this documentation package.
+Reviewed the actual user archive `chess-web-app-day19-end.zip` against `chess-web-app-day18-end.zip`. No blocking defect was found in the reviewed Day 19 changes. Two small follow-ups are supplied inline and recorded in [the review](day19-frontend-gameplay.md): add a submission guard to Game.refresh() and clear obsolete move feedback after a successful GET. They are not applied to production source by this documentation package.
 
 The Angular frontend now supports guarded matched-game navigation, participant-protected game reads, a custom Player-oriented click-to-move board, explicit promotion including cancellation, versioned move submission, manual refresh, stale-state reload without command retry, uncertain-outcome blocking and completion feedback. Game and ChessBoard use separate TypeScript, HTML and CSS files.
 
@@ -1183,7 +1183,7 @@ The backend tree is byte-for-byte unchanged from the Day 18 archive. No new endp
 
 Tests are treated as green under the standing instruction to report failures. The assistant ran no application tests, builds, migrations or browser acceptance checks, and claims no separately verified frontend build/manual result. Source inspection is the evidence for this review.
 
-See [frontend gameplay flow](../frontend-gameplay-flow.md) for the lifecycle and Angular coordination, [Day 19 review](../day19-frontend-gameplay.md) for findings and [next-session handoff](../day19-handoff.md) for continuation. Earlier Day sections retain historical boundaries and do not override this checkpoint.
+See [frontend gameplay flow](frontend-gameplay-flow.md) for the lifecycle and Angular coordination, [Day 19 review](day19-frontend-gameplay.md) for findings and next-session handoff for continuation. Earlier Day sections retain historical boundaries and do not override this checkpoint.
 
 History, real-time delivery, clocks, additional draw rules, acceptance and disconnect/abandonment policy remain separate scope decisions. A board library is optional post-MVP polish, not an MVP requirement.
 
@@ -1207,7 +1207,7 @@ No migration, runtime configuration, rules implementation or frontend
 implementation changes are included. History, frontend gameplay, real-time
 delivery, clocks and disconnect policy remain pending.
 
-See [Day 18 HTTP gameplay](../day18-http-gameplay.md) for the contract and coverage.
+See [Day 18 HTTP gameplay](day18-http-gameplay.md) for the contract and coverage.
 Earlier checkpoint sections describe historical boundaries.
 
 #### Day 17 checkpoint — historical source review, 28 October 2026
@@ -1216,13 +1216,13 @@ Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` agai
 
 `GameService.submitMove(gameId, requestingPlayerId, expectedVersion, move)` now coordinates participant/turn checks, exact legal application, resulting-position assessment, current-FEN persistence, stale/concurrent-command rejection and atomic checkmate/stalemate completion with reservation release. `GameMoveResult.from(game, assessment)` owns mechanical result mapping; `Game.finish()` calls its extracted switch-based `validateResult()`. There is no separate production GameMoveService.
 
-V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](../day17-gameplay-service.md).
+V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](day17-gameplay-service.md).
 
 Day 16 and earlier milestone sections below retain historical behavior/evidence. Their initial-only and pending-gameplay descriptions do not override this checkpoint. The earlier closing-test passing-status uncertainty is retained as historical provenance; current test status follows the user's later standing instruction.
 
 ##### Historical Day 16 review provenance
 
-Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](../day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
+Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
 
 The Day 16 section describes the inspected implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
 
@@ -1325,7 +1325,7 @@ Movement remains internal pure Java code. `ChessRules` exposes only `initialPosi
 
 #### Day 19 current checkpoint — source-reviewed, 29 October 2026
 
-Reviewed the actual user archive `chess-web-app-day19-end.zip` against `chess-web-app-day18-end.zip`. No blocking defect was found in the reviewed Day 19 changes. Two small follow-ups are supplied inline and recorded in [the review](../day19-frontend-gameplay.md): add a submission guard to Game.refresh() and clear obsolete move feedback after a successful GET. They are not applied to production source by this documentation package.
+Reviewed the actual user archive `chess-web-app-day19-end.zip` against `chess-web-app-day18-end.zip`. No blocking defect was found in the reviewed Day 19 changes. Two small follow-ups are supplied inline and recorded in [the review](day19-frontend-gameplay.md): add a submission guard to Game.refresh() and clear obsolete move feedback after a successful GET. They are not applied to production source by this documentation package.
 
 The Angular frontend now supports guarded matched-game navigation, participant-protected game reads, a custom Player-oriented click-to-move board, explicit promotion including cancellation, versioned move submission, manual refresh, stale-state reload without command retry, uncertain-outcome blocking and completion feedback. Game and ChessBoard use separate TypeScript, HTML and CSS files.
 
@@ -1333,7 +1333,7 @@ The backend tree is byte-for-byte unchanged from the Day 18 archive. No new endp
 
 Tests are treated as green under the standing instruction to report failures. The assistant ran no application tests, builds, migrations or browser acceptance checks, and claims no separately verified frontend build/manual result. Source inspection is the evidence for this review.
 
-See [frontend gameplay flow](../frontend-gameplay-flow.md) for the lifecycle and Angular coordination, [Day 19 review](../day19-frontend-gameplay.md) for findings and [next-session handoff](../day19-handoff.md) for continuation. Earlier Day sections retain historical boundaries and do not override this checkpoint.
+See [frontend gameplay flow](frontend-gameplay-flow.md) for the lifecycle and Angular coordination, [Day 19 review](day19-frontend-gameplay.md) for findings and next-session handoff for continuation. Earlier Day sections retain historical boundaries and do not override this checkpoint.
 
 History, real-time delivery, clocks, additional draw rules, acceptance and disconnect/abandonment policy remain separate scope decisions. A board library is optional post-MVP polish, not an MVP requirement.
 
@@ -1357,7 +1357,7 @@ No migration, runtime configuration, rules implementation or frontend
 implementation changes are included. History, frontend gameplay, real-time
 delivery, clocks and disconnect policy remain pending.
 
-See [Day 18 HTTP gameplay](../day18-http-gameplay.md) for the contract and coverage.
+See [Day 18 HTTP gameplay](day18-http-gameplay.md) for the contract and coverage.
 Earlier checkpoint sections describe historical boundaries.
 
 #### Day 17 checkpoint — historical source review, 28 October 2026
@@ -1366,13 +1366,13 @@ Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` agai
 
 `GameService.submitMove(gameId, requestingPlayerId, expectedVersion, move)` now coordinates participant/turn checks, exact legal application, resulting-position assessment, current-FEN persistence, stale/concurrent-command rejection and atomic checkmate/stalemate completion with reservation release. `GameMoveResult.from(game, assessment)` owns mechanical result mapping; `Game.finish()` calls its extracted switch-based `validateResult()`. There is no separate production GameMoveService.
 
-V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](../day17-gameplay-service.md).
+V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](day17-gameplay-service.md).
 
 Day 16 and earlier milestone sections below retain historical behavior/evidence. Their initial-only and pending-gameplay descriptions do not override this checkpoint. The earlier closing-test passing-status uncertainty is retained as historical provenance; current test status follows the user's later standing instruction.
 
 ##### Historical Day 16 review provenance
 
-Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](../day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
+Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
 
 The Day 16 section describes the inspected implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
 
@@ -1616,7 +1616,7 @@ This companion explains the minimal frontend gameplay milestone: matched-game na
 
 #### Evidence and scope
 
-Source-reviewed on 29 October 2026 against chess-web-app-day19-end.zip, compared with the Day 18 archive. The custom board, promotion cancellation, page/board file separation and library removal are confirmed in actual source. The backend is byte-for-byte unchanged from Day 18. Two small follow-ups are recommendations, not applied production changes; see [Day 19 review](../day19-frontend-gameplay.md).
+Source-reviewed on 29 October 2026 against chess-web-app-day19-end.zip, compared with the Day 18 archive. The custom board, promotion cancellation, page/board file separation and library removal are confirmed in actual source. The backend is byte-for-byte unchanged from Day 18. Two small follow-ups are recommendations, not applied production changes; see [Day 19 review](day19-frontend-gameplay.md).
 
 No independent assistant tests or builds were run. Existing tests follow the standing user instruction that failures will be reported; this is not an independently verified frontend build or acceptance result.
 

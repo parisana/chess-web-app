@@ -13,7 +13,7 @@ A backend-focused chess portfolio project built as a modular monolith with conve
 
 Day 21 adds transactional persisted move history, participant-protected history reads, pure Java SAN formatting and separate coordinate/SAN columns in the move list. Source-reviewed on 30 October 2026 against the actual user `chess-web-app-day21-end.zip`. Day 20 real-time delivery and recovery remain in place.
 
-The user reports that the implementation looks good. Tests are treated as green under the standing working agreement unless failures are reported. No tests, builds, migrations or browser checks were run by the assistant. Source review does not establish independent runtime acceptance. See [review and coverage](docs/day21-history-review.md).
+The user reports that the implementation looks good. Tests are treated as green under the standing working agreement unless failures are reported. No tests, builds, migrations or browser checks were run by the assistant. Source review does not establish independent runtime acceptance. See review and coverage.
 
 ## Capabilities
 
@@ -51,7 +51,7 @@ npm start
 
 Open http://localhost:4200. The development proxy forwards `/api/**`, including WebSocket upgrades, to port 8080. Restart the dev server after proxy changes.
 
-Backend WebSocket routing is configured under `app.websocket`; matching frontend addresses and timing are in `frontend/src/app/notification/config/realtime.config.ts`. See [configuration and protocol](docs/api-contracts.md#real-time-updates).
+Backend WebSocket routing is configured under `app.websocket`; matching frontend addresses and timing are in `frontend/src/app/notification/config/realtime.config.ts`. See [configuration and protocol](../api-contracts.md#real-time-updates).
 
 ## Verification
 
@@ -72,7 +72,7 @@ npm test -- --watch=false
 npm run build
 ```
 
-Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests remain the existing focused authentication suite. The [Day 21 review](docs/day21-history-review.md) distinguishes source-confirmed coverage from missing tests and suggested manual scenarios.
+Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests remain the existing focused authentication suite. The Day 21 review distinguishes source-confirmed coverage from missing tests and suggested manual scenarios.
 
 ## Current limits
 
@@ -82,15 +82,15 @@ Existing games record forward from their migration-time FEN; earlier moves canno
 
 ## Documentation
 
-- [Architecture](docs/architecture.md): current ownership and boundaries.
-- [API and real-time contracts](docs/api-contracts.md).
-- [Frontend gameplay flow](docs/frontend-gameplay-flow.md): Angular and board coordination.
-- [Real-time flow](docs/realtime-updates-flow.md): diagrams for security, commit timing and recovery.
-- [Development progress](docs/development-progress.md), [roadmap](docs/roadmap.md) and [frontend setup](frontend/README.md).
-- [Movement pipeline](docs/movement-pipeline-architecture.md): pure rules companion.
-- [Move history and SAN flow](docs/move-history-flow.md).
-- [Day 21 source review](docs/day21-history-review.md) and [next-session handoff](docs/day21-handoff.md).
-- [Historical main-document checkpoints](docs/history/main-documents-through-day20.md). Existing Day documents retain their historical scope.
+- [Architecture](../architecture.md): current ownership and boundaries.
+- [API and real-time contracts](../api-contracts.md).
+- Frontend gameplay flow: Angular and board coordination.
+- [Real-time flow](../realtime-updates-flow.md): diagrams for security, commit timing and recovery.
+- Development progress, [roadmap](../roadmap.md) and frontend setup.
+- Movement pipeline: pure rules companion.
+- Move history and SAN flow.
+- Day 21 source review and next-session handoff.
+- Historical main-document checkpoints. Existing Day documents retain their historical scope.
 ````
 
 ## frontend/README.md
@@ -98,7 +98,7 @@ Existing games record forward from their migration-time FEN; earlier moves canno
 ````markdown
 # Chess Frontend
 
-Angular 21 standalone frontend with Angular Material, signals, RxJS, in-memory authentication and a custom board. Current Day 21 source was reviewed on 30 October 2026. No assistant build/test/browser run is claimed; see [review](../docs/day21-history-review.md).
+Angular 21 standalone frontend with Angular Material, signals, RxJS, in-memory authentication and a custom board. Current Day 21 source was reviewed on 30 October 2026. No assistant build/test/browser run is claimed; see review.
 
 ## Run
 
@@ -144,11 +144,11 @@ npm test -- --watch=false
 npm run build
 ```
 
-The existing five auth-flow.spec.ts tests are unchanged. There is no new notification/game coordinator suite in the ZIP. Suggested two-session scenarios are in the [review](../docs/day21-history-review.md).
+The existing five auth-flow.spec.ts tests are unchanged. There is no new notification/game coordinator suite in the ZIP. Suggested two-session scenarios are in the review.
 
 The move list has separate coordinate and SAN columns. Pre-SAN entries show “—” for SAN. There are no replay controls, PGN export, clocks, drag-and-drop or legal-move highlighting. Disconnecting never decides game completion or releases reservations. No durable notification replay, auto board navigation or persisted login session is supplied.
 
-See [gameplay coordination](../docs/frontend-gameplay-flow.md), [real-time diagrams](../docs/realtime-updates-flow.md), [contracts](../docs/api-contracts.md), [architecture](../docs/architecture.md) and [roadmap](../docs/roadmap.md).
+See gameplay coordination, real-time diagrams, contracts, architecture and roadmap.
 
 ## Move history coordination
 
@@ -156,7 +156,7 @@ After accepting game GET, Game reads GET /games/{gameId}/moves. History with the
 
 The reading flag spans both GETs. cancelReads is downstream of switchMap, so a permitted POST cancels either stage. Route cancellation also tears down both. Successful POST explicitly queues nonblocking reconciliation. Visible loaded finished games continue safety checks while history is missing, outdated or failed; they stop when board/history are synchronized. Initial game GET failures without a snapshot still require manual/focus/connection/hint recovery.
 
-The table shows Entry, Player, Move and SAN. Entry is a recorded individual-move sequence relative to the baseline. Legacy incomplete history has an explanatory notice. SAN is generated in the backend; Angular does not duplicate chess legality or notation rules. See [history flow](../docs/move-history-flow.md).
+The table shows Entry, Player, Move and SAN. Entry is a recorded individual-move sequence relative to the baseline. Legacy incomplete history has an explanatory notice. SAN is generated in the backend; Angular does not duplicate chess legality or notation rules. See history flow.
 ````
 
 ## docs/architecture.md
@@ -164,7 +164,7 @@ The table shows Entry, Player, Move and SAN. Entry is a recorded individual-move
 ````markdown
 # Architecture
 
-This document describes the current Day 21 system, source-reviewed on 30 October 2026 against `chess-web-app-day21-end.zip`. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day20.md). Verification evidence and scope limits are recorded in the [Day 21 review](day21-history-review.md).
+This document describes the current Day 21 system, source-reviewed on 30 October 2026 against `chess-web-app-day21-end.zip`. Earlier checkpoint narratives are preserved in history. Verification evidence and scope limits are recorded in the [Day 21 review](day21-history-review.md).
 
 ## Application structure
 
@@ -284,7 +284,7 @@ The simple broker and session registry are in-process. Current delivery assumes 
 
 ## Deferred scope
 
-Replay controls/PGN export, clocks, extra draws, resignation/agreement, acceptance, abandonment/disconnect completion, ratings and statistics remain separate milestones. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](roadmap.md) and the two flow companions for details.
+Replay controls/PGN export, clocks, extra draws, resignation/agreement, acceptance, abandonment/disconnect completion, ratings and statistics remain separate milestones. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](../roadmap.md) and the two flow companions for details.
 
 ## Persisted history and SAN
 
@@ -393,11 +393,11 @@ Suggested manual scenarios are in the [Day 20 review](day20-realtime-review.md).
 
 ## Current limits and working agreement
 
-One queue and one in-process message broker; notifications are not durable. Move history is separately persisted from Day 21. HTTP commands remain authoritative and are not replayed. Sessions remain in memory. Disconnect/logout does not release reservations or determine a game outcome. Auto-navigation is not implemented by design. Additional game/rating policies remain in the [roadmap](roadmap.md).
+One queue and one in-process message broker; notifications are not durable. Move history is separately persisted from Day 21. HTTP commands remain authoritative and are not replayed. Sessions remain in memory. Disconnect/logout does not release reservations or determine a game outcome. Auto-navigation is not implemented by design. Additional game/rating policies remain in the [roadmap](../roadmap.md).
 
 Continue with inline, explainable increments. The user implements production changes. Do not silently apply generated implementation archives. Documentation replacement packages are welcome. Keep feature service boundaries, pure Java rules, Player naming, useful comments, minimal frontend tests and separate component HTML/CSS. Preserve user-managed configuration. Treat tests as green unless failures are reported; do not execute tests/builds without an explicit request.
 
-Historical checkpoint evidence is preserved in [the archive](history/main-documents-through-day19.md) and the existing Day documents.
+Historical checkpoint evidence is preserved in the archive and the existing Day documents.
 ````
 
 ## docs/roadmap.md
@@ -441,7 +441,7 @@ Notifications are best-effort invalidation hints, not a command or durable move 
 
 ## Historical plan
 
-The original estimate and earlier milestone proposals are preserved in [historical main-document checkpoints](history/main-documents-through-day19.md) and existing Day documents. Historical pending features must not override the implemented Day 21 state.
+The original estimate and earlier milestone proposals are preserved in historical main-document checkpoints and existing Day documents. Historical pending features must not override the implemented Day 21 state.
 ````
 
 ## docs/api-contracts.md
@@ -449,7 +449,7 @@ The original estimate and earlier milestone proposals are preserved in [historic
 ````markdown
 # API Contracts
 
-Current Day 21 contracts, source-reviewed on 30 October 2026 against `chess-web-app-day21-end.zip`. Tests follow the standing user agreement; the assistant ran no tests/builds or independent runtime acceptance checks. Earlier checkpoint narratives are preserved in [history](history/main-documents-through-day20.md).
+Current Day 21 contracts, source-reviewed on 30 October 2026 against `chess-web-app-day21-end.zip`. Tests follow the standing user agreement; the assistant ran no tests/builds or independent runtime acceptance checks. Earlier checkpoint narratives are preserved in history.
 
 ## Shared conventions
 
@@ -732,7 +732,7 @@ When changing an endpoint, update its owning DTO/service/controller, correspondi
 ````markdown
 # Frontend gameplay flow
 
-This companion describes the actual Day 21 source reviewed on 30 October 2026. It supersedes the manual-refresh-only Day 19 flow preserved in [history](history/main-documents-through-day19.md). Source review is not an independent build or runtime acceptance result.
+This companion describes the actual Day 21 source reviewed on 30 October 2026. It supersedes the manual-refresh-only Day 19 flow preserved in history. Source review is not an independent build or runtime acceptance result.
 
 ## Ownership
 
@@ -847,7 +847,7 @@ Checkmate/stalemate release reservations in the backend transaction. Both Player
 
 Game coordination is in frontend/src/app/game/pages/game/game.ts; board display in game/components/chess-board; transport in game/services/game-api.service.ts. Notification connection/config/models live under frontend/src/app/notification. Home’s current queue signal is queueStatusResponse and both pages expose realtimeService to their templates.
 
-See [real-time delivery and security](realtime-updates-flow.md), [contracts](api-contracts.md), [review](day21-history-review.md), [Angular signals](https://angular.dev/guide/signals) and [StompJS lifecycle](https://stomp-js.github.io/guide/stompjs/using-stompjs-v5.html).
+See [real-time delivery and security](../realtime-updates-flow.md), [contracts](../api-contracts.md), [review](day21-history-review.md), [Angular signals](https://angular.dev/guide/signals) and [StompJS lifecycle](https://stomp-js.github.io/guide/stompjs/using-stompjs-v5.html).
 
 ## Day 21 history extension
 

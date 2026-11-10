@@ -4,11 +4,11 @@
 
 Reviewed on 6 November 2026 against the actual user chess-web-app-day29-mid.zip. Source includes loadtest-profile port 8081/separate database, TypeScript k6 smoke and paced statistics reads, npm type-check/run shortcuts and lockfile. Default in-memory Spring user auto-configuration is excluded; existing custom session/CSRF security remains configured.
 
-The user reports the smoke passing in approximately 0.7 seconds and initial reads at 1, 5 and 20 VUs. The archive includes saved 5/20-VU summaries, not a 1-VU summary. The saved 5-VU run has 290 measured reads, p95 66.72 ms and p99 639.65 ms, unlike the earlier pasted 296-read run. Both runs are retained in [load-testing.md](load-testing.md); no cause is established for the higher tail. The saved 20-VU run has 1,200 measured reads, zero measured failures and p95 16.31 ms. No capacity, bottleneck or optimization result is claimed.
+The user reports the smoke passing in approximately 0.7 seconds and initial reads at 1, 5 and 20 VUs. The archive includes saved 5/20-VU summaries, not a 1-VU summary. The saved 5-VU run has 290 measured reads, p95 66.72 ms and p99 639.65 ms, unlike the earlier pasted 296-read run. Both runs are retained in [load-testing.md](../load-testing.md); no cause is established for the higher tail. The saved 20-VU run has 1,200 measured reads, zero measured failures and p95 16.31 ms. No capacity, bottleneck or optimization result is claimed.
 
 Raw summary exports include setup_data with session cookies. The guide corrects the earlier aggregate-only assumption and supplies a sanitized-copy procedure. The earlier documentation package changed no source/results file. Subsequent increments supply smoke-game.ts, run-k6.mjs, concurrent-games.ts and npm shortcuts for session-free aggregate reports. The user reports the smoke and 1/5/20-game batches completed; subsequent JSON/full-source bytes have not been independently inspected. The assistant inspected source/docs/JSON only; no build, type check, application, database or test execution occurred.
 
-The Day 28 readability cleanup is applied: duplicate moveTokens removed, constructor/ngOnInit streams organized through named methods, and gameActions declared outside the main block with NgTemplateOutletContext. One-game smoke passed in the user report (33 requests, 844.53 ms). Concurrent-game reports show 1/5/20 completions, 20/100/400 move attempts, zero game-journey failures and move p95 31.08/43.80/98.09 ms. Each journey includes 19 seconds of pauses. No causal bottleneck, whole-run batch acceptance or sustainable-capacity claim is made. See [handoff](day29-mid-handoff.md).
+The Day 28 readability cleanup is applied: duplicate moveTokens removed, constructor/ngOnInit streams organized through named methods, and gameActions declared outside the main block with NgTemplateOutletContext. One-game smoke passed in the user report (33 requests, 844.53 ms). Concurrent-game reports show 1/5/20 completions, 20/100/400 move attempts, zero game-journey failures and move p95 31.08/43.80/98.09 ms. Each journey includes 19 seconds of pauses. No causal bottleneck, whole-run batch acceptance or sustainable-capacity claim is made. See handoff.
 
 ## Current local extension — 50/100 results recorded
 
@@ -35,13 +35,13 @@ Reviewed on 5 November 2026 against actual user chess-web-app-day28-end.zip. Del
 
 User reports everything green. No assistant tests/builds/migrations/database/browser checks; no preceding-archive byte comparison or exhaustive acceptance claim. The source contains targeted snapshot, legal-hint, list and SQL-count coverage, plus four mocked matchmaking cases. Deep-read choices and measurement limits are in [review](day28-ui-review.md).
 
-At the original Day 28 review, the optional closing readability cleanup was proposed rather than applied (the current Day 29 source now includes it): remove unused Game.moveTokens, name setup methods and optionally use one scoped game-actions template. No larger state-management refactor, chat, rematch or public-history implementation is included. Earlier click/promotion/session limits remain documented. See [cleanup](day28-readability-cleanup.md) and [handoff](day28-handoff.md).
+At the original Day 28 review, the optional closing readability cleanup was proposed rather than applied (the current Day 29 source now includes it): remove unused Game.moveTokens, name setup methods and optionally use one scoped game-actions template. No larger state-management refactor, chat, rematch or public-history implementation is included. Earlier click/promotion/session limits remain documented. See [cleanup](day28-readability-cleanup.md) and handoff.
 
 ## Previous checkpoint — Day 27
 
 Reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. Persistent Spring Session JDBC replaces JWTs; V14 framework tables, explicit cookie serializer, SPA CSRF, logout, session-authenticated sockets, Angular restoration and revision-guarded cross-tab synchronization are implemented. Raw path comparison is 15 added/5 removed/56 changed, including BoardTestRenderer relocation. User reports the previously reported failures resolved and browser login/flow working; no assistant application execution or separately established comprehensive frontend/restart acceptance.
 
-Four new Java suites contain 18 ordinary methods; current socket suite has 13 source cases. Frontend has six auth-flow plus three mocked coordinator cases. Fixes present include actual cookie-CSRF fixtures, missing write fixtures, explicit CHESS_SESSION naming, true-then-false outbound mocking and exact readiness-probe registry for same-Player sockets. Shared test timeout scanning is false; production remains enabled. See [review](day27-sessions-review.md), [authentication diagrams](session-authentication-flow.md), [tab diagrams](tab-synchronization-flow.md) and [handoff](day27-handoff.md).
+Four new Java suites contain 18 ordinary methods; current socket suite has 13 source cases. Frontend has six auth-flow plus three mocked coordinator cases. Fixes present include actual cookie-CSRF fixtures, missing write fixtures, explicit CHESS_SESSION naming, true-then-false outbound mocking and exact readiness-probe registry for same-Player sockets. Shared test timeout scanning is false; production remains enabled. See [review](day27-sessions-review.md), [authentication diagrams](session-authentication-flow.md), [tab diagrams](tab-synchronization-flow.md) and handoff.
 
 The intermittent game-action click observation is deferred without an established cause or fix. No OIDC, refresh tokens, all-device logout, new game policy or replay polish is added.
 
@@ -49,7 +49,7 @@ The intermittent game-action click observation is deferred without an establishe
 
 Source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Twenty-one added files, twenty-two changed, none removed. Implemented V12/V13 clock persistence/constraints, pure arithmetic, 10m/no-increment creation, expiry command guards, transactional timeout completion, bounded fixed-delay scanning, calculatedAt clock responses and separate Angular countdowns/pseudocode. Old games remain untimed; timeout always awards opponent win under the current simplified policy.
 
-Seven new test classes contain 33 methods/39 cases; existing suites add nine methods/cases. Coverage includes both-color timeout, duplicate skip, rollback/retry, candidate recheck, controlled move-versus-timeout contention, HTTP clocks and SQL upgrades. User reports green after corrections; later increments follow standing agreement. No assistant application execution. No dedicated scheduled-trigger/restart/timeout-socket or new frontend tests. Shared test profile scanner is still enabled; recommended false remains unapplied. See [review](day26-clocks-review.md), [flow](game-clocks-flow.md) and [handoff](day26-handoff.md).
+Seven new test classes contain 33 methods/39 cases; existing suites add nine methods/cases. Coverage includes both-color timeout, duplicate skip, rollback/retry, candidate recheck, controlled move-versus-timeout contention, HTTP clocks and SQL upgrades. User reports green after corrections; later increments follow standing agreement. No assistant application execution. No dedicated scheduled-trigger/restart/timeout-socket or new frontend tests. Shared test profile scanner is still enabled; recommended false remains unapplied. See [review](day26-clocks-review.md), [flow](game-clocks-flow.md) and handoff.
 
 ## Previous checkpoint — Day 25
 
@@ -59,7 +59,7 @@ Delivered: V11 statistics and game processing/exclusion markers; registration in
 
 Four new test classes contain twenty-three methods/thirty-five cases; the migration suite adds one V10-to-V11 fixture. Coverage includes terminal and lifecycle outcomes, duplicates, rating failure and outer rollback, nonterminal actions, HTTP authentication/identity and SQL exclusion policy. Existing fixture cleanup was updated for dependencies. User reports tests green after corrections; later work follows the standing agreement. No assistant application execution or manual UI acceptance is claimed.
 
-Session continuity, async/ledger/leaderboard/rating-aware pairing and the existing PGN UI/promotion/replay deferrals remain outside scope. See [Day 25 review](day25-ratings-statistics-review.md), [statistics flow](player-statistics-flow.md) and [handoff](day25-handoff.md).
+Session continuity, async/ledger/leaderboard/rating-aware pairing and the existing PGN UI/promotion/replay deferrals remain outside scope. See [Day 25 review](day25-ratings-statistics-review.md), [statistics flow](player-statistics-flow.md) and handoff.
 
 ## Previous checkpoint — Day 24
 
@@ -71,7 +71,7 @@ The Angular PGN download UI is intentionally deferred; the proposed client metho
 
 PgnFormatterTest has eight test methods and ten invocations including three result cases. GameReadIntegrationTest adds six methods/seven invocations for both participants, authentication, missing game, authorization before legacy availability, persisted move plus resignation result and old null SAN. These rollback-managed HTTP fixtures do not require commit assertions. There is no new export concurrency fixture or frontend coordinator/replay suite.
 
-User reports the increments working; tests are treated as green under the standing agreement unless failures are reported. User did not verify route-switch replay reset. The assistant ran no tests/builds/migrations/browser checks. No blocking issue was found in inspected changes. See [Day 24 review](day24-replay-pgn-review.md), [flow](replay-pgn-flow.md) and [handoff](day24-handoff.md).
+User reports the increments working; tests are treated as green under the standing agreement unless failures are reported. User did not verify route-switch replay reset. The assistant ran no tests/builds/migrations/browser checks. No blocking issue was found in inspected changes. See [Day 24 review](day24-replay-pgn-review.md), [flow](replay-pgn-flow.md) and handoff.
 
 ## Previous checkpoint — Day 23
 
@@ -81,7 +81,7 @@ Delivered: property binding/startup rejection and boundaries; nine real socket c
 
 Socket fixes present: SimpleMessageConverter preserves raw bytes across content types; text(null) handles bodyless ERROR frames. The converter change alone did not resolve the reported failures; null handling resolved the seven rejection failures. No production security relaxation was needed.
 
-See [Day 23 review](day23-reliability-review.md), [reliability testing guide](backend-reliability-testing.md) and [next-session handoff](day23-handoff.md). Older checkpoint sections below retain their historical evidence; their missing-coverage statements are superseded by this checkpoint where applicable.
+See [Day 23 review](day23-reliability-review.md), [reliability testing guide](backend-reliability-testing.md) and next-session handoff. Older checkpoint sections below retain their historical evidence; their missing-coverage statements are superseded by this checkpoint where applicable.
 
 
 ## Previous checkpoint — Day 22 (historical review evidence)
@@ -192,11 +192,11 @@ Suggested manual scenarios are in the [Day 20 review](day20-realtime-review.md).
 
 ## Current limits and working agreement
 
-One queue and one in-process message broker; notifications are not durable. Move history is separately persisted from Day 21. HTTP commands remain authoritative and are not replayed. Authentication sessions persist in PostgreSQL; each tab keeps its profile cache in memory. Disconnect/logout does not release reservations or determine a game outcome. Day 28 supplies shared matchmaking auto-navigation; earlier checkpoint sections describe their historical behavior. Additional game/rating policies remain in the [roadmap](roadmap.md).
+One queue and one in-process message broker; notifications are not durable. Move history is separately persisted from Day 21. HTTP commands remain authoritative and are not replayed. Authentication sessions persist in PostgreSQL; each tab keeps its profile cache in memory. Disconnect/logout does not release reservations or determine a game outcome. Day 28 supplies shared matchmaking auto-navigation; earlier checkpoint sections describe their historical behavior. Additional game/rating policies remain in the [roadmap](../roadmap.md).
 
 Continue with inline, explainable increments. The user implements production changes. Do not silently apply generated implementation archives. Documentation replacement packages are welcome. Keep feature service boundaries, pure Java rules, Player naming, useful comments, minimal frontend tests and separate component HTML/CSS. Preserve user-managed configuration. Treat tests as green unless failures are reported; do not execute tests/builds without an explicit request.
 
-Historical checkpoint evidence is preserved in [the archive](history/main-documents-through-day19.md) and the existing Day documents.
+Historical checkpoint evidence is preserved in [the archive](main-documents-through-day19.md) and the existing Day documents.
 
 ## Scope retained from Day 22
 

@@ -15,7 +15,7 @@ A backend-focused chess portfolio project built as a modular monolith with conve
 
 Day 20 adds authenticated WebSocket/STOMP notifications for matchmaking and gameplay, after-commit delivery, session-expiry checks, reconnect recovery and periodic HTTP reconciliation. Source-reviewed on 30 October 2026 against the actual `chess-web-app-day20-end.zip`.
 
-The user reports that the implementation looks good. Tests are treated as green under the standing working agreement unless failures are reported. No tests, builds, migrations or browser checks were run by the assistant. Source review does not establish independent runtime acceptance. See [review and coverage](../day20-realtime-review.md).
+The user reports that the implementation looks good. Tests are treated as green under the standing working agreement unless failures are reported. No tests, builds, migrations or browser checks were run by the assistant. Source review does not establish independent runtime acceptance. See [review and coverage](day20-realtime-review.md).
 
 ## Capabilities
 
@@ -73,7 +73,7 @@ npm test -- --watch=false
 npm run build
 ```
 
-Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests remain the existing focused authentication suite. The [Day 20 review](../day20-realtime-review.md) distinguishes source-confirmed coverage from missing tests and suggested manual scenarios.
+Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests remain the existing focused authentication suite. The [Day 20 review](day20-realtime-review.md) distinguishes source-confirmed coverage from missing tests and suggested manual scenarios.
 
 ## Current limits
 
@@ -85,11 +85,11 @@ There are no clocks, history/replay interface, resignation/agreed draws, repetit
 
 - [Architecture](../architecture.md): current ownership and boundaries.
 - [API and real-time contracts](../api-contracts.md).
-- [Frontend gameplay flow](../frontend-gameplay-flow.md): Angular and board coordination.
+- [Frontend gameplay flow](frontend-gameplay-flow.md): Angular and board coordination.
 - [Real-time flow](../realtime-updates-flow.md): diagrams for security, commit timing and recovery.
-- [Development progress](../development-progress.md), [roadmap](../roadmap.md) and [frontend setup](../../frontend/README.md).
-- [Movement pipeline](../movement-pipeline-architecture.md): pure rules companion.
-- [Day 20 source review](../day20-realtime-review.md) and [next-session handoff](../day20-handoff.md).
+- [Development progress](development-progress.md), [roadmap](../roadmap.md) and [frontend setup](../../frontend/README.md).
+- [Movement pipeline](movement-pipeline-architecture.md): pure rules companion.
+- [Day 20 source review](day20-realtime-review.md) and next-session handoff.
 - [Historical main-document checkpoints](main-documents-through-day19.md). Existing Day documents retain their historical scope.
 
 
@@ -99,7 +99,7 @@ There are no clocks, history/replay interface, resignation/agreed draws, repetit
 
 # Chess Frontend
 
-Angular 21 standalone frontend with Angular Material, signals, RxJS, in-memory authentication and a custom board. Current Day 20 source was reviewed on 30 October 2026. No assistant build/test/browser run is claimed; see [review](../day20-realtime-review.md).
+Angular 21 standalone frontend with Angular Material, signals, RxJS, in-memory authentication and a custom board. Current Day 20 source was reviewed on 30 October 2026. No assistant build/test/browser run is claimed; see [review](day20-realtime-review.md).
 
 ## Run
 
@@ -145,11 +145,11 @@ npm test -- --watch=false
 npm run build
 ```
 
-The existing five auth-flow.spec.ts tests are unchanged. There is no new notification/game coordinator suite in the ZIP. Suggested two-session scenarios are in the [review](../day20-realtime-review.md).
+The existing five auth-flow.spec.ts tests are unchanged. There is no new notification/game coordinator suite in the ZIP. Suggested two-session scenarios are in the [review](day20-realtime-review.md).
 
 No move list/replay, clocks, drag-and-drop or legal-move highlighting. Disconnecting never decides game completion or releases reservations. No durable notification replay, auto board navigation or persisted login session is supplied.
 
-See [gameplay coordination](../frontend-gameplay-flow.md), [real-time diagrams](../realtime-updates-flow.md), [contracts](../api-contracts.md), [architecture](../architecture.md) and [roadmap](../roadmap.md).
+See [gameplay coordination](frontend-gameplay-flow.md), [real-time diagrams](../realtime-updates-flow.md), [contracts](../api-contracts.md), [architecture](../architecture.md) and [roadmap](../roadmap.md).
 
 
 ---
@@ -158,7 +158,7 @@ See [gameplay coordination](../frontend-gameplay-flow.md), [real-time diagrams](
 
 # Architecture
 
-This document describes the current Day 20 system, source-reviewed on 30 October 2026 against `chess-web-app-day20-end.zip`. Earlier checkpoint narratives are preserved in [history](main-documents-through-day19.md). Verification evidence and scope limits are recorded in the [Day 20 review](../day20-realtime-review.md).
+This document describes the current Day 20 system, source-reviewed on 30 October 2026 against `chess-web-app-day20-end.zip`. Earlier checkpoint narratives are preserved in [history](main-documents-through-day19.md). Verification evidence and scope limits are recorded in the [Day 20 review](day20-realtime-review.md).
 
 ## Application structure
 
@@ -228,7 +228,7 @@ GameRulesConfig constructs the six pseudo-legal strategies, dispatcher, shared a
 
 FenParser validates structural representation, not historical reachability. FenSerializer is separate. Promotion choices are explicit; there is no automatic queen. En passant and castling use the shared immutable application pipeline. Rights are historical metadata and are never restored by returning a piece or promoting a rook.
 
-The facade does not own authorization, persistence, version checks or transactions. FEN alone cannot establish repetition history. See the [movement pipeline companion](../movement-pipeline-architecture.md).
+The facade does not own authorization, persistence, version checks or transactions. FEN alone cannot establish repetition history. See the [movement pipeline companion](movement-pipeline-architecture.md).
 
 ## Game commands and lifecycle
 
@@ -623,7 +623,7 @@ npm test -- --watch=false
 npm run build
 ```
 
-Suggested manual scenarios are in the [Day 20 review](../day20-realtime-review.md). Commands are supplied for the user; they were not run by the assistant.
+Suggested manual scenarios are in the [Day 20 review](day20-realtime-review.md). Commands are supplied for the user; they were not run by the assistant.
 
 ## Current limits and working agreement
 
@@ -642,7 +642,7 @@ Historical checkpoint evidence is preserved in [the archive](main-documents-thro
 
 ## Current position
 
-Working Days 1–20 identify actual sessions, not a rewritten version of the original 30-working-day estimate. The [progress document](../development-progress.md) lists delivered sessions. Day 20 implements authenticated real-time hints plus HTTP state recovery for matchmaking and gameplay.
+Working Days 1–20 identify actual sessions, not a rewritten version of the original 30-working-day estimate. The [progress document](development-progress.md) lists delivered sessions. Day 20 implements authenticated real-time hints plus HTTP state recovery for matchmaking and gameplay.
 
 The custom board is the MVP choice. Home automatically discovers pairing and offers Open game; automatic navigation is not a missing requirement.
 
@@ -802,7 +802,7 @@ Checkmate/stalemate release reservations in the backend transaction. Both Player
 
 Game coordination is in frontend/src/app/game/pages/game/game.ts; board display in game/components/chess-board; transport in game/services/game-api.service.ts. Notification connection/config/models live under frontend/src/app/notification. Home’s current queue signal is queueStatusResponse and both pages expose realtimeService to their templates.
 
-See [real-time delivery and security](../realtime-updates-flow.md), [contracts](../api-contracts.md), [review](../day20-realtime-review.md), [Angular signals](https://angular.dev/guide/signals) and [StompJS lifecycle](https://stomp-js.github.io/guide/stompjs/using-stompjs-v5.html).
+See [real-time delivery and security](../realtime-updates-flow.md), [contracts](../api-contracts.md), [review](day20-realtime-review.md), [Angular signals](https://angular.dev/guide/signals) and [StompJS lifecycle](https://stomp-js.github.io/guide/stompjs/using-stompjs-v5.html).
 
 
 ---
@@ -912,7 +912,7 @@ The origin property is a single allowed HTTP(S) origin. Routing prefixes cannot 
 
 ## Tests and scope
 
-Inspected tests cover inbound authorization, outbound expiry/cleanup and real PostgreSQL transaction notification timing with a mocked messaging template. Actual end-to-end socket routing, heartbeat negotiation, subscription readiness and Angular coordination are not independently automated in this ZIP. See [review](../day20-realtime-review.md).
+Inspected tests cover inbound authorization, outbound expiry/cleanup and real PostgreSQL transaction notification timing with a mocked messaging template. Actual end-to-end socket routing, heartbeat negotiation, subscription readiness and Angular coordination are not independently automated in this ZIP. See [review](day20-realtime-review.md).
 
 No clocks, history, acceptance or disconnect outcome is added. This is a single-instance live notification path. Future durable/multi-instance requirements need their own design rather than assuming the simple broker scales transparently.
 
@@ -952,7 +952,7 @@ No migration, runtime configuration, rules implementation or frontend
 implementation changes are included. History, frontend gameplay, real-time
 delivery, clocks and disconnect policy remain pending.
 
-See [Day 18 HTTP gameplay](../day18-http-gameplay.md) for the contract and coverage.
+See [Day 18 HTTP gameplay](day18-http-gameplay.md) for the contract and coverage.
 Earlier checkpoint sections describe historical boundaries.
 
 ## Day 17 current checkpoint — source-reviewed, 28 October 2026
@@ -961,13 +961,13 @@ Reviewed the actual user implementation in `chess-web-app-day17-end(1).zip` agai
 
 `GameService.submitMove(gameId, requestingPlayerId, expectedVersion, move)` now coordinates participant/turn checks, exact legal application, resulting-position assessment, current-FEN persistence, stale/concurrent-command rejection and atomic checkmate/stalemate completion with reservation release. `GameMoveResult.from(game, assessment)` owns mechanical result mapping; `Game.finish()` calls its extracted switch-based `validateResult()`. There is no separate production GameMoveService.
 
-V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](../day17-gameplay-service.md).
+V6 adds completion fields and consistency constraints. GameStatus is IN_PROGRESS/FINISHED, with separate result, termination reason and finish time. The unchanged game GET response fields can now carry an advanced FEN and FINISHED status; version/result/reason/time remain absent from that HTTP response. No HTTP move route, move history, frontend gameplay or disconnect policy is added. See the [reviewed implementation and verification commands](day17-gameplay-service.md).
 
 Day 16 and earlier milestone sections below retain historical behavior/evidence. Their initial-only and pending-gameplay descriptions do not override this checkpoint. The earlier closing-test passing-status uncertainty is retained as historical provenance; current test status follows the user's later standing instruction.
 
 ### Historical Day 16 review provenance
 
-Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](../day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
+Reviewed on 28 October 2026 against `chess-web-app-day16-end.zip`. Source inspection confirms the legality-enforcing facade, complete production strategy registration, facade regression tests and both [closing checks](day16-closing-checks.md). No blocking defect was found in the reviewed Day 16 changes. The user reports all tests green through increments 1–2. Both later closing tests are present, but no subsequent explicit passing report was supplied for them. No tests or builds were run independently; no detailed test log or separate frontend build result was supplied.
 
 The Day 16 section describes the inspected implementation and supersedes earlier initial-position-only boundary and test-only-construction statements. Historical sections retain the behavior and evidence available at those checkpoints.
 

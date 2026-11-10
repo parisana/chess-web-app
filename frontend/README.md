@@ -1,6 +1,6 @@
-# Chess Frontend — Day 29 checkpoint
+# Chess Frontend
 
-Angular standalone frontend with Material, signals, RxJS and persistent-session authentication. Current readability state inspected on 6 November 2026 against actual user chess-web-app-day29-mid.zip; gameplay behavior remains the Day 28 baseline. User reports everything green; no assistant build/test/browser execution.
+Angular standalone frontend with Material, signals, RxJS and persistent-session authentication.
 
 ## UI TODOs
 
@@ -29,18 +29,10 @@ MoveHistoryReplay owns inline SAN tokens, coordinate fallback, numbering and com
 
 ## Synchronization and authentication
 
-Game route switchMap cancels previous reads; exhaustMap allows one coordinated board/history read. Relevant hints, reconnect, focus and visible periodic checks reconcile snapshots. Reads queue during POST; a nonblocking safety read can be cancelled for a permitted command. Same-version clock reads refresh estimates without replacing the accepted game object. Known-newer updates block proposals until synchronization. No command is silently replayed.
+Route changes cancel outstanding reads. Each game coordinates board and history reads to avoid overlapping refreshes. The mover applies the HTTP response and the opponent applies the newer WebSocket snapshot. Move history refreshes separately. Reconnect, focus and visible periodic checks use HTTP recovery. Reads queue during POST; a nonblocking safety read can be cancelled for a permitted command. Same-version clock reads refresh estimates without replacing the accepted game object. Known-newer updates block proposals until synchronization. No command is silently replayed.
 
-Startup restores csrf/profile. AuthSessionStore holds profile/revision, while the browser holds CHESS_SESSION. Writes use Angular XSRF headers. Protected 401 clears only a matching local revision; 403 does not log out. The App shell owns logout. Realtime/session-sync lifecycles are independent of route changes. [Session](../docs/session-authentication-flow.md) and [tab](../docs/tab-synchronization-flow.md) companions document best-effort channel and socket limits.
+Startup restores csrf/profile. AuthSessionStore holds profile/revision, while the browser holds CHESS_SESSION. Writes use Angular XSRF headers. Protected 401 clears only a matching local revision; 403 does not log out. The App shell owns logout. Realtime/session-sync lifecycles are independent of route changes. [Session](../docs/history/session-authentication-flow.md) and [tab](../docs/history/tab-synchronization-flow.md) companions document best-effort channel and socket limits.
 
-## Readability and verification
+## Load testing
 
-GameClocks uses ng-template to reuse clock rows. The supplied source now removes unused Game.moveTokens and calls named initialization methods from constructor/ngOnInit, preserving legal-hint initialization in the constructor. Game actions use an external #gameActions fragment with let-current supplied through the outlet context. Game retains orchestration; no new state service is added. The [closing guide](../docs/day28-readability-cleanup.md) is the earlier proposal, not the current applied-status record.
-
-Source includes six auth-flow, three mocked tab-sync and four mocked matchmaking coordinator cases. This is not comprehensive rendered UI or browser acceptance. No new test is needed merely to mirror a mechanical extraction. When explicitly requested, user-run commands are npm test -- --watch=false and npm run build. Selected backend deep-read tests and unverified scenarios are in [Day 28 review](../docs/day28-ui-review.md).
-
-Chat, rematch, spectators, drag/drop, persistent check status, further replay polish and public Player history remain deferred. See [architecture](../docs/architecture.md), [contracts](../docs/api-contracts.md), [roadmap](../docs/roadmap.md) and [handoff](../docs/day28-handoff.md).
-
-## Backend load testing
-
-Day 29 k6 scripts are a separate load-tests/ project, not Angular tests. They call the loadtest backend on port 8081 directly; Angular need not run. The auth smoke, paced statistics reads and subsequent independent HTTP game batches do not establish rendered UI, browser/session-tab or WebSocket-client acceptance. One k6 game VU orchestrates two Player sessions; it is not a browser. See [load testing](../docs/load-testing.md) for commands and measured results.
+The k6 suite calls the backend directly on port 8081. See the [load-testing guide](../docs/load-testing.md) for setup, commands and results.

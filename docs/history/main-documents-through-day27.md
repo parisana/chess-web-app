@@ -13,7 +13,7 @@ A backend-focused chess portfolio project built as a modular monolith with conve
 
 ## Current checkpoint
 
-Day 27 replaces JWT authentication with persistent Spring Security sessions backed by PostgreSQL. Source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. See [review](docs/day27-sessions-review.md), [session/WebSocket authentication](docs/session-authentication-flow.md), [detailed tab synchronization](docs/tab-synchronization-flow.md) and [handoff](docs/day27-handoff.md).
+Day 27 replaces JWT authentication with persistent Spring Security sessions backed by PostgreSQL. Source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. See review, session/WebSocket authentication, detailed tab synchronization and handoff.
 
 User reports the previously reported failures resolved and browser login/flow working. No assistant tests/builds/migrations/database/browser runs; detailed cross-tab/restart/deployment acceptance is not independently established. The shared test profile now disables timeout scanning and session cleanup. An intermittent game-action click observation remains deferred in the review.
 
@@ -64,7 +64,7 @@ npm start
 
 Open http://localhost:4200. The development proxy forwards `/api/**`, including WebSocket upgrades, to port 8080. Restart the dev server after proxy changes.
 
-Backend WebSocket routing is configured under `app.websocket`; matching frontend addresses and timing are in `frontend/src/app/notification/config/realtime.config.ts`. See [configuration and protocol](docs/api-contracts.md#real-time-updates).
+Backend WebSocket routing is configured under `app.websocket`; matching frontend addresses and timing are in `frontend/src/app/notification/config/realtime.config.ts`. See [configuration and protocol](../api-contracts.md#real-time-updates).
 
 ## Verification
 
@@ -102,7 +102,7 @@ npm test -- --watch=false
 npm run build
 ```
 
-Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests cover six auth-flow cases and three mocked tab-sync coordinator cases; this document does not establish their execution. The [Day 23 review](docs/day23-reliability-review.md) distinguishes inspected coverage, user-reported execution and remaining limits. Migration tests create and drop unique schemas and require schema creation permission. The broad notification test pattern now includes a database-backed socket test.
+Backend reports are generated under `backend/build/reports/tests/test/`. Frontend tests cover six auth-flow cases and three mocked tab-sync coordinator cases; this document does not establish their execution. The Day 23 review distinguishes inspected coverage, user-reported execution and remaining limits. Migration tests create and drop unique schemas and require schema creation permission. The broad notification test pattern now includes a database-backed socket test.
 
 ## Current limits
 
@@ -112,27 +112,27 @@ Existing games record forward from their migration-time FEN; earlier moves canno
 
 ## Documentation
 
-- [Day 27 review](docs/day27-sessions-review.md), [session and WebSocket authentication](docs/session-authentication-flow.md), [tab synchronization diagrams](docs/tab-synchronization-flow.md) and [handoff](docs/day27-handoff.md).
+- Day 27 review, session and WebSocket authentication, tab synchronization diagrams and handoff.
 
-- [Day 26 clock review](docs/day26-clocks-review.md), [clock flow/pseudocode](docs/game-clocks-flow.md) and [handoff](docs/day26-handoff.md).
+- Day 26 clock review, clock flow/pseudocode and handoff.
 
-- [Day 25 source review](docs/day25-ratings-statistics-review.md), [Player statistics and Elo flow](docs/player-statistics-flow.md) and [next-session handoff](docs/day25-handoff.md).
+- Day 25 source review, Player statistics and Elo flow and next-session handoff.
 
-- [Architecture](docs/architecture.md): current ownership and boundaries.
-- [API and real-time contracts](docs/api-contracts.md).
-- [Frontend gameplay flow](docs/frontend-gameplay-flow.md): Angular and board coordination.
-- [Real-time flow](docs/realtime-updates-flow.md): diagrams for security, commit timing and recovery.
-- [Development progress](docs/development-progress.md), [roadmap](docs/roadmap.md) and [frontend setup](frontend/README.md).
-- [Movement pipeline](docs/movement-pipeline-architecture.md): pure rules companion.
-- [Move history and SAN flow](docs/move-history-flow.md).
-- [Replay and PGN flow](docs/replay-pgn-flow.md), [Day 24 source review](docs/day24-replay-pgn-review.md) and [next-session handoff](docs/day24-handoff.md).
-- [Lifecycle flow](docs/game-lifecycle-flow.md), [Day 23 source review](docs/day23-reliability-review.md) and [historical Day 23 handoff](docs/day23-handoff.md).
-- [Day 21 source review](docs/day21-history-review.md) retains historical checkpoint evidence.
-- [Historical main-document checkpoints](docs/history/main-documents-through-day22.md). Existing Day documents retain their historical scope.
+- [Architecture](../architecture.md): current ownership and boundaries.
+- [API and real-time contracts](../api-contracts.md).
+- Frontend gameplay flow: Angular and board coordination.
+- [Real-time flow](../realtime-updates-flow.md): diagrams for security, commit timing and recovery.
+- Development progress, [roadmap](../roadmap.md) and frontend setup.
+- Movement pipeline: pure rules companion.
+- Move history and SAN flow.
+- Replay and PGN flow, Day 24 source review and next-session handoff.
+- Lifecycle flow, Day 23 source review and historical Day 23 handoff.
+- Day 21 source review retains historical checkpoint evidence.
+- Historical main-document checkpoints. Existing Day documents retain their historical scope.
 
 ## Lifecycle policy
 
-Either participant may resign or offer a draw regardless of turn. Only the recipient can accept/decline; only the sender can withdraw. Play continues during an offer, and any accepted move clears it. Resignation awards the opponent a win. Offers, responses and resignation advance the concurrency version without adding move-history rows. Angular confirms resignation/draw acceptance and shares one POST lock with moves. See [contracts](docs/api-contracts.md#explicit-lifecycle-commands).
+Either participant may resign or offer a draw regardless of turn. Only the recipient can accept/decline; only the sender can withdraw. Play continues during an offer, and any accepted move clears it. Resignation awards the opponent a win. Offers, responses and resignation advance the concurrency version without adding move-history rows. Angular confirms resignation/draw acceptance and shares one POST lock with moves. See [contracts](../api-contracts.md#explicit-lifecycle-commands).
 
 ## Rating policy and limits
 
@@ -171,7 +171,7 @@ GET /api/v1/auth/csrf initializes the readable XSRF-TOKEN cookie. Angular sends 
 
 # Chess Frontend
 
-Angular 21 standalone frontend with Material, signals, RxJS, persistent-session authentication, custom board and live clocks. Day 27 source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. No assistant build/test/browser run is claimed. See [review](../docs/day26-clocks-review.md) and [clock flow](../docs/game-clocks-flow.md).
+Angular 21 standalone frontend with Material, signals, RxJS, persistent-session authentication, custom board and live clocks. Day 27 source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. No assistant build/test/browser run is claimed. See review and clock flow.
 
 ## Run
 
@@ -186,7 +186,7 @@ Open http://localhost:4200. The start script enables proxy.conf.json, forwarding
 
 ## Authentication and navigation
 
-Startup initialization restores csrf then players/me before guards. Login returns a Player profile after session creation; Angular reinitializes CSRF before storing it. The browser retains CHESS_SESSION; Angular stores profile/revision only. Protected 401 compares captured revision; 403 does not clear authentication. Failed forms preserve passwords. Server logout is subscribed to and only successful logout clears local state. See [session flow](../docs/session-authentication-flow.md) and [tab diagrams](../docs/tab-synchronization-flow.md).
+Startup initialization restores csrf then players/me before guards. Login returns a Player profile after session creation; Angular reinitializes CSRF before storing it. The browser retains CHESS_SESSION; Angular stores profile/revision only. Protected 401 compares captured revision; 403 does not clear authentication. Failed forms preserve passwords. Server logout is subscribed to and only successful logout clears local state. See session flow and tab diagrams.
 
 Home supports profile editing, self-statistics and persistent matchmaking. It reads queue state on entry, private updates and successful connections. A single pending read is drained after a current command/read. Unknown/WAITING/MATCHED status has 30-second recovery checks; NOT_QUEUED is idle. Home’s signal is named queueStatusResponse in this checkpoint.
 
@@ -217,11 +217,11 @@ npm test -- --watch=false
 npm run build
 ```
 
-The archive contains six auth-flow and three mocked tab-sync coordinator tests. No comprehensive real-browser notification/game coordinator suite is established. Suggested two-session scenarios are in the [review](../docs/day22-lifecycle-review.md).
+The archive contains six auth-flow and three mocked tab-sync coordinator tests. No comprehensive real-browser notification/game coordinator suite is established. Suggested two-session scenarios are in the review.
 
 The move list has separate coordinate and SAN columns. Pre-SAN entries show “—” for SAN. Recorded-position replay is implemented with explicit Latest return. Backend PGN export exists; its Angular download UI is deferred. Live clocks are implemented; drag-and-drop and legal-move highlighting remain absent. Promotion selection may open before backend king-safety rejection; this known UI improvement remains intentionally deferred. Disconnecting never decides game completion or releases reservations. No durable notification replay, auto board navigation or persisted login session is supplied.
 
-See [gameplay coordination](../docs/frontend-gameplay-flow.md), [real-time diagrams](../docs/realtime-updates-flow.md), [contracts](../docs/api-contracts.md), [architecture](../docs/architecture.md) and [roadmap](../docs/roadmap.md).
+See gameplay coordination, real-time diagrams, contracts, architecture and roadmap.
 
 ## Move history coordination
 
@@ -229,7 +229,7 @@ After accepting game GET, Game reads GET /games/{gameId}/moves. History with the
 
 The reading flag spans both GETs. cancelReads is downstream of switchMap, so a permitted POST cancels either stage. Route cancellation also tears down both. Successful POST explicitly queues nonblocking reconciliation. Visible loaded finished games continue safety checks while history is missing, outdated or failed; they stop when board/history are synchronized. Initial game GET failures without a snapshot still require manual/focus/connection/hint recovery.
 
-The table shows Entry, Player, Move and SAN. Entry is a recorded individual-move sequence relative to the baseline. Legacy incomplete history has an explanatory notice. SAN is generated in the backend; Angular does not duplicate chess legality or notation rules. See [history flow](../docs/move-history-flow.md).
+The table shows Entry, Player, Move and SAN. Entry is a recorded individual-move sequence relative to the baseline. Legacy incomplete history has an explanatory notice. SAN is generated in the backend; Angular does not duplicate chess legality or notation rules. See history flow.
 
 ## Day 22 lifecycle controls
 
@@ -249,7 +249,7 @@ Home imports PlayerStatistics and renders app-player-statistics after app-profil
 
 merge combines a manual Subject, RealtimeService.connections$ and updates$; startWith triggers the first GET. Any private hint can refresh statistics, even when counts did not change. switchMap cancels an older GET when another trigger arrives. The captured token/Player ID and response identity guard updates in tap. catchError is inside the HTTP branch and returns EMPTY, preserving future refreshes; previous values remain visible with error feedback. finalize resets loading on success, failure or cancellation. takeUntilDestroyed is downstream of switchMap and tears down the active request. No nested subscribe, rating-history API or periodic statistics polling is implemented.
 
-Opening Home loads current values after game completion. A missed hint may leave the card stale until manual refresh, reconnection or a new Home instance. No manual browser acceptance is established by source review. The existing frontend auth tests are unchanged. See [statistics flow](../docs/player-statistics-flow.md) for RxJS and transaction diagrams.
+Opening Home loads current values after game completion. A missed hint may leave the card stale until manual refresh, reconnection or a new Home instance. No manual browser acceptance is established by source review. The existing frontend auth tests are unchanged. See statistics flow for RxJS and transaction diagrams.
 
 ## Day 26 clocks and timeout extension
 
@@ -259,7 +259,7 @@ GameClocks has separate TS/HTML/CSS and pseudocode.txt. It anchors server-calcul
 
 Replay displays historical positions while clocks/status remain live. Latest remains explicit. Stronger banner/square-click behavior, sounds and new-live-move indicators are deferred until after MVP. No new frontend tests or assistant browser acceptance is claimed.
 
-See [clock flow and pseudocode](../docs/game-clocks-flow.md) for timing, configuration, transaction boundaries and remaining limits.
+See clock flow and pseudocode for timing, configuration, transaction boundaries and remaining limits.
 
 ## Session coordination
 
@@ -272,7 +272,7 @@ AuthSessionEventsService publishes only SESSION_CHANGED over BroadcastChannel. S
 
 # Architecture
 
-This document describes Day 27, source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. See [review](day27-sessions-review.md), [session/WebSocket flow](session-authentication-flow.md) and [tab synchronization](tab-synchronization-flow.md). No assistant application execution. Prior document text is preserved in [history](history/main-documents-through-day26.md).
+This document describes Day 27, source-reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. See [review](day27-sessions-review.md), [session/WebSocket flow](session-authentication-flow.md) and [tab synchronization](tab-synchronization-flow.md). No assistant application execution. Prior document text is preserved in history.
 
 ## Application structure
 
@@ -395,7 +395,7 @@ The simple broker and session registry are in-process. Current delivery assumes 
 
 ## Deferred scope
 
-The PGN download UI, pre-SAN backfill, clock extensions, extra rule-based draws, acceptance, abandonment/disconnect completion, rating extensions remain separate choices; session continuity is implemented in Day 27. Replay and backend PGN export are implemented. Promotion chooser legality gating is intentionally deferred. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](roadmap.md) and the two flow companions for details.
+The PGN download UI, pre-SAN backfill, clock extensions, extra rule-based draws, acceptance, abandonment/disconnect completion, rating extensions remain separate choices; session continuity is implemented in Day 27. Replay and backend PGN export are implemented. Promotion chooser legality gating is intentionally deferred. Custom board polish/library integration is optional. Closing a page does not finish a game. See [roadmap](../roadmap.md) and the two flow companions for details.
 
 ## Persisted history and SAN
 
@@ -854,7 +854,7 @@ See [tab synchronization](tab-synchronization-flow.md) for client publication/re
 
 # Roadmap — after Day 27
 
-Day 27 delivers persistent browser sessions, CSRF-protected HTTP, session-authenticated WebSockets, startup recovery and cross-tab hints. See [review](day27-sessions-review.md), [authentication](session-authentication-flow.md), [tab diagrams](tab-synchronization-flow.md) and [handoff](day27-handoff.md). User reports the observed failures resolved and browser login/flow working; no assistant execution. The original roughly 30-working-day estimate is not a promise to implement every candidate below.
+Day 27 delivers persistent browser sessions, CSRF-protected HTTP, session-authenticated WebSockets, startup recovery and cross-tab hints. See [review](day27-sessions-review.md), [authentication](session-authentication-flow.md), [tab diagrams](tab-synchronization-flow.md) and handoff. User reports the observed failures resolved and browser login/flow working; no assistant execution. The original roughly 30-working-day estimate is not a promise to implement every candidate below.
 
 ## Current scope
 
@@ -900,7 +900,7 @@ User implements coherent inline increments. Preserve conventional feature layers
 
 Reviewed on 4 November 2026 against actual user chess-web-app-day27-end(1).zip. Persistent Spring Session JDBC replaces JWTs; V14 framework tables, explicit cookie serializer, SPA CSRF, logout, session-authenticated sockets, Angular restoration and revision-guarded cross-tab synchronization are implemented. Raw path comparison is 15 added/5 removed/56 changed, including BoardTestRenderer relocation. User reports the previously reported failures resolved and browser login/flow working; no assistant application execution or separately established comprehensive frontend/restart acceptance.
 
-Four new Java suites contain 18 ordinary methods; current socket suite has 13 source cases. Frontend has six auth-flow plus three mocked coordinator cases. Fixes present include actual cookie-CSRF fixtures, missing write fixtures, explicit CHESS_SESSION naming, true-then-false outbound mocking and exact readiness-probe registry for same-Player sockets. Shared test timeout scanning is false; production remains enabled. See [review](day27-sessions-review.md), [authentication diagrams](session-authentication-flow.md), [tab diagrams](tab-synchronization-flow.md) and [handoff](day27-handoff.md).
+Four new Java suites contain 18 ordinary methods; current socket suite has 13 source cases. Frontend has six auth-flow plus three mocked coordinator cases. Fixes present include actual cookie-CSRF fixtures, missing write fixtures, explicit CHESS_SESSION naming, true-then-false outbound mocking and exact readiness-probe registry for same-Player sockets. Shared test timeout scanning is false; production remains enabled. See [review](day27-sessions-review.md), [authentication diagrams](session-authentication-flow.md), [tab diagrams](tab-synchronization-flow.md) and handoff.
 
 The intermittent game-action click observation is deferred without an established cause or fix. No OIDC, refresh tokens, all-device logout, new game policy or replay polish is added.
 
@@ -908,7 +908,7 @@ The intermittent game-action click observation is deferred without an establishe
 
 Source-reviewed on 3 November 2026 against actual user chess-web-app-day26-end.zip. Twenty-one added files, twenty-two changed, none removed. Implemented V12/V13 clock persistence/constraints, pure arithmetic, 10m/no-increment creation, expiry command guards, transactional timeout completion, bounded fixed-delay scanning, calculatedAt clock responses and separate Angular countdowns/pseudocode. Old games remain untimed; timeout always awards opponent win under the current simplified policy.
 
-Seven new test classes contain 33 methods/39 cases; existing suites add nine methods/cases. Coverage includes both-color timeout, duplicate skip, rollback/retry, candidate recheck, controlled move-versus-timeout contention, HTTP clocks and SQL upgrades. User reports green after corrections; later increments follow standing agreement. No assistant application execution. No dedicated scheduled-trigger/restart/timeout-socket or new frontend tests. Shared test profile scanner is still enabled; recommended false remains unapplied. See [review](day26-clocks-review.md), [flow](game-clocks-flow.md) and [handoff](day26-handoff.md).
+Seven new test classes contain 33 methods/39 cases; existing suites add nine methods/cases. Coverage includes both-color timeout, duplicate skip, rollback/retry, candidate recheck, controlled move-versus-timeout contention, HTTP clocks and SQL upgrades. User reports green after corrections; later increments follow standing agreement. No assistant application execution. No dedicated scheduled-trigger/restart/timeout-socket or new frontend tests. Shared test profile scanner is still enabled; recommended false remains unapplied. See [review](day26-clocks-review.md), [flow](game-clocks-flow.md) and handoff.
 
 ## Previous checkpoint — Day 25
 
@@ -918,7 +918,7 @@ Delivered: V11 statistics and game processing/exclusion markers; registration in
 
 Four new test classes contain twenty-three methods/thirty-five cases; the migration suite adds one V10-to-V11 fixture. Coverage includes terminal and lifecycle outcomes, duplicates, rating failure and outer rollback, nonterminal actions, HTTP authentication/identity and SQL exclusion policy. Existing fixture cleanup was updated for dependencies. User reports tests green after corrections; later work follows the standing agreement. No assistant application execution or manual UI acceptance is claimed.
 
-Session continuity, async/ledger/leaderboard/rating-aware pairing and the existing PGN UI/promotion/replay deferrals remain outside scope. See [Day 25 review](day25-ratings-statistics-review.md), [statistics flow](player-statistics-flow.md) and [handoff](day25-handoff.md).
+Session continuity, async/ledger/leaderboard/rating-aware pairing and the existing PGN UI/promotion/replay deferrals remain outside scope. See [Day 25 review](day25-ratings-statistics-review.md), [statistics flow](player-statistics-flow.md) and handoff.
 
 ## Previous checkpoint — Day 24
 
@@ -930,7 +930,7 @@ The Angular PGN download UI is intentionally deferred; the proposed client metho
 
 PgnFormatterTest has eight test methods and ten invocations including three result cases. GameReadIntegrationTest adds six methods/seven invocations for both participants, authentication, missing game, authorization before legacy availability, persisted move plus resignation result and old null SAN. These rollback-managed HTTP fixtures do not require commit assertions. There is no new export concurrency fixture or frontend coordinator/replay suite.
 
-User reports the increments working; tests are treated as green under the standing agreement unless failures are reported. User did not verify route-switch replay reset. The assistant ran no tests/builds/migrations/browser checks. No blocking issue was found in inspected changes. See [Day 24 review](day24-replay-pgn-review.md), [flow](replay-pgn-flow.md) and [handoff](day24-handoff.md).
+User reports the increments working; tests are treated as green under the standing agreement unless failures are reported. User did not verify route-switch replay reset. The assistant ran no tests/builds/migrations/browser checks. No blocking issue was found in inspected changes. See [Day 24 review](day24-replay-pgn-review.md), [flow](replay-pgn-flow.md) and handoff.
 
 ## Previous checkpoint — Day 23
 
@@ -940,7 +940,7 @@ Delivered: property binding/startup rejection and boundaries; nine real socket c
 
 Socket fixes present: SimpleMessageConverter preserves raw bytes across content types; text(null) handles bodyless ERROR frames. The converter change alone did not resolve the reported failures; null handling resolved the seven rejection failures. No production security relaxation was needed.
 
-See [Day 23 review](day23-reliability-review.md), [reliability testing guide](backend-reliability-testing.md) and [next-session handoff](day23-handoff.md). Older checkpoint sections below retain their historical evidence; their missing-coverage statements are superseded by this checkpoint where applicable.
+See [Day 23 review](day23-reliability-review.md), [reliability testing guide](backend-reliability-testing.md) and next-session handoff. Older checkpoint sections below retain their historical evidence; their missing-coverage statements are superseded by this checkpoint where applicable.
 
 
 ## Previous checkpoint — Day 22 (historical review evidence)
@@ -1048,11 +1048,11 @@ Suggested manual scenarios are in the [Day 20 review](day20-realtime-review.md).
 
 ## Current limits and working agreement
 
-One queue and one in-process message broker; notifications are not durable. Move history is separately persisted from Day 21. HTTP commands remain authoritative and are not replayed. Authentication sessions persist in PostgreSQL; each tab keeps its profile cache in memory. Disconnect/logout does not release reservations or determine a game outcome. Auto-navigation is not implemented by design. Additional game/rating policies remain in the [roadmap](roadmap.md).
+One queue and one in-process message broker; notifications are not durable. Move history is separately persisted from Day 21. HTTP commands remain authoritative and are not replayed. Authentication sessions persist in PostgreSQL; each tab keeps its profile cache in memory. Disconnect/logout does not release reservations or determine a game outcome. Auto-navigation is not implemented by design. Additional game/rating policies remain in the [roadmap](../roadmap.md).
 
 Continue with inline, explainable increments. The user implements production changes. Do not silently apply generated implementation archives. Documentation replacement packages are welcome. Keep feature service boundaries, pure Java rules, Player naming, useful comments, minimal frontend tests and separate component HTML/CSS. Preserve user-managed configuration. Treat tests as green unless failures are reported; do not execute tests/builds without an explicit request.
 
-Historical checkpoint evidence is preserved in [the archive](history/main-documents-through-day19.md) and the existing Day documents.
+Historical checkpoint evidence is preserved in the archive and the existing Day documents.
 
 ## Scope retained from Day 22
 
@@ -1183,7 +1183,7 @@ Checkmate/stalemate release reservations in the backend transaction. Both Player
 
 Game coordination is in frontend/src/app/game/pages/game/game.ts; board display in game/components/chess-board; transport in game/services/game-api.service.ts. Notification connection/config/models live under frontend/src/app/notification. Home’s current queue signal is queueStatusResponse and both pages expose realtimeService to their templates.
 
-See [real-time delivery and security](realtime-updates-flow.md), [contracts](api-contracts.md), [review](day21-history-review.md), [Angular signals](https://angular.dev/guide/signals) and [StompJS lifecycle](https://stomp-js.github.io/guide/stompjs/using-stompjs-v5.html).
+See [real-time delivery and security](../realtime-updates-flow.md), [contracts](../api-contracts.md), [review](day21-history-review.md), [Angular signals](https://angular.dev/guide/signals) and [StompJS lifecycle](https://stomp-js.github.io/guide/stompjs/using-stompjs-v5.html).
 
 ## Day 21 history extension
 
