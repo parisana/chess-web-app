@@ -39,7 +39,11 @@
     "ws:stability:20": "npm run typecheck && GAMES=20 node run-k6.mjs --report results/ws-stability-20.json websocket-stability.ts",
     "ws:stability:100": "npm run typecheck && GAMES=100 node run-k6.mjs --report results/ws-stability-100.json websocket-stability.ts",
     "ws:stability:200": "npm run typecheck && GAMES=200 node run-k6.mjs --report results/ws-stability-200.json websocket-stability.ts",
-    "ws:stability:500": "npm run typecheck && GAMES=500 node run-k6.mjs --report results/ws-stability-500.json websocket-stability.ts"
+    "ws:stability:500": "npm run typecheck && GAMES=500 node run-k6.mjs --report results/ws-stability-500.json websocket-stability.ts",
+    "ws:stability:20:snapshot-plus-get": "npm run typecheck && GAMES=20 WS_READ_AFTER_NOTIFICATION=1 node run-k6.mjs --report results/ws-stability-20-snapshot-plus-get.json websocket-stability.ts",
+    "ws:stability:20:snapshot": "npm run typecheck && GAMES=20 WS_READ_AFTER_NOTIFICATION=0 node run-k6.mjs --report results/ws-stability-20-snapshot.json websocket-stability.ts",
+    "ws:stability:250:snapshot": "npm run typecheck && GAMES=250 WS_READ_AFTER_NOTIFICATION=0 node run-k6.mjs --report results/ws-stability-250-snapshot.json websocket-stability.ts",
+    "ws:stability:500:snapshot": "npm run typecheck && GAMES=500 WS_READ_AFTER_NOTIFICATION=0 node run-k6.mjs --report results/ws-stability-500-snapshot.json websocket-stability.ts"
   },
   "devDependencies": {
     "@types/k6": "^2.3.1",

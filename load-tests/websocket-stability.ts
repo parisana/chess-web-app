@@ -25,6 +25,7 @@ const heldDuration = new Trend('ws_stability_hold_duration', true);
 
 const connections = new Counter('ws_stomp_connected');
 const notifications = new Counter('ws_expected_notifications');
+const readAfterNotification = __ENV.WS_READ_AFTER_NOTIFICATION === '1';
 const duplicates = new Counter('ws_duplicate_notifications');
 const unexpected = new Counter('ws_unexpected_notifications');
 const socketErrors = new Counter('ws_connection_errors');
@@ -103,17 +104,18 @@ function frame(command: string, headers: Record<string, string>): string {
   return `${command}\n${Object.entries(headers).map(([key, value]) => `${key}:${value}`).join('\n')}\n\n\x00`;
 }
 
-interface Update {
+interface PlayerUpdate {
   type: string;
   gameId: number;
   version: number;
+  snapshot?: GameState;
 }
 
 interface Pending {
   version: number;
   startedAt: number;
   timer: ReturnType<typeof setTimeout>;
-  resolve: (received: boolean) => void;
+  resolve: (update: PlayerUpdate | null) => void;
 }
 
 class PlayerSocket {
@@ -185,7 +187,7 @@ class PlayerSocket {
     return this.idleHeartbeats > 0;
   }
 
-  expect(version: number, startedAt: number): Promise<boolean> {
+  expect(version: number, startedAt: number): Promise<PlayerUpdate | null> {
     if (!this.healthy() || this.pending !== undefined) {
       console.warn(
         `[ws expectation rejected] vu=${execution.vu.idInTest} ` +
@@ -193,7 +195,7 @@ class PlayerSocket {
         `healthy=${this.healthy()} alreadyPending=${this.pending !== undefined}`,
       );
       deliveryFailures.add(true);
-      return Promise.resolve(false);
+      return Promise.resolve(null);
     }
 
     // Arm before issuing HTTP because the notification can arrive first.
@@ -204,7 +206,7 @@ class PlayerSocket {
           `gameId=${this.gameId} version=${version} playerId=${this.session.id} ` +
           `elapsedMs=${Date.now() - startedAt} healthy=${this.healthy()}`,
         );
-        this.finishPending(false);
+        this.finishPending(null);
       }, deliveryTimeoutMs);
 
       this.pending = { version, startedAt, timer, resolve };
@@ -218,7 +220,7 @@ class PlayerSocket {
     if (this.heartbeat !== undefined) clearInterval(this.heartbeat);
     if (this.watchdog !== undefined) clearInterval(this.watchdog);
     this.finishReady(false);
-    this.finishPending(false);
+    this.finishPending(null);
     if (this.socket.readyState === 1) {
       this.socket.send('DISCONNECT\n\n\x00');
     }
@@ -232,17 +234,20 @@ class PlayerSocket {
     this.resolveReady(ready);
   }
 
-  private finishPending(received: boolean): void {
+  private finishPending(update: PlayerUpdate | null): void {
     const pending = this.pending;
     if (pending === undefined) return;
+
     this.pending = undefined;
     clearTimeout(pending.timer);
-    deliveryFailures.add(!received);
-    if (received) {
+    deliveryFailures.add(update === null);
+
+    if (update !== null) {
       notifications.add(1);
       deliveryDuration.add(Date.now() - pending.startedAt);
     }
-    pending.resolve(received);
+
+    pending.resolve(update);
   }
 
   private breakConnection(): void {
@@ -253,7 +258,7 @@ class PlayerSocket {
     if (this.watchdog !== undefined) clearInterval(this.watchdog);
     if (this.settleTimer !== undefined) clearTimeout(this.settleTimer);
     this.finishReady(false);
-    this.finishPending(false);
+    this.finishPending(null);
     if (this.socket.readyState < 2) this.socket.close();
   }
 
@@ -292,7 +297,7 @@ class PlayerSocket {
         this.settleTimer = setTimeout(() => this.finishReady(this.healthy()), settleMs);
       } else if (command === 'MESSAGE') {
         if (!lines.includes('subscription:updates')) throw new Error('Wrong subscription');
-        this.receive(JSON.parse(raw.slice(split + 2)) as Update);
+        this.receive(JSON.parse(raw.slice(split + 2)) as PlayerUpdate);
       } else {
         // ERROR and any unsupported frame fail this socket; never reconnect silently.
         throw new Error('Unexpected STOMP command');
@@ -311,7 +316,7 @@ class PlayerSocket {
     this.buffer = this.buffer.slice(leading[0].length);
   }
 
-  private receive(update: Update): void {
+  private receive(update: PlayerUpdate): void {
     if (!update || update.gameId !== this.gameId || update.type !== 'GAME_UPDATED' ||
       !Number.isSafeInteger(update.version) || update.version < 0) {
       unexpected.add(1);
@@ -328,7 +333,7 @@ class PlayerSocket {
       this.breakConnection();
       return;
     }
-    this.finishPending(true);
+    this.finishPending(update);
   }
 }
 
@@ -406,9 +411,39 @@ export default async function (fixture: Fixture): Promise<void> {
         accepted.status === (resigning ? 'FINISHED' : 'IN_PROGRESS'), 'Command advances the expected game version');
       requireThat((await Promise.all(deliveries)).every(Boolean), 'Both Players receive this game/version notification');
 
-      const read = await request(observer, 'GET', `/games/${game.id}`, null, 'GET /games/:id after notification');
-      expectStatus(read, 200, 'Notification-triggered game read');
-      const view = readJson<GameState>(read, 'WS reconciled game');
+      const updates = await Promise.all(deliveries);
+
+      for (const update of updates) {
+        const snapshot = update?.snapshot;
+        requireThat(
+          snapshot != null &&
+          snapshot.id === game.id &&
+          snapshot.version === expectedVersion &&
+          snapshot.currentFen === accepted.currentFen &&
+          snapshot.status === accepted.status &&
+          (!resigning ||
+            (snapshot.result === 'BLACK_WIN' &&
+              snapshot.terminationReason === 'RESIGNATION')),
+          'Each Player receives the committed game snapshot',
+        );
+      }
+
+      const observerIndex = actor === white ? 1 : 0;
+      const observerSnapshot = updates[observerIndex]?.snapshot;
+      if (observerSnapshot == null) {
+        throw new Error('Observer snapshot missing');
+      }
+
+      let view = observerSnapshot;
+
+      if (readAfterNotification) {
+        const read = await request(
+          observer, 'GET', `/games/${game.id}`, null,
+          'GET /games/:id after notification',
+        );
+        expectStatus(read, 200, 'Notification-triggered game read');
+        view = readJson<GameState>(read, 'WS reconciled game');
+      }
       requireThat(view.id === game.id && view.version === expectedVersion &&
         view.currentFen === accepted.currentFen && view.status === accepted.status,
         'Opponent reconciles authoritative state after notification');
