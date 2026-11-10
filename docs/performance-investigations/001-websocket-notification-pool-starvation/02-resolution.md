@@ -2,9 +2,9 @@
 
 [Issue overview](README.md) | [Original problem](01-problem-and-evidence.md) | [Board recovery](03-board-synchronization.md)
 
-## Correction supplied
+## Applied correction
 
-Retain the AFTER_COMMIT listener, but make it submit an immutable GameChangedEvent
+The AFTER_COMMIT listener submits an immutable GameChangedEvent
 to a dedicated bounded ThreadPoolTaskExecutor. Actual convertAndSendToUser calls
 run on those workers, without the request thread's transaction-bound resources.
 The request callback never waits for worker completion. Workers may begin before
@@ -20,9 +20,9 @@ change to synchronous ratings/statistics transactions is involved.
 AbortPolicy is deliberate. CallerRunsPolicy could put delivery back on the request
 thread when saturated and recreate the original problem. Rejected submissions
 are logged and remain best effort; the existing HTTP reconciliation path recovers
-a current state hint. No mutation is retried. Recipient delivery failures remain
-isolated, so the other participant is still attempted. The existing outbound
-session checks at enqueue and execution remain unchanged and fail closed.
+current game state. No mutation is retried. Recipient delivery failures remain
+isolated, so the other participant is still attempted. The outbound worker checks session access before delivery. preSend stamps the
+message to measure outbound queue wait.
 
 Only the immutable event record crosses threads. There is no EntityManager,
 managed Game entity or request SecurityContext propagated to the worker. Delivery
@@ -58,7 +58,7 @@ sequenceDiagram
         W->>P: Borrow connection for session check
         P-->>W: Connection available when capacity permits
         W->>P: Finish session read and release connection
-        W-->>C: Best-effort WebSocket hint
+        W-->>C: Best-effort WebSocket snapshot
     end
 ```
 
@@ -74,23 +74,10 @@ cost, outbound-worker queuing or later network failures.
 
 ## Files and configuration
 
-Copy the three production Java files and two test files into the corresponding
-paths. GameNotificationListener.java is a replacement; the others are additions.
-Merge delivery-settings.yaml into the EXISTING app mapping in application.yaml:
-
-```yaml
-app:
-  notification:
-    delivery:
-      workers: 2
-      queue-capacity: 256
-```
-
-Do not create a duplicate app key. Include these required settings in any isolated
-configuration that does not inherit the base application.yaml. Missing/nonpositive
-worker or queue counts fail startup. Keep the existing socket routing/auth, pool
-size 10 and user-applied WebSocket TypeScript fixes. No @EnableAsync is necessary:
-submission is explicit through the qualified Executor.
+The inspected base configuration sets `app.notification.delivery.workers` to
+4 and `app.notification.delivery.queue-capacity` to 256. The earlier proposal
+started at 2 workers. Each queued task attempts delivery to both participants.
+The named executor is submitted to explicitly by the listener.
 
 ## Remaining tradeoffs
 

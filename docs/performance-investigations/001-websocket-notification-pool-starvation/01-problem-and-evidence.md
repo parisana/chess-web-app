@@ -99,8 +99,9 @@ sequenceDiagram
 
 The clientOutboundChannel name does not mean every operation on it is already
 asynchronous. Its preSend interceptor executes synchronously on the sending
-thread in the supplied stacks. The separate beforeHandle check protects delivery
-again on the outbound worker. Both remain security requirements.
+thread in the supplied stacks. The historical implementation also checked access in beforeHandle. In the
+current implementation, preSend records a timestamp and beforeHandle checks
+access on the outbound worker.
 
 ## Why a longer timeout is not the correction
 

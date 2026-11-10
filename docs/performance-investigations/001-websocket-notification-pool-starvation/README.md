@@ -3,9 +3,10 @@
 This investigation connects a load-test failure to its transaction/thread cause,
 the supplied correction and the existing browser recovery behavior.
 
-Status on 7 November 2026: original failure captured and inspected; bounded
-notification-executor correction supplied; application and post-correction
-verification not yet reported. No assistant tests/builds/application execution.
+The original failure was captured on 7 November 2026. The current implementation
+hands off delivery to a bounded executor and checks outbound session access on the
+outbound worker. See [verification](04-verification-and-follow-up.md) for the
+later local load runs and browser reconnect check.
 
 | Read in order | Purpose |
 | --- | --- |
@@ -20,6 +21,4 @@ new sibling issue only for another independently diagnosed problem. Keep later
 corrections to this problem in this issue's record with dates and evidence.
 
 This folder is the canonical explanatory record and supersedes the former flat
-docs/day29-websocket-pool-starvation.md explanation. The focused Java correction
-remains in the separately supplied day29-notification-executor.zip; this package
-changes documentation only.
+docs/day29-websocket-pool-starvation.md explanation.
